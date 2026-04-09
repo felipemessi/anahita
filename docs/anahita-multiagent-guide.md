@@ -219,6 +219,16 @@ Quando atingir o limite diário ou precisar parar:
 
 Se a worktree tem commits ou mudanças, o Claude pergunta se quer manter. **Diga que sim** — isso preserva o diretório e o branch.
 
+#### Checklist de controle para retomar
+
+- [ ] Anotar o `session-id` exibido pelo Claude
+- [ ] Usar `--name` descritivo sempre que possível
+- [ ] Confirmar o branch atual da worktree (`git branch`)
+- [ ] Confirmar que as mudanças estão commitadas ou salvas localmente
+- [ ] Confirmar que a worktree ainda existe em `.claude/worktrees/` ou em um diretório manual
+- [ ] Se estiver usando worktrees manuais, anotar o caminho do diretório e o nome do branch
+- [ ] Anotar qualquer instrução de prompt ou contexto relevante da feature em andamento
+
 ### 3.2 Retomando uma Sessão
 
 ```bash
