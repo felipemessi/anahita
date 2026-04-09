@@ -23,7 +23,9 @@ def validate_multiclass(
         if req:
             for ab, score in req.items():
                 if ability_scores.get(ab, 0) < score:
-                    errors.append(f"Requires {score} {ab.value.upper()} to multiclass out of {c}.")
+                    errors.append(
+                        f"Requires {score} {ab.value.upper()} to multiclass out of {c}."
+                    )
 
     new_req = requirements.get(new_class)
     if new_req:

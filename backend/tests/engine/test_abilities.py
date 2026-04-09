@@ -1,9 +1,12 @@
-from engine.abilities import calculate_modifier, calculate_proficiency_bonus, calculate_skill_bonus
+from engine.abilities import (
+    calculate_modifier,
+    calculate_proficiency_bonus,
+    calculate_skill_bonus,
+)
 
 
 def test_calculate_modifier() -> None:
-    """
-    Ensure the ability modifier computes using `math.floor((score - BASE) / 2)`.
+    """Ensure the ability modifier computes using `math.floor((score - BASE) / 2)`.
     Tests typical positive and negative numbers.
     """
     assert calculate_modifier(10) == 0
@@ -16,8 +19,7 @@ def test_calculate_modifier() -> None:
 
 
 def test_calculate_proficiency_bonus() -> None:
-    """
-    Ensure the proficiency bonus matches the level breakpoints
+    """Ensure the proficiency bonus matches the level breakpoints
     specified in standard D&D 5e rules.
     """
     assert calculate_proficiency_bonus(1) == 2
@@ -30,8 +32,7 @@ def test_calculate_proficiency_bonus() -> None:
 
 
 def test_calculate_skill_bonus() -> None:
-    """
-    Ensure the skill bonus stacks correctly with proficiency
+    """Ensure the skill bonus stacks correctly with proficiency
     and expertise indicators.
     """
     # Str=16 (mod +3), Level=5 (prof +3)

@@ -16,7 +16,9 @@ def calculate_ac(
         elif armor.armor_type == "medium":
             base_ac += min(
                 dex_mod,
-                armor.dex_bonus_cap if armor.dex_bonus_cap is not None else DEFAULT_DEX_BONUS_CAP,
+                armor.dex_bonus_cap
+                if armor.dex_bonus_cap is not None
+                else DEFAULT_DEX_BONUS_CAP,
             )
         elif armor.armor_type == "heavy":
             # Heavy armor doesn't use dexterity modifier

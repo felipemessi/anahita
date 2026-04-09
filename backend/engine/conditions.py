@@ -13,7 +13,9 @@ def get_condition_effects(conditions: list[Condition]) -> list[MechanicalEffect]
 
         elif cond.condition_type == ConditionType.CHARMED:
             effects.append(MechanicalEffect("cannot_attack", target="charmer"))
-            effects.append(MechanicalEffect("charmer_advantage", target="ability_checks_social"))
+            effects.append(
+                MechanicalEffect("charmer_advantage", target="ability_checks_social")
+            )
 
         elif cond.condition_type == ConditionType.RESTRAINED:
             effects.append(MechanicalEffect("speed_set", value=0))
@@ -23,12 +25,18 @@ def get_condition_effects(conditions: list[Condition]) -> list[MechanicalEffect]
 
         elif cond.condition_type == ConditionType.PRONE:
             effects.append(MechanicalEffect("attack_disadvantage", target="melee"))
-            effects.append(MechanicalEffect("attacks_against_advantage", target="melee_5ft"))
-            effects.append(MechanicalEffect("attacks_against_disadvantage", target="ranged"))
+            effects.append(
+                MechanicalEffect("attacks_against_advantage", target="melee_5ft")
+            )
+            effects.append(
+                MechanicalEffect("attacks_against_disadvantage", target="ranged")
+            )
 
         elif cond.condition_type == ConditionType.EXHAUSTION:
             if cond.level >= 1:
-                effects.append(MechanicalEffect("ability_check_disadvantage", target="all"))
+                effects.append(
+                    MechanicalEffect("ability_check_disadvantage", target="all")
+                )
             if cond.level >= 2:
                 effects.append(MechanicalEffect("speed_halved", target="all"))
             if cond.level >= 3:
