@@ -16,7 +16,8 @@ PRDs completos em `docs/anahita-backend-prd.md` e `docs/anahita-frontend-prd.md`
 - Branch naming: `feature/<domain>-<description>`, `fix/<description>`, `chore/<description>`
 - Base para novas features: branch `release` (sempre atualizada)
 - Commits: conventional commits (feat:, fix:, test:, chore:, docs:, refactor:)
-- Cada feature deve ter PR pronto para revisão
+- Cada feature deve ter PR pronto para revisão para a branch `release`
+- Lançamentos oficiais (PR de `release` > `main`): A versão deve ser demarcada com tags seguindo versionamento semântico (ex: `2026.0.0.1`).
 
 ### Código
 - Backend: Python type hints em tudo. Pydantic para validação. Async by default. Uso de `ruff` e `mypy` obrigatório.

@@ -297,6 +297,19 @@ gh pr create --base release --title "feat: auth domain" --body "Implementa auten
 
 Ou abra manualmente no GitHub/GitLab.
 
+### 4.3 Lançamentos Oficiais (`release` > `main`)
+
+Todas as branches de release agrupam features testadas. Quando for estabilizar uma versão nova para produção:
+1. Abra um PR da branch `release` para a `main`.
+2. Após o merge ser aprovado e aplicado, deve-se extrair e aplicar uma **tag semântica** que descreve o avanço no formato temporal/semântico, como `2026.0.0.1`.
+
+```bash
+git checkout main
+git pull
+git tag 2026.0.0.1
+git push origin 2026.0.0.1
+```
+
 ### 4.3 Após o Merge
 
 ```bash
