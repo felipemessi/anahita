@@ -48,7 +48,7 @@ PRDs completos em `docs/anahita-backend-prd.md` e `docs/anahita-frontend-prd.md`
 - Backend: Python 3.14+, FastAPI, SQLAlchemy async, Alembic, Postgres
 - Ferramentas Python: Gerenciamento com `uv`, tarefas com `taskipy` (uv tool), lint e formatação com `ruff` e checagem estática de tipos com `mypy`
 - Frontend: Next.js (App Router), TypeScript strict, shadcn/ui, TanStack Query
-- Infra: Docker Compose (Nginx + Frontend + Backend + Postgres 17)
+- Infra: Docker Compose (Nginx + Frontend + Backend + Postgres 18)
 
 ## Regras de Desenvolvimento
 
@@ -357,7 +357,7 @@ O Postgres roda no Docker Compose. Para que o Claude Code (rodando no WSL host) 
 # compose.yaml (parcial)
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     ports:
       - "5432:5432"    # expõe para o host/WSL
     environment:

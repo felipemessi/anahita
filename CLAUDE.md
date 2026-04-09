@@ -8,7 +8,7 @@ PRDs completos em `docs/anahita-backend-prd.md` e `docs/anahita-frontend-prd.md`
 - Backend: Python 3.14+, FastAPI, SQLAlchemy async, Alembic, Postgres
 - Ferramentas Python: Gerenciamento com `uv`, tarefas com `taskipy` (uv tool), lint e formatação com `ruff`, análise estática com `mypy`
 - Frontend: Next.js (App Router), TypeScript strict, shadcn/ui, TanStack Query
-- Infra: Docker Compose (Nginx + Frontend + Backend + Postgres 17)
+- Infra: Docker Compose (Nginx + Frontend + Backend + Postgres 18)
 
 ## Regras de Desenvolvimento
 

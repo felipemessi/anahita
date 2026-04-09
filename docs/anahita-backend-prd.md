@@ -905,7 +905,7 @@ Apenas `role=dm` pode enviar comandos. Jogadores são read-only. Validação no 
 | nginx     | nginx:alpine                  | Reverse proxy, SSL (Let's Encrypt), static   |
 | frontend  | Node.js (standalone output)   | `next build` + `next start`                  |
 | backend   | Python (uvicorn)              | FastAPI                                       |
-| postgres  | postgres:17-alpine            | Volume persistido                             |
+| postgres  | postgres:18-alpine            | Volume persistido                             |
 
 ### 11.3 Volumes
 

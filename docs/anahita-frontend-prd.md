@@ -482,7 +482,7 @@ services:
       - postgres
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=pass
