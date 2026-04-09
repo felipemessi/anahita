@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+
 class Ability(StrEnum):
     STR = "str"
     DEX = "dex"
@@ -8,6 +9,7 @@ class Ability(StrEnum):
     INT = "int"
     WIS = "wis"
     CHA = "cha"
+
 
 class ConditionType(StrEnum):
     BLINDED = "blinded"
@@ -26,16 +28,19 @@ class ConditionType(StrEnum):
     STUNNED = "stunned"
     UNCONSCIOUS = "unconscious"
 
+
 @dataclass
 class MechanicalEffect:
     effect_type: str
     value: int | str | None = None
     target: str | None = None
 
+
 @dataclass
 class Condition:
     condition_type: ConditionType
     level: int = 1
+
 
 @dataclass
 class ArmorData:
@@ -44,6 +49,7 @@ class ArmorData:
     dex_bonus_cap: int | None = None
     strength_requirement: int | None = None
     stealth_disadvantage: bool = False
+
 
 @dataclass
 class CharacterContext:

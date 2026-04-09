@@ -1,4 +1,3 @@
-
 from .types import Condition, ConditionType, MechanicalEffect
 
 

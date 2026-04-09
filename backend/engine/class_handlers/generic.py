@@ -1,4 +1,3 @@
-
 from ..types import CharacterContext
 from .base import ClassHandler
 
@@ -7,6 +6,7 @@ class GenericClassHandler(ClassHandler):
     """
     A generic handler that parses mechanical effects defined as strings in the database.
     """
+
     def __init__(self, effects_vocabulary: list[str]):
         self.effects = effects_vocabulary
 

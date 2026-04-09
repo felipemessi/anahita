@@ -2,10 +2,12 @@ from dataclasses import dataclass
 
 from .types import Ability
 
+
 @dataclass
 class ValidationResult:
     is_valid: bool
     errors: list[str]
+
 
 def validate_multiclass(
     current_classes: list[str],
@@ -27,6 +29,8 @@ def validate_multiclass(
     if new_req:
         for ab, score in new_req.items():
             if ability_scores.get(ab, 0) < score:
-                errors.append(f"Requires {score} {ab.value.upper()} to multiclass into {new_class}.")
+                errors.append(
+                    f"Requires {score} {ab.value.upper()} to multiclass into {new_class}."
+                )
 
     return ValidationResult(is_valid=len(errors) == 0, errors=errors)
