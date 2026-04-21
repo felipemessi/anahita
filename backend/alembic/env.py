@@ -22,10 +22,10 @@ if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 
 # Import all domain models here so autogenerate detects them.
-# As each domain is implemented, add its models import below:
-#   from app.auth.models import *  # noqa: F401, F403
 from app.database import Base  # noqa: E402
+from app.auth import models as _auth_models # noqa: F401, E402
 from app.catalog import models as _catalog_models  # noqa: F401
+
 
 target_metadata = Base.metadata
 
