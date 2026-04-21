@@ -29,7 +29,7 @@ Anahita é uma plataforma multi-mesa para gerenciamento de campanhas de D&D 5e. 
 
 | Camada        | Tecnologia                              |
 |---------------|----------------------------------------|
-| Framework     | Python + FastAPI                       |
+| Framework     | Python 3.14+ + FastAPI                       |
 | ORM           | SQLAlchemy (async)                     |
 | Migrations    | Alembic                               |
 | Banco         | PostgreSQL (self-hosted, Docker)       |
@@ -37,6 +37,7 @@ Anahita é uma plataforma multi-mesa para gerenciamento de campanhas de D&D 5e. 
 | Real-time     | WebSockets nativos (FastAPI/Starlette) |
 | Auth          | Própria, strategy pattern extensível   |
 | File Storage  | Local (filesystem), extensível p/ S3   |
+| Ferramentas   | uv (gerenciamento), taskipy, ruff, mypy |
 | Infra         | Docker Compose                         |
 
 ### 2.1 Decisões Técnicas Fundamentais
@@ -812,7 +813,7 @@ anahita/
 │   └── Dockerfile
 ├── frontend/
 │   └── ...                           # Detalhado no PRD Frontend
-├── docker-compose.yml
+├── compose.yaml
 └── README.md
 ```
 
@@ -904,7 +905,7 @@ Apenas `role=dm` pode enviar comandos. Jogadores são read-only. Validação no 
 | nginx     | nginx:alpine                  | Reverse proxy, SSL (Let's Encrypt), static   |
 | frontend  | Node.js (standalone output)   | `next build` + `next start`                  |
 | backend   | Python (uvicorn)              | FastAPI                                       |
-| postgres  | postgres:16-alpine            | Volume persistido                             |
+| postgres  | postgres:18-alpine            | Volume persistido                             |
 
 ### 11.3 Volumes
 

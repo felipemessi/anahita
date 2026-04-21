@@ -5,9 +5,10 @@ Anahita é uma plataforma multi-mesa para gerenciamento de campanhas de D&D 5e.
 PRDs completos em `docs/anahita-backend-prd.md` e `docs/anahita-frontend-prd.md`.
 
 ## Stack
-- Backend: Python 3.12+, FastAPI, SQLAlchemy async, Alembic, Postgres
+- Backend: Python 3.14+, FastAPI, SQLAlchemy async, Alembic, Postgres
+- Ferramentas Python: Gerenciamento com `uv`, tarefas com `taskipy` (uv tool), lint e formatação com `ruff`, análise estática com `mypy`
 - Frontend: Next.js (App Router), TypeScript strict, shadcn/ui, TanStack Query
-- Infra: Docker Compose (Nginx + Frontend + Backend + Postgres)
+- Infra: Docker Compose (Nginx + Frontend + Backend + Postgres 18)
 
 ## Regras de Desenvolvimento
 
@@ -15,10 +16,11 @@ PRDs completos em `docs/anahita-backend-prd.md` e `docs/anahita-frontend-prd.md`
 - Branch naming: `feature/<domain>-<description>`, `fix/<description>`, `chore/<description>`
 - Base para novas features: branch `release` (sempre atualizada)
 - Commits: conventional commits (feat:, fix:, test:, chore:, docs:, refactor:)
-- Cada feature deve ter PR pronto para revisão
+- Cada feature deve ter PR pronto para revisão para a branch `release`
+- Lançamentos oficiais (PR de `release` > `main`): A versão deve ser demarcada com tags seguindo versionamento semântico (ex: `2026.0.0.1`).
 
 ### Código
-- Backend: Python type hints em tudo. Pydantic para validação. Async by default.
+- Backend: Python type hints em tudo. Pydantic para validação. Async by default. Uso de `ruff` e `mypy` obrigatório.
 - Frontend: TypeScript strict. Sem `any`. Sem `as` desnecessário.
 - Testes obrigatórios para toda feature antes do commit.
 - Backend testes: pytest + pytest-asyncio. SQLite para testes unitários.
@@ -37,10 +39,10 @@ WebSocket para combat tracker. shadcn/ui para componentes base.
 Os seguintes comandos podem ser executados sem pedir confirmação:
 - `git status`, `git log`, `git diff`, `git branch`, `git worktree list`
 - `ls`, `cat`, `find`, `grep`, `tree`, `wc`
-- `python -m pytest`, `npm test`, `npm run lint`, `npm run typecheck`
+- `uv run pytest`, `npm test`, `npm run lint`, `npm run typecheck`, `task <name>`
 - `alembic history`, `alembic heads`, `alembic current`
 - `docker compose ps`, `docker compose logs`
-- `pip install`, `npm install` (para dependências do projeto)
+- `uv add`, `uv sync`, `npm install` (para dependências do projeto)
 - Leitura de qualquer arquivo do projeto
 - Criação e edição de arquivos dentro do projeto
 
