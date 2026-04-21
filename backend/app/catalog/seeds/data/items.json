@@ -1,0 +1,224 @@
+[
+  {
+    "name": "Longsword",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 3.0,
+    "cost": 1500,
+    "description": "A versatile martial melee weapon with a long blade.",
+    "properties": "Versatile",
+    "weapon_detail": {
+      "damage_dice": "1d8",
+      "damage_type": "slashing",
+      "weapon_range": "Melee",
+      "weapon_properties": "Versatile (1d10)"
+    }
+  },
+  {
+    "name": "Shortsword",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 2.0,
+    "cost": 1000,
+    "description": "A light martial melee weapon with a short blade.",
+    "properties": "Finesse, Light",
+    "weapon_detail": {
+      "damage_dice": "1d6",
+      "damage_type": "piercing",
+      "weapon_range": "Melee",
+      "weapon_properties": "Finesse, Light"
+    }
+  },
+  {
+    "name": "Dagger",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 1.0,
+    "cost": 200,
+    "description": "A simple melee weapon with a short blade.",
+    "properties": "Finesse, Light, Thrown (20/60)",
+    "weapon_detail": {
+      "damage_dice": "1d4",
+      "damage_type": "piercing",
+      "weapon_range": "Melee / 20/60 ft.",
+      "weapon_properties": "Finesse, Light, Thrown (20/60)"
+    }
+  },
+  {
+    "name": "Handaxe",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 2.0,
+    "cost": 500,
+    "description": "A simple melee weapon with a small axe head.",
+    "properties": "Light, Thrown (20/60)",
+    "weapon_detail": {
+      "damage_dice": "1d6",
+      "damage_type": "slashing",
+      "weapon_range": "Melee / 20/60 ft.",
+      "weapon_properties": "Light, Thrown (20/60)"
+    }
+  },
+  {
+    "name": "Greataxe",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 7.0,
+    "cost": 3000,
+    "description": "A heavy martial melee weapon with a large axe head.",
+    "properties": "Heavy, Two-Handed",
+    "weapon_detail": {
+      "damage_dice": "1d12",
+      "damage_type": "slashing",
+      "weapon_range": "Melee",
+      "weapon_properties": "Heavy, Two-Handed"
+    }
+  },
+  {
+    "name": "Shortbow",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 2.0,
+    "cost": 2500,
+    "description": "A simple ranged weapon that fires arrows.",
+    "properties": "Ammunition (80/320), Two-Handed",
+    "weapon_detail": {
+      "damage_dice": "1d6",
+      "damage_type": "piercing",
+      "weapon_range": "80/320 ft.",
+      "weapon_properties": "Ammunition, Two-Handed"
+    }
+  },
+  {
+    "name": "Longbow",
+    "item_type": "weapon",
+    "rarity": null,
+    "weight": 2.0,
+    "cost": 5000,
+    "description": "A martial ranged weapon that fires arrows with great range.",
+    "properties": "Ammunition (150/600), Heavy, Two-Handed",
+    "weapon_detail": {
+      "damage_dice": "1d8",
+      "damage_type": "piercing",
+      "weapon_range": "150/600 ft.",
+      "weapon_properties": "Ammunition, Heavy, Two-Handed"
+    }
+  },
+  {
+    "name": "Leather Armor",
+    "item_type": "armor",
+    "rarity": null,
+    "weight": 10.0,
+    "cost": 1000,
+    "description": "The breastplate and shoulder protectors of this armor are made of leather that has been stiffened by being boiled in oil. The rest of the armor is made of softer and more flexible materials.",
+    "properties": "Light armor",
+    "armor_detail": {
+      "base_ac": 11,
+      "dex_bonus_cap": null,
+      "stealth_disadvantage": false,
+      "strength_requirement": null
+    }
+  },
+  {
+    "name": "Chain Mail",
+    "item_type": "armor",
+    "rarity": null,
+    "weight": 55.0,
+    "cost": 7500,
+    "description": "Made of interlocking metal rings, chain mail includes a layer of quilted fabric worn underneath the mail to prevent chafing and to cushion the impact of blows. The suit includes gauntlets.",
+    "properties": "Heavy armor",
+    "armor_detail": {
+      "base_ac": 16,
+      "dex_bonus_cap": 0,
+      "stealth_disadvantage": true,
+      "strength_requirement": 13
+    }
+  },
+  {
+    "name": "Shield",
+    "item_type": "armor",
+    "rarity": null,
+    "weight": 6.0,
+    "cost": 1000,
+    "description": "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2.",
+    "properties": null,
+    "armor_detail": {
+      "base_ac": 2,
+      "dex_bonus_cap": null,
+      "stealth_disadvantage": false,
+      "strength_requirement": null
+    }
+  },
+  {
+    "name": "Scale Mail",
+    "item_type": "armor",
+    "rarity": null,
+    "weight": 45.0,
+    "cost": 5000,
+    "description": "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish.",
+    "properties": "Medium armor",
+    "armor_detail": {
+      "base_ac": 14,
+      "dex_bonus_cap": 2,
+      "stealth_disadvantage": true,
+      "strength_requirement": null
+    }
+  },
+  {
+    "name": "Plate Armor",
+    "item_type": "armor",
+    "rarity": null,
+    "weight": 65.0,
+    "cost": 150000,
+    "description": "Plate consists of shaped, interlocking metal plates to cover the entire body. A suit of plate includes gauntlets, heavy leather boots, a visored helmet, and thick layers of padding underneath the armor.",
+    "properties": "Heavy armor",
+    "armor_detail": {
+      "base_ac": 18,
+      "dex_bonus_cap": 0,
+      "stealth_disadvantage": true,
+      "strength_requirement": 15
+    }
+  },
+  {
+    "name": "Healing Potion",
+    "item_type": "consumable",
+    "rarity": "common",
+    "weight": 0.5,
+    "cost": 5000,
+    "description": "A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points. Drinking or administering a potion takes an action.",
+    "properties": null
+  },
+  {
+    "name": "Rope, Hempen (50 feet)",
+    "item_type": "gear",
+    "rarity": null,
+    "weight": 10.0,
+    "cost": 100,
+    "description": "Hemp rope has 2 hit points and can be burst with a DC 17 Strength check.",
+    "properties": null
+  },
+  {
+    "name": "Backpack",
+    "item_type": "gear",
+    "rarity": null,
+    "weight": 5.0,
+    "cost": 200,
+    "description": "A backpack can hold 1 cubic foot / 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack.",
+    "properties": null
+  },
+  {
+    "name": "+1 Longsword",
+    "item_type": "magic_item",
+    "rarity": "uncommon",
+    "weight": 3.0,
+    "cost": 0,
+    "description": "You have a +1 bonus to attack and damage rolls made with this magic weapon.",
+    "properties": "Versatile, Magic",
+    "weapon_detail": {
+      "damage_dice": "1d8",
+      "damage_type": "slashing",
+      "weapon_range": "Melee",
+      "weapon_properties": "Versatile (1d10), Magic +1"
+    }
+  }
+]

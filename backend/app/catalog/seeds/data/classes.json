@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Fighter",
+    "hit_die": 10,
+    "primary_ability": "Strength or Dexterity",
+    "saving_throw_proficiencies": "Strength, Constitution",
+    "level_features": [
+      {"level": 1, "feature_name": "Fighting Style", "description": "You adopt a particular style of fighting as your specialty. Choose one of the following options. You can't take a Fighting Style option more than once, even if you later get to choose again.", "mechanical_effect": null},
+      {"level": 1, "feature_name": "Second Wind", "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level.", "mechanical_effect": "second_wind:1d10"},
+      {"level": 2, "feature_name": "Action Surge", "description": "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action.", "mechanical_effect": "action_surge:1"},
+      {"level": 3, "feature_name": "Martial Archetype", "description": "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques.", "mechanical_effect": null},
+      {"level": 5, "feature_name": "Extra Attack", "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn.", "mechanical_effect": "extra_attack:1"},
+      {"level": 11, "feature_name": "Extra Attack (2)", "description": "At 11th level, you can attack three times whenever you take the Attack action on your turn.", "mechanical_effect": "extra_attack:2"},
+      {"level": 20, "feature_name": "Extra Attack (3)", "description": "At 20th level, you can attack four times whenever you take the Attack action on your turn.", "mechanical_effect": "extra_attack:3"}
+    ],
+    "subclasses": [
+      {"name": "Champion", "description": "The archetypal Champion focuses on the development of raw physical power honed to deadly perfection. Those who model themselves on this archetype combine rigorous training with physical excellence to deal devastating blows."},
+      {"name": "Battle Master", "description": "Those who emulate the archetypal Battle Master employ martial techniques passed down through generations. A Battle Master might be a skilled duelist, a general, or an instructor."},
+      {"name": "Eldritch Knight", "description": "The archetypal Eldritch Knight combines the martial mastery common to all fighters with a careful study of magic."}
+    ]
+  },
+  {
+    "name": "Wizard",
+    "hit_die": 6,
+    "primary_ability": "Intelligence",
+    "saving_throw_proficiencies": "Intelligence, Wisdom",
+    "level_features": [
+      {"level": 1, "feature_name": "Spellcasting", "description": "As a student of arcane magic, you have a spellbook containing spells that show the first glimmerings of your true power.", "mechanical_effect": "spellcasting:intelligence"},
+      {"level": 1, "feature_name": "Arcane Recovery", "description": "You have learned to regain some of your magical energy by studying your spellbook. Once per day when you finish a short rest, you can choose expended spell slots to recover.", "mechanical_effect": null},
+      {"level": 2, "feature_name": "Arcane Tradition", "description": "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools.", "mechanical_effect": null},
+      {"level": 18, "feature_name": "Spell Mastery", "description": "At 18th level, you have achieved such mastery over certain spells that you can cast them at will.", "mechanical_effect": null},
+      {"level": 20, "feature_name": "Signature Spells", "description": "When you reach 20th level, you gain mastery over two powerful spells and can cast them with little effort.", "mechanical_effect": null}
+    ],
+    "subclasses": [
+      {"name": "School of Evocation", "description": "You focus your studies on magic that creates powerful elemental effects such as bitter cold, searing flame, rolling thunder, crackling lightning, and burning acid."},
+      {"name": "School of Abjuration", "description": "The School of Abjuration emphasizes magic that blocks, banishes, or protects."},
+      {"name": "School of Divination", "description": "The counsel of a diviner is sought by royalty and commoners alike, for all seek a clearer understanding of the past, present, and future."},
+      {"name": "School of Illusion", "description": "You focus your studies on magic that dazzles the senses, befuddles the mind, and tricks even the wisest folk."}
+    ]
+  },
+  {
+    "name": "Rogue",
+    "hit_die": 8,
+    "primary_ability": "Dexterity",
+    "saving_throw_proficiencies": "Dexterity, Intelligence",
+    "level_features": [
+      {"level": 1, "feature_name": "Expertise", "description": "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.", "mechanical_effect": "expertise:2_skills"},
+      {"level": 1, "feature_name": "Sneak Attack", "description": "Beginning at 1st level, you know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll.", "mechanical_effect": "sneak_attack:1d6"},
+      {"level": 1, "feature_name": "Thieves' Cant", "description": "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code.", "mechanical_effect": null},
+      {"level": 2, "feature_name": "Cunning Action", "description": "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action.", "mechanical_effect": "bonus_action:dash,disengage,hide"},
+      {"level": 3, "feature_name": "Roguish Archetype", "description": "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities.", "mechanical_effect": null},
+      {"level": 5, "feature_name": "Uncanny Dodge", "description": "Starting at 5th level, when an attacker that you can see hits you with an attack, you can use your reaction to halve the attack's damage against you.", "mechanical_effect": "uncanny_dodge"},
+      {"level": 7, "feature_name": "Evasion", "description": "Beginning at 7th level, you can nimbly dodge out of the way of certain area effects, such as a red dragon's fiery breath or an ice storm spell.", "mechanical_effect": "evasion"}
+    ],
+    "subclasses": [
+      {"name": "Thief", "description": "You hone your skills in the larcenous arts. Burglars, bandits, cutpurses, and other criminals typically follow this archetype, but so do rogues who prefer to think of themselves as professional treasure seekers."},
+      {"name": "Assassin", "description": "You focus your training on the grim art of death. Those who adhere to this archetype are diverse: hired killers, spies, bounty hunters, and even specially anointed priests trained to exterminate the enemies of their deity."},
+      {"name": "Arcane Trickster", "description": "Some rogues enhance their fine-honed skills of stealth and agility with magic, learning tricks of enchantment and illusion."}
+    ]
+  },
+  {
+    "name": "Cleric",
+    "hit_die": 8,
+    "primary_ability": "Wisdom",
+    "saving_throw_proficiencies": "Wisdom, Charisma",
+    "level_features": [
+      {"level": 1, "feature_name": "Spellcasting", "description": "As a conduit for divine power, you can cast cleric spells.", "mechanical_effect": "spellcasting:wisdom"},
+      {"level": 1, "feature_name": "Divine Domain", "description": "Choose one domain related to your deity. Your choice grants you domain spells and other features when you choose it at 1st level.", "mechanical_effect": null},
+      {"level": 2, "feature_name": "Channel Divinity", "description": "At 2nd level, you gain the ability to channel divine energy directly from your deity, using that energy to fuel magical effects.", "mechanical_effect": "channel_divinity:1"},
+      {"level": 2, "feature_name": "Turn Undead", "description": "As an action, you present your holy symbol and speak a prayer censuring the undead. Each undead that can see or hear you within 30 feet of you must make a Wisdom saving throw.", "mechanical_effect": "turn_undead"},
+      {"level": 5, "feature_name": "Destroy Undead", "description": "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.", "mechanical_effect": "destroy_undead:cr_1/2"},
+      {"level": 10, "feature_name": "Divine Intervention", "description": "Beginning at 10th level, you can call on your deity to intervene on your behalf when your need is great.", "mechanical_effect": "divine_intervention"}
+    ],
+    "subclasses": [
+      {"name": "Life Domain", "description": "The Life domain focuses on the vibrant positive energy — one of the fundamental forces of the universe — that sustains all life. The gods of life promote vitality and health through healing the sick and wounded, caring for those in need, and driving away the forces of death and undeath."},
+      {"name": "Light Domain", "description": "Gods of light — including Helm, Lathander, Pholtus, Branchala, the Silver Flame, Belenus, Apollo, and Re-Horakhty — promote the ideals of rebirth and renewal, truth, vigilance, and beauty, often using the symbol of the sun."},
+      {"name": "War Domain", "description": "War has many manifestations. It can make heroes of ordinary people. It can be desperate and horrific, with acts of cruelty and cowardice eclipsing instances of excellence and courage."}
+    ]
+  }
+]

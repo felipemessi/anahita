@@ -1,0 +1,215 @@
+"""Pydantic read schemas for the catalog domain."""
+
+import uuid
+
+from pydantic import BaseModel, ConfigDict
+
+
+class RaceTraitRead(BaseModel):
+    """Read schema for a racial trait."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    trait_name: str
+    description: str
+    mechanical_effect: str | None
+
+
+class SubraceTraitRead(BaseModel):
+    """Read schema for a subrace trait."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    trait_name: str
+    description: str
+    mechanical_effect: str | None
+
+
+class RaceAbilityBonusRead(BaseModel):
+    """Read schema for a race ability bonus."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    ability: str
+    bonus: int
+
+
+class SubraceRead(BaseModel):
+    """Read schema for a subrace."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    description: str
+    traits: list[SubraceTraitRead]
+    ability_bonuses: list[RaceAbilityBonusRead]
+
+
+class RaceRead(BaseModel):
+    """Read schema for a race."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    speed: int
+    size: str
+    darkvision_range: int
+    description: str
+    is_custom: bool
+    traits: list[RaceTraitRead]
+    subraces: list[SubraceRead]
+    ability_bonuses: list[RaceAbilityBonusRead]
+
+
+class RaceSummary(BaseModel):
+    """Lightweight race listing schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    speed: int
+    size: str
+    darkvision_range: int
+    is_custom: bool
+
+
+class ClassLevelFeatureRead(BaseModel):
+    """Read schema for a class level feature."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    level: int
+    feature_name: str
+    description: str
+    mechanical_effect: str | None
+
+
+class SubclassRead(BaseModel):
+    """Read schema for a subclass."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    description: str
+    is_custom: bool
+
+
+class ClassDefinitionRead(BaseModel):
+    """Read schema for a class definition."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    hit_die: int
+    primary_ability: str
+    saving_throw_proficiencies: str
+    is_custom: bool
+    level_features: list[ClassLevelFeatureRead]
+    subclasses: list[SubclassRead]
+
+
+class ClassSummary(BaseModel):
+    """Lightweight class listing schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    hit_die: int
+    primary_ability: str
+    is_custom: bool
+
+
+class SpellRead(BaseModel):
+    """Read schema for a spell."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    level: int
+    school: str
+    casting_time: str
+    range: str
+    duration: str
+    components: str
+    ritual: bool
+    concentration: bool
+    description: str
+    higher_levels: str | None
+
+
+class SpellSummary(BaseModel):
+    """Lightweight spell listing schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    level: int
+    school: str
+    ritual: bool
+    concentration: bool
+
+
+class WeaponDetailRead(BaseModel):
+    """Read schema for weapon combat details."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    damage_dice: str
+    damage_type: str
+    weapon_range: str
+    weapon_properties: str | None
+
+
+class ArmorDetailRead(BaseModel):
+    """Read schema for armor defense details."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    base_ac: int
+    dex_bonus_cap: int | None
+    stealth_disadvantage: bool
+    strength_requirement: int | None
+
+
+class ItemRead(BaseModel):
+    """Read schema for an item."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    item_type: str
+    rarity: str | None
+    weight: float
+    cost: int
+    description: str
+    properties: str | None
+    weapon_detail: WeaponDetailRead | None
+    armor_detail: ArmorDetailRead | None
+
+
+class ItemSummary(BaseModel):
+    """Lightweight item listing schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    item_type: str
+    rarity: str | None
+    weight: float
+    cost: int
