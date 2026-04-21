@@ -1,0 +1,1 @@
+"""Anahita backend application."""
