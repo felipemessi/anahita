@@ -25,6 +25,7 @@ if database_url:
 # As each domain is implemented, add its models import below:
 #   from app.auth.models import *  # noqa: F401, F403
 from app.database import Base  # noqa: E402
+from app.catalog import models as _catalog_models  # noqa: F401
 
 target_metadata = Base.metadata
 
