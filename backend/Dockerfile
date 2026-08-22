@@ -18,9 +18,11 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Copiar arquivos do projeto e instalar deps via uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev --no-install-project
+ENV PATH="/app/.venv/bin:${PATH}"
 
 # Copiar projeto
 COPY . .
 
-# Comando default
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Aplica migrations e sobe o servidor (exec substitui o shell, preservando
+# o encaminhamento de sinais como SIGTERM para o uvicorn)
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --root-path \"${ROOT_PATH:-}\""]
