@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/anahita"
 
-    secret_key: str = "change-me-in-production"
+    secret_key: str = "change-me-in-production-please-32b"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
