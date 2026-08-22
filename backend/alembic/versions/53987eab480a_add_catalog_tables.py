@@ -1,7 +1,7 @@
 """add catalog tables
 
 Revision ID: 53987eab480a
-Revises: 
+Revises: 6824fb4d9270
 Create Date: 2026-04-21 16:59:53.231585
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '53987eab480a'
-down_revision: Union[str, Sequence[str], None] = None
+down_revision: Union[str, Sequence[str], None] = '6824fb4d9270'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
