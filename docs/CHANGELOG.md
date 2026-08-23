@@ -185,3 +185,13 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 - Fase 3 do backend, história 4 (última da fase — World-building
   completo): busca por nome/descrição cross-entidade em NPCs, locais e
   facções de uma campanha, via busca textual do Postgres.
+- Fase 3 do frontend, história 1: hub de World com seções de NPCs, locais e
+  facções — cadastro de NPC (com busca/seleção de stat block no catálogo de
+  monstros), árvore expansível de locais (região → cidade → taverna) e
+  lista de facções com suas relações.
+- Fase 3 do frontend, história 2 (última da fase — World-building
+  completo): busca por nome/descrição combinando NPCs, locais e facções no
+  hub de World, com resultados linkando direto para a entidade encontrada.
+  Vínculo de NPCs e locais a aparições/visitas de sessão pela UI, e páginas
+  de detalhe dedicadas para NPC, local e facção (com sublocais, papéis em
+  facções, presença em locais e relações entre facções).
