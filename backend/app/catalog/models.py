@@ -1,6 +1,7 @@
 """SQLAlchemy models for the catalog domain (D&D 5e SRD reference data)."""
 
 import uuid
+from typing import ClassVar
 
 from sqlalchemy import (
     Boolean,
@@ -16,7 +17,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.catalog.domain import CreatureSize, LanguageType
+from app.catalog.domain import CreatureSize, LanguageType, ProficiencyType
 from app.catalog.mixins import CatalogEntityMixin, CatalogI18nMixin
 from app.database import Base
 
@@ -579,3 +580,116 @@ class WeaponPropertyI18n(CatalogI18nMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+# --- Proficiencies (SRD 2014 §7.4.3) ----------------------------------------
+#
+# A Proficiency has three nullable, mutually-exclusive reference FKs instead
+# of a generic polymorphic reference — which one is populated depends on
+# `proficiency_type` (see `app.catalog.domain.validate_proficiency_reference_scope`).
+
+
+class Proficiency(CatalogEntityMixin, Base):
+    """A proficiency (skill, saving throw, weapon, armor, tool, or other)."""
+
+    __tablename__ = "catalog_proficiencies"
+    _extra_table_args: ClassVar[tuple[CheckConstraint, ...]] = (
+        CheckConstraint(
+            "(proficiency_type = 'skill' AND skill_id IS NOT NULL "
+            "  AND ability_score_id IS NULL AND equipment_category_id IS NULL)"
+            " OR (proficiency_type = 'saving_throw' AND ability_score_id IS NOT NULL "
+            "  AND skill_id IS NULL AND equipment_category_id IS NULL)"
+            " OR (proficiency_type IN ('weapon', 'armor', 'tool') "
+            "  AND equipment_category_id IS NOT NULL "
+            "  AND skill_id IS NULL AND ability_score_id IS NULL)"
+            " OR (proficiency_type = 'other' AND skill_id IS NULL "
+            "  AND ability_score_id IS NULL AND equipment_category_id IS NULL)",
+            name="ck_catalog_proficiencies_reference_scope",
+        ),
+    )
+
+    proficiency_type: Mapped[str] = mapped_column(
+        SAEnum(ProficiencyType, name="proficiencytype"), nullable=False
+    )
+    skill_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_skill_definitions.id"), nullable=True
+    )
+    ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=True,
+    )
+    # FK to catalog_equipment_categories.id once the Equipamento story lands —
+    # plain UUID for now, mirroring how campaign_id predates the Campaigns
+    # domain (see `CatalogEntityMixin`).
+    equipment_category_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+
+class ProficiencyI18n(CatalogI18nMixin, Base):
+    """Translated text for a Proficiency."""
+
+    __tablename__ = "catalog_proficiencies_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_proficiencies_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiencies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
+class ProficiencyClass(Base):
+    """Junction: a ClassDefinition grants a Proficiency by default."""
+
+    __tablename__ = "catalog_proficiency_classes"
+    __table_args__ = (
+        UniqueConstraint(
+            "proficiency_id",
+            "class_definition_id",
+            name="uq_catalog_proficiency_classes",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    proficiency_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiencies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    class_definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+
+class ProficiencyRace(Base):
+    """Junction: a Race grants a Proficiency by default."""
+
+    __tablename__ = "catalog_proficiency_races"
+    __table_args__ = (
+        UniqueConstraint(
+            "proficiency_id", "race_id", name="uq_catalog_proficiency_races"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    proficiency_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiencies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    race_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_races.id", ondelete="CASCADE"),
+        nullable=False,
+    )

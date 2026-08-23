@@ -81,8 +81,30 @@ class LanguageType(enum.StrEnum):
     exotic = "exotic"
 
 
+class ProficiencyType(enum.StrEnum):
+    """Category of a Proficiency, determining which FK on it is populated."""
+
+    skill = "skill"
+    saving_throw = "saving_throw"
+    weapon = "weapon"
+    armor = "armor"
+    tool = "tool"
+    other = "other"
+
+
+#: Proficiency types whose granting reference is an equipment category
+#: (`Proficiency.equipment_category_id`).
+_EQUIPMENT_PROFICIENCY_TYPES = frozenset(
+    {ProficiencyType.weapon, ProficiencyType.armor, ProficiencyType.tool}
+)
+
+
 class CustomCampaignScopeError(ValueError):
     """Raised when a catalog entity violates the custom/campaign invariant."""
+
+
+class ProficiencyReferenceScopeError(ValueError):
+    """Raised when a Proficiency's type/reference-FK combination is invalid."""
 
 
 def validate_custom_campaign_scope(
@@ -105,3 +127,48 @@ def validate_custom_campaign_scope(
         raise CustomCampaignScopeError(
             "Non-custom (SRD) catalog content must not have a campaign_id."
         )
+
+
+def validate_proficiency_reference_scope(
+    *,
+    proficiency_type: ProficiencyType,
+    skill_id: uuid.UUID | None,
+    ability_score_id: uuid.UUID | None,
+    equipment_category_id: uuid.UUID | None,
+) -> None:
+    """Enforce that exactly the FK matching `proficiency_type` is populated.
+
+    `Proficiency` has three nullable, mutually exclusive reference FKs
+    (`skill_id`, `ability_score_id`, `equipment_category_id`) instead of a
+    generic polymorphic reference. Which one (if any) must be set depends on
+    `proficiency_type`:
+
+    - `skill` -> `skill_id` only
+    - `saving_throw` -> `ability_score_id` only
+    - `weapon` / `armor` / `tool` -> `equipment_category_id` only
+    - `other` -> none of them
+    """
+    refs = {
+        "skill_id": skill_id,
+        "ability_score_id": ability_score_id,
+        "equipment_category_id": equipment_category_id,
+    }
+    if proficiency_type is ProficiencyType.skill:
+        expected = "skill_id"
+    elif proficiency_type is ProficiencyType.saving_throw:
+        expected = "ability_score_id"
+    elif proficiency_type in _EQUIPMENT_PROFICIENCY_TYPES:
+        expected = "equipment_category_id"
+    else:
+        expected = None
+
+    for name, value in refs.items():
+        should_be_set = name == expected
+        if should_be_set and value is None:
+            raise ProficiencyReferenceScopeError(
+                f"proficiency_type={proficiency_type} requires {name} to be set."
+            )
+        if not should_be_set and value is not None:
+            raise ProficiencyReferenceScopeError(
+                f"proficiency_type={proficiency_type} must not set {name}."
+            )

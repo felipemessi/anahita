@@ -16,6 +16,9 @@ from app.catalog.models import (
     Item,
     Language,
     MagicSchool,
+    Proficiency,
+    ProficiencyClass,
+    ProficiencyRace,
     Race,
     SkillDefinition,
     Spell,
@@ -345,3 +348,50 @@ async def get_weapon_property(
         select(WeaponProperty).where(WeaponProperty.id == entity_id)
     )
     return result.scalar_one_or_none()
+
+
+# --- Proficiencies (SRD 2014 §7.4.3) ----------------------------------------
+
+
+async def list_proficiencies(session: AsyncSession) -> list[Proficiency]:
+    """Return all proficiencies."""
+    result = await session.execute(select(Proficiency).order_by(Proficiency.index))
+    return list(result.scalars().all())
+
+
+async def get_proficiency(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> Proficiency | None:
+    """Return a single proficiency by ID, or None if not found."""
+    result = await session.execute(
+        select(Proficiency).where(Proficiency.id == entity_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_proficiencies_for_class(
+    session: AsyncSession, class_definition_id: uuid.UUID
+) -> list[Proficiency]:
+    """Return the proficiencies a ClassDefinition grants by default."""
+    stmt = (
+        select(Proficiency)
+        .join(ProficiencyClass, ProficiencyClass.proficiency_id == Proficiency.id)
+        .where(ProficiencyClass.class_definition_id == class_definition_id)
+        .order_by(Proficiency.index)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def list_proficiencies_for_race(
+    session: AsyncSession, race_id: uuid.UUID
+) -> list[Proficiency]:
+    """Return the proficiencies a Race grants by default."""
+    stmt = (
+        select(Proficiency)
+        .join(ProficiencyRace, ProficiencyRace.proficiency_id == Proficiency.id)
+        .where(ProficiencyRace.race_id == race_id)
+        .order_by(Proficiency.index)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

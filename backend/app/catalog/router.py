@@ -106,9 +106,7 @@ async def get_spell(
 async def list_items(
     db: DB,
     search: SearchQ = None,
-    item_type: Annotated[
-        str | None, Query(description="Filter by item type")
-    ] = None,
+    item_type: Annotated[str | None, Query(description="Filter by item type")] = None,
 ) -> list[ItemSummary]:
     """List all items, optionally filtered by name or type."""
     items = await service.list_items(db, search=search, item_type=item_type)

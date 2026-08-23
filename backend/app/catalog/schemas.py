@@ -304,3 +304,20 @@ class WeaponPropertyRead(BaseModel):
     id: uuid.UUID
     index: str | None
     is_custom: bool
+
+
+# --- Proficiencies (SRD 2014 §7.4.3) -----------------------------------------
+
+
+class ProficiencyRead(BaseModel):
+    """Read schema for a proficiency."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    proficiency_type: str
+    skill_id: uuid.UUID | None
+    ability_score_id: uuid.UUID | None
+    equipment_category_id: uuid.UUID | None
+    is_custom: bool

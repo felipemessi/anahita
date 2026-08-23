@@ -32,6 +32,7 @@ abaixo) aplicada automaticamente a toda tabela que usa `CatalogEntityMixin`.
 """
 
 import uuid
+from typing import Any, ClassVar
 
 from sqlalchemy import Boolean, CheckConstraint, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -45,6 +46,11 @@ class CatalogEntityMixin:
     # (SQLAlchemy declarative convention) — annotated here so `__table_args__`
     # below can reference it.
     __tablename__: str
+
+    #: Subclasses with extra table-level constraints (e.g. Proficiency's
+    #: mutually-exclusive reference CHECK) override this instead of redeclaring
+    #: `__table_args__`, so the custom/campaign-scope CHECK below is never lost.
+    _extra_table_args: ClassVar[tuple[Any, ...]] = ()
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -63,7 +69,7 @@ class CatalogEntityMixin:
 
     @declared_attr.directive
     @classmethod
-    def __table_args__(cls) -> tuple[CheckConstraint]:
+    def __table_args__(cls) -> tuple[Any, ...]:
         """Reinforce ``is_custom is False <=> campaign_id is None`` at the DB level."""
         return (
             CheckConstraint(
@@ -71,6 +77,7 @@ class CatalogEntityMixin:
                 "OR (is_custom AND campaign_id IS NOT NULL)",
                 name=f"ck_{cls.__tablename__}_custom_campaign_scope",
             ),
+            *cls._extra_table_args,
         )
 
 
