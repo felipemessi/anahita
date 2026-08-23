@@ -1,6 +1,6 @@
 ---
 name: merge-request
-description: "Sugere o texto (título + descrição) de um merge/pull request comparando a branch atual com a branch base, sem abrir o PR automaticamente. Depois que o PR for aprovado/mergeado, registra a entrada correspondente no changelog em docs/. Use quando o usuário disser: crie um PR, texto pra merge request, sugestão de MR, abrir PR, PR aprovado, atualiza o changelog, PR foi mergeado."
+description: "Sugere o texto (título + descrição) de um merge/pull request comparando a branch atual com a branch base, sem abrir o PR automaticamente. Depois que o texto for aprovado, registra a entrada correspondente no changelog em docs/. Use quando o usuário disser: crie um PR, texto pra merge request, sugestão de MR, abrir PR, PR aprovado, atualiza o changelog, PR foi mergeado."
 ---
 
 # Merge Request
@@ -23,11 +23,11 @@ Objetivo: **apenas devolver o texto sugerido no chat.** Não rode `gh pr create`
      - `## Testes` — quais testes rodaram/passaram (ex.: `uv run pytest`, `npm test`). Se não houver evidência de testes, avise o usuário em vez de inventar.
      - `## Notas` (opcional) — breaking changes, follow-ups, migrations pendentes (`alembic upgrade` etc.), apenas se relevante.
    - **NUNCA** inclua menção de coautoria/geração por IA (`Co-Authored-By: Claude`, `🤖 Generated with Claude Code` etc.) no corpo sugerido — mesma regra do skill `commit`.
-4. Apresente o texto pronto para o usuário copiar (ou usar com `gh pr create --title ... --body ...` se ele pedir para efetivamente abrir).
+4. Apresente o texto pronto para o usuário copiar.
 
 ## Modo 2 — Changelog pós-aprovação
 
-Disparado quando o usuário disser algo como "PR aprovado", "foi mergeado", "atualiza o changelog".
+Disparado quando o usuário disser algo como "ok", "aprovado", "atualiza o changelog".
 
 1. Garanta que existe `docs/CHANGELOG.md`; crie seguindo o formato [Keep a Changelog](https://keepachangelog.com/) se ainda não existir, com uma seção `## [Unreleased]` no topo.
 2. Descubra o que foi mergeado (`git log` dos commits do PR aprovado, ou peça ao usuário um resumo se não for possível inferir).
