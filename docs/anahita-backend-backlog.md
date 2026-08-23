@@ -95,10 +95,10 @@
   - [x] Testes de cada entidade + seed (2 backgrounds, 3 feats). `BackgroundProficiency`/`FeatPrerequisite` testados via construção direta (não via seed) — dependem de `Proficiency`/`AbilityScoreDefinition`, cujo seed próprio ainda não existe (história de vocabulário fixo pendente abaixo); seed de backgrounds/feats não popula essas duas junções por ora
 
 - **Como DM, quero o catálogo de Monstros (stat blocks completos) para popular encontros e NPCs.**
-  - [ ] `models.py`: `Monster`, `MonsterI18n`, `MonsterSpeed`, `MonsterSense`, `MonsterArmorClass`, `MonsterProficiency`, `MonsterDamageModifier`, `MonsterConditionImmunity`, `MonsterAction`/`MonsterLegendaryAction`/`MonsterReaction`/`MonsterSpecialAbility` + suas 4 tabelas `*Damage` filhas (seção 7.4.8 do PRD)
-  - [ ] Migração Alembic (maior migração do catálogo — considerar quebrar em 2-3 revisions se ficar difícil de revisar)
-  - [ ] `schemas.py`/`service.py`/`router.py`
-  - [ ] Testes: monstro com múltiplas ações + dano, monstro com legendary actions, monstro custom preso à campanha
+  - [x] `models.py`: `Monster`, `MonsterI18n`, `MonsterSpeed`, `MonsterSense`, `MonsterArmorClass`, `MonsterProficiency`, `MonsterDamageModifier`, `MonsterConditionImmunity`, `MonsterAction`/`MonsterLegendaryAction`/`MonsterReaction`/`MonsterSpecialAbility` + suas 4 tabelas `*Damage` filhas (seção 7.4.8 do PRD). `CreatureSize` estendido para o range completo (tiny–gargantuan); `DamageModifierType` novo enum
+  - [x] Migração Alembic — `alembic/versions/f75f2c608e22_*.py` (16 tabelas, puramente aditiva — sem necessidade de quebrar em 2-3 revisions; upgrade/downgrade testados contra Postgres)
+  - [x] `schemas.py`/`service.py`/`router.py` — `list_monsters_translated`/`get_monster_translated` resolvem stat block completo (velocidade, sentidos, CA, resistências/imunidades, ações/legendary actions/reactions/special abilities com dano); ações não têm i18n própria (mesmo shape do PRD, texto direto na linha)
+  - [x] Testes: monstro com múltiplas ações + dano (Goblin: Scimitar/Shortbow), monstro com legendary actions (Young Red Dragon), monstro custom preso à campanha. `MonsterProficiency`/`MonsterConditionImmunity` testados via construção direta (mesmo motivo do `BackgroundProficiency`/`FeatPrerequisite` da história anterior — dependem de vocabulário fixo ainda não seedado)
 
 - **Como desenvolvedor, quero Rules/RuleSections modeladas para eventual tela de referência de regras no frontend.**
   - [ ] `models.py`: `RuleSection`, `Rule`, `RuleRuleSection` (+ i18n)
