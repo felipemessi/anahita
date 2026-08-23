@@ -14,6 +14,7 @@ from app.campaigns.schemas import (
     CampaignInviteRedeem,
     CampaignMemberRead,
     CampaignRead,
+    CampaignUpdate,
 )
 from app.campaigns.service import CampaignService
 from app.core.dependencies import get_current_user
@@ -76,6 +77,19 @@ async def get_campaign(
 ) -> CampaignRead:
     """Get a campaign's detail. Viewable by any of its members."""
     campaign = await service.get_campaign(campaign_id, user.id, db)
+    return CampaignRead.model_validate(campaign)
+
+
+@router.patch("/{campaign_id}", response_model=CampaignRead)
+async def update_campaign(
+    campaign_id: uuid.UUID,
+    body: CampaignUpdate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CampaignService, Depends(get_campaign_service)],
+) -> CampaignRead:
+    """Update a campaign's general settings. Only the campaign's DM may do this."""
+    campaign = await service.update_campaign(campaign_id, user.id, body, db)
     return CampaignRead.model_validate(campaign)
 
 

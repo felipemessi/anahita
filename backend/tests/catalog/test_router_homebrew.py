@@ -211,3 +211,117 @@ async def test_create_item_over_http(client: AsyncClient) -> None:
     )
     assert resp.status_code == 201
     assert resp.json()["item_type"] == "weapon"
+
+
+async def test_create_magic_item_over_http(client: AsyncClient) -> None:
+    """The DM can create a homebrew magic item scoped to their campaign."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    resp = await client.post(
+        "/catalog/magic-items",
+        json={
+            "campaign_id": campaign_id,
+            "name": "Ring of Whispers",
+            "rarity": "uncommon",
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["name"] == "Ring of Whispers"
+    assert body["is_custom"] is True
+
+
+async def test_create_background_over_http(client: AsyncClient) -> None:
+    """The DM can create a homebrew background scoped to their campaign."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    resp = await client.post(
+        "/catalog/backgrounds",
+        json={"campaign_id": campaign_id, "name": "Shipwreck Survivor"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "Shipwreck Survivor"
+
+
+async def test_create_feat_over_http(client: AsyncClient) -> None:
+    """The DM can create a homebrew feat scoped to their campaign."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    resp = await client.post(
+        "/catalog/feats",
+        json={"campaign_id": campaign_id, "name": "Storm Born"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "Storm Born"
+
+
+async def test_create_rule_over_http(client: AsyncClient) -> None:
+    """The DM can create a homebrew rule scoped to their campaign."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    resp = await client.post(
+        "/catalog/rules",
+        json={
+            "campaign_id": campaign_id,
+            "name": "House Rule: Flanking",
+            "desc": "Flanking grants advantage.",
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "House Rule: Flanking"
+
+
+async def test_rule_homebrew_visible_only_in_own_campaign(client: AsyncClient) -> None:
+    """`GET /catalog/rules?campaign_id=` scopes homebrew to that campaign only."""
+    dm_a_token = await _register_and_login(client, "dm-a@example.com")
+    campaign_a = await _make_campaign(client, dm_a_token, "Campaign A")
+    dm_b_token = await _register_and_login(client, "dm-b@example.com")
+    campaign_b = await _make_campaign(client, dm_b_token, "Campaign B")
+
+    await client.post(
+        "/catalog/rules",
+        json={"campaign_id": campaign_a, "name": "Campaign A House Rule"},
+        headers={"Authorization": f"Bearer {dm_a_token}"},
+    )
+
+    other_resp = await client.get("/catalog/rules", params={"campaign_id": campaign_b})
+    names = [r["name"] for r in other_resp.json()]
+    assert "Campaign A House Rule" not in names
+
+    own_resp = await client.get("/catalog/rules", params={"campaign_id": campaign_a})
+    own_names = [r["name"] for r in own_resp.json()]
+    assert "Campaign A House Rule" in own_names
+
+
+async def test_create_magic_item_requires_dm(client: AsyncClient) -> None:
+    """A non-DM member is rejected with 403 when creating homebrew magic items."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    resp = await client.post(
+        "/catalog/magic-items",
+        json={"campaign_id": campaign_id, "name": "Stolen Ring"},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert resp.status_code == 403

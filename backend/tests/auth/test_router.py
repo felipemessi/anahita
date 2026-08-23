@@ -159,3 +159,42 @@ async def test_logout_clears_cookie_and_invalidates_refresh(
 
     refresh_resp = await client.post("/auth/refresh")
     assert refresh_resp.status_code == 401
+
+
+async def test_list_users_resolves_batch_of_ids(client: AsyncClient) -> None:
+    """GET /auth/users?ids= resolves public profiles for a batch of user ids."""
+    await client.post(
+        "/auth/register",
+        json={
+            "email": "alice@example.com",
+            "username": "alice",
+            "password": "pass1234",
+        },
+    )
+    await client.post(
+        "/auth/register",
+        json={"email": "bob@example.com", "username": "bob", "password": "pass1234"},
+    )
+    login_resp = await client.post(
+        "/auth/login", json={"email": "alice@example.com", "password": "pass1234"}
+    )
+    token = login_resp.json()["access_token"]
+    me_resp = await client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    alice_id = me_resp.json()["id"]
+
+    resp = await client.get(
+        "/auth/users",
+        params={"ids": [alice_id]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    usernames = [u["username"] for u in resp.json()]
+    assert usernames == ["alice"]
+
+
+async def test_list_users_requires_auth(client: AsyncClient) -> None:
+    """GET /auth/users without a bearer token returns 401."""
+    resp = await client.get("/auth/users", params={"ids": []})
+    assert resp.status_code == 401

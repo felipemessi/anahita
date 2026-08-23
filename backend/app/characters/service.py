@@ -23,7 +23,10 @@ from app.characters.models import (
     Character,
     CharacterAbilityScore,
     CharacterClass,
+    CharacterEquipment,
+    CharacterFeature,
     CharacterSkill,
+    CharacterSpell,
 )
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
@@ -31,8 +34,14 @@ from app.characters.schemas import (
     CharacterClassCreate,
     CharacterClassRead,
     CharacterCreate,
+    CharacterEquipmentCreate,
+    CharacterEquipmentRead,
+    CharacterFeatureCreate,
+    CharacterFeatureRead,
     CharacterRead,
     CharacterSkillRead,
+    CharacterSpellCreate,
+    CharacterSpellRead,
     CharacterUpdate,
 )
 from engine.abilities import (
@@ -49,6 +58,9 @@ _CHARACTER_LOAD_OPTIONS = (
     selectinload(Character.ability_scores),
     selectinload(Character.skills),
     selectinload(Character.classes),
+    selectinload(Character.spells),
+    selectinload(Character.equipment),
+    selectinload(Character.features),
 )
 
 
@@ -314,6 +326,126 @@ class CharacterService:
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
+    async def add_spell(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterSpellCreate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Add a known/prepared spell to a character. Owner only."""
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+
+        spell = await catalog_service.get_spell(db, data.spell_id)
+        if spell is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Spell not found"
+            )
+        member_result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.id == character.campaign_member_id
+            )
+        )
+        member = member_result.scalar_one()
+        self._validate_reference(spell, member.campaign_id)
+
+        db.add(
+            CharacterSpell(
+                character_id=character.id,
+                spell_id=data.spell_id,
+                prepared=data.prepared,
+                source_class=data.source_class,
+            )
+        )
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def add_equipment(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterEquipmentCreate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Add an item to a character's personal inventory. Owner only."""
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+
+        item = await catalog_service.get_item(db, data.item_id)
+        if item is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
+            )
+        member_result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.id == character.campaign_member_id
+            )
+        )
+        member = member_result.scalar_one()
+        self._validate_reference(item, member.campaign_id)
+
+        db.add(
+            CharacterEquipment(
+                character_id=character.id,
+                item_id=data.item_id,
+                equipped=data.equipped,
+                quantity=data.quantity,
+                attunement=data.attunement,
+            )
+        )
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def add_feature(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterFeatureCreate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Record a class/feat feature on a character. Owner only.
+
+        Free-text (`source_name`/`feature_name`/`description`), not a
+        catalog reference — see `CharacterFeatureCreate`.
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        db.add(
+            CharacterFeature(
+                character_id=character.id,
+                source_type=data.source_type,
+                source_name=data.source_name,
+                feature_name=data.feature_name,
+                description=data.description,
+                level_acquired=data.level_acquired,
+            )
+        )
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def _load_character_owned_by(
+        self, character_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> Character:
+        """Load a character, 404 if missing, 403 unless `requester_id` owns it."""
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+        return character
+
     async def _current_class_indices(
         self, character: Character, db: AsyncSession
     ) -> list[str]:
@@ -408,6 +540,13 @@ class CharacterService:
             for skill in character.skills
         ]
         classes = [CharacterClassRead.model_validate(c) for c in character.classes]
+        spells = [CharacterSpellRead.model_validate(s) for s in character.spells]
+        equipment = [
+            CharacterEquipmentRead.model_validate(e) for e in character.equipment
+        ]
+        features = [
+            CharacterFeatureRead.model_validate(f) for f in character.features
+        ]
         return CharacterRead(
             id=character.id,
             campaign_member_id=character.campaign_member_id,
@@ -428,6 +567,9 @@ class CharacterService:
             ability_scores=ability_scores,
             skills=skills,
             classes=classes,
+            spells=spells,
+            equipment=equipment,
+            features=features,
         )
 
     async def _require_own_membership(

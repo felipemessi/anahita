@@ -812,3 +812,39 @@ class MonsterCreate(BaseModel):
     intelligence: int = Field(default=10, ge=1, le=30)
     wisdom: int = Field(default=10, ge=1, le=30)
     charisma: int = Field(default=10, ge=1, le=30)
+
+
+class MagicItemCreate(BaseModel):
+    """Request body to create a homebrew magic item, always scoped to a campaign."""
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+    rarity: str = "common"
+
+
+class BackgroundCreate(BaseModel):
+    """Request body to create a homebrew background, always scoped to a campaign."""
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=100)
+    personality_traits: str = ""
+    ideals: str = ""
+    bonds: str = ""
+    flaws: str = ""
+
+
+class FeatCreate(BaseModel):
+    """Request body to create a homebrew feat, always scoped to a campaign."""
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=100)
+    description: str = ""
+
+
+class RuleCreate(BaseModel):
+    """Request body to create a homebrew rule, always scoped to a campaign."""
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    desc: str = ""

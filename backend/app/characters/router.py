@@ -10,7 +10,10 @@ from app.auth.models import User
 from app.characters.schemas import (
     CharacterClassCreate,
     CharacterCreate,
+    CharacterEquipmentCreate,
+    CharacterFeatureCreate,
     CharacterRead,
+    CharacterSpellCreate,
     CharacterUpdate,
 )
 from app.characters.service import CharacterService
@@ -83,3 +86,39 @@ async def update_character(
 ) -> CharacterRead:
     """Update a character's combat-facing fields (HP/AC/inspiration). Owner only."""
     return await service.update_character(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/spells", response_model=CharacterRead)
+async def add_spell(
+    character_id: uuid.UUID,
+    body: CharacterSpellCreate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Add a known/prepared spell to a character. Owner only."""
+    return await service.add_spell(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/equipment", response_model=CharacterRead)
+async def add_equipment(
+    character_id: uuid.UUID,
+    body: CharacterEquipmentCreate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Add an item to a character's personal inventory. Owner only."""
+    return await service.add_equipment(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/features", response_model=CharacterRead)
+async def add_feature(
+    character_id: uuid.UUID,
+    body: CharacterFeatureCreate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Record a class/feat feature on a character. Owner only."""
+    return await service.add_feature(character_id, user.id, body, db)

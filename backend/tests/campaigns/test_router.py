@@ -214,3 +214,56 @@ async def test_list_members_returns_dm_and_player(client: AsyncClient) -> None:
     assert resp.status_code == 200
     roles = sorted(m["role"] for m in resp.json())
     assert roles == ["dm", "player"]
+
+
+async def test_update_campaign_over_http(client: AsyncClient) -> None:
+    """The DM can update a campaign's general settings."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/campaigns/{campaign_id}",
+        json={"description": "Updated description", "setting": "Forgotten Realms"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["name"] == "Waterdeep"
+    assert body["description"] == "Updated description"
+    assert body["setting"] == "Forgotten Realms"
+
+
+async def test_update_campaign_forbidden_for_non_dm(client: AsyncClient) -> None:
+    """A non-DM member cannot update the campaign's settings."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    resp = await client.patch(
+        f"/campaigns/{campaign_id}",
+        json={"name": "Hijacked"},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert resp.status_code == 403
