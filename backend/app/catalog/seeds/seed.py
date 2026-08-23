@@ -20,12 +20,16 @@ from app.catalog.models import (
     FeatureI18n,
     FeaturePrerequisite,
     Item,
+    MagicSchool,
+    MagicSchoolI18n,
     Race,
     RaceAbilityBonus,
     RaceI18n,
     RaceTrait,
     RaceTraitI18n,
     Spell,
+    SpellClass,
+    SpellI18n,
     SubclassDefinition,
     SubclassDefinitionI18n,
     Subrace,
@@ -34,6 +38,21 @@ from app.catalog.models import (
     SubraceTraitI18n,
     WeaponDetail,
 )
+
+#: The 8 SRD schools of magic, needed as an FK target for `Spell`. Fixed
+#: vocabulary (PRD §7.4.1) has no seed of its own yet (a later backlog story
+#: covers all 24 categories from `_data/2014`) — this seeds just what
+#: `spells.json` references, idempotently by `index`.
+_MAGIC_SCHOOL_NAMES = {
+    "abjuration": "Abjuration",
+    "conjuration": "Conjuration",
+    "divination": "Divination",
+    "enchantment": "Enchantment",
+    "evocation": "Evocation",
+    "illusion": "Illusion",
+    "necromancy": "Necromancy",
+    "transmutation": "Transmutation",
+}
 
 _DATA_DIR = Path(__file__).parent / "data"
 
@@ -286,29 +305,61 @@ async def _seed_classes(session: AsyncSession) -> None:
                 )
 
 
+async def _ensure_magic_schools(session: AsyncSession) -> dict[str, uuid.UUID]:
+    """Get-or-create the 8 SRD schools of magic, returning `index` -> id."""
+    result = await session.execute(select(MagicSchool))
+    by_index = {ms.index: ms.id for ms in result.scalars().all() if ms.index}
+    for index, name in _MAGIC_SCHOOL_NAMES.items():
+        if index in by_index:
+            continue
+        school = MagicSchool(id=uuid.uuid4(), index=index, is_custom=False)
+        session.add(school)
+        await _seed_i18n(
+            session, MagicSchoolI18n, school.id, {"en": {"name": name, "desc": None}}
+        )
+        by_index[index] = school.id
+    return by_index
+
+
 async def _seed_spells(session: AsyncSession) -> None:
     count = await session.scalar(select(Spell).limit(1))
     if count is not None:
         return
 
+    schools_by_index = await _ensure_magic_schools(session)
+    classes_result = await session.execute(select(ClassDefinition))
+    classes_by_index = {
+        c.index: c.id for c in classes_result.scalars().all() if c.index
+    }
+
     data = json.loads((_DATA_DIR / "spells.json").read_text())
     for entry in data:
-        session.add(
-            Spell(
-                id=uuid.uuid4(),
-                name=entry["name"],
-                level=entry["level"],
-                school=entry["school"],
-                casting_time=entry["casting_time"],
-                range=entry["range"],
-                duration=entry["duration"],
-                components=entry["components"],
-                ritual=entry["ritual"],
-                concentration=entry["concentration"],
-                description=entry["description"],
-                higher_levels=entry.get("higher_levels"),
-            )
+        spell = Spell(
+            id=uuid.uuid4(),
+            index=entry["index"],
+            level=entry["level"],
+            magic_school_id=schools_by_index[entry["magic_school_index"]],
+            casting_time=entry["casting_time"],
+            range=entry["range"],
+            duration=entry["duration"],
+            components=entry["components"],
+            ritual=entry["ritual"],
+            concentration=entry["concentration"],
+            is_custom=False,
         )
+        session.add(spell)
+        await _seed_i18n(session, SpellI18n, spell.id, entry["i18n"])
+
+        for class_index in entry.get("classes", []):
+            class_id = classes_by_index.get(class_index)
+            if class_id is not None:
+                session.add(
+                    SpellClass(
+                        id=uuid.uuid4(),
+                        spell_id=spell.id,
+                        class_definition_id=class_id,
+                    )
+                )
 
 
 async def _seed_items(session: AsyncSession) -> None:

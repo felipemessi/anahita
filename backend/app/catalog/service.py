@@ -30,6 +30,8 @@ from app.catalog.models import (
     RaceTraitI18n,
     SkillDefinition,
     Spell,
+    SpellClass,
+    SpellI18n,
     SubclassDefinition,
     SubclassDefinitionI18n,
     Subrace,
@@ -50,6 +52,9 @@ from app.catalog.schemas import (
     RaceRead,
     RaceSummary,
     RaceTraitRead,
+    SpellClassRead,
+    SpellRead,
+    SpellSummary,
     SubclassRead,
     SubraceRead,
     SubraceTraitRead,
@@ -467,26 +472,145 @@ async def list_classes_translated(
 async def list_spells(
     session: AsyncSession,
     *,
-    search: str | None = None,
     level: int | None = None,
     school: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
 ) -> list[Spell]:
-    """Return all spells, optionally filtered by name, level, or school."""
-    stmt = select(Spell).order_by(Spell.level, Spell.name)
-    if search:
-        stmt = stmt.where(Spell.name.ilike(f"%{search}%"))
+    """Return all spells (base rows, eager-loaded classes/school, untranslated).
+
+    `school` filters by the `MagicSchool.index` slug (e.g. `evocation`). See
+    `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
+    stmt = (
+        select(Spell)
+        .join(MagicSchool, Spell.magic_school_id == MagicSchool.id)
+        .options(
+            selectinload(Spell.magic_school),
+            selectinload(Spell.classes).selectinload(SpellClass.class_definition),
+        )
+        .order_by(Spell.level)
+    )
     if level is not None:
         stmt = stmt.where(Spell.level == level)
     if school:
-        stmt = stmt.where(Spell.school == school)
+        stmt = stmt.where(MagicSchool.index == school)
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Spell.campaign_id.is_(None), Spell.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(Spell.is_custom.is_(False))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
 async def get_spell(session: AsyncSession, spell_id: uuid.UUID) -> Spell | None:
-    """Return a single spell by ID, or None if not found."""
-    result = await session.execute(select(Spell).where(Spell.id == spell_id))
+    """Return a single spell by ID (untranslated), or None if not found."""
+    stmt = (
+        select(Spell)
+        .where(Spell.id == spell_id)
+        .options(
+            selectinload(Spell.magic_school),
+            selectinload(Spell.classes).selectinload(SpellClass.class_definition),
+        )
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def _translate_spell_classes(
+    session: AsyncSession, spell: Spell, locale: str
+) -> list[SpellClassRead]:
+    reads = []
+    for sc in spell.classes:
+        t = await get_translated(
+            session,
+            ClassDefinitionI18n,
+            ClassDefinitionI18n.entity_id,
+            entity_id=sc.class_definition_id,
+            locale=locale,
+        )
+        reads.append(
+            SpellClassRead(id=sc.class_definition_id, name=t.name if t else "")
+        )
+    return reads
+
+
+async def get_spell_translated(
+    session: AsyncSession, spell_id: uuid.UUID, *, locale: str = "en"
+) -> SpellRead | None:
+    """Return a spell by ID with every translatable field resolved for `locale`."""
+    spell = await get_spell(session, spell_id)
+    if spell is None:
+        return None
+    t = await get_translated(
+        session, SpellI18n, SpellI18n.entity_id, entity_id=spell.id, locale=locale
+    )
+    return SpellRead(
+        id=spell.id,
+        index=spell.index,
+        name=t.name if t else "",
+        level=spell.level,
+        school=spell.magic_school.index or "",
+        casting_time=spell.casting_time,
+        range=spell.range,
+        duration=spell.duration,
+        components=spell.components,
+        ritual=spell.ritual,
+        concentration=spell.concentration,
+        description=t.description if t else "",
+        higher_levels=t.higher_levels if t else None,
+        is_custom=spell.is_custom,
+        classes=await _translate_spell_classes(session, spell, locale),
+    )
+
+
+async def list_spells_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    level: int | None = None,
+    school: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[SpellSummary]:
+    """Return all spells with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: spell counts are small enough (a few
+    hundred at most) that resolving translations per-row here is simpler than
+    a fallback-aware SQL join.
+    """
+    spells = await list_spells(
+        session,
+        level=level,
+        school=school,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+    )
+    summaries = []
+    for spell in spells:
+        t = await get_translated(
+            session, SpellI18n, SpellI18n.entity_id, entity_id=spell.id, locale=locale
+        )
+        summaries.append(
+            SpellSummary(
+                id=spell.id,
+                index=spell.index,
+                name=t.name if t else "",
+                level=spell.level,
+                school=spell.magic_school.index or "",
+                ritual=spell.ritual,
+                concentration=spell.concentration,
+                is_custom=spell.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: (s.level, s.name))
+    return summaries
 
 
 async def list_items(

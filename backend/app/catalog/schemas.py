@@ -190,12 +190,22 @@ class ClassSummary(BaseModel):
     is_custom: bool
 
 
-class SpellRead(BaseModel):
-    """Read schema for a spell."""
+class SpellClassRead(BaseModel):
+    """Read schema for a class that can cast a spell, with translated `name`."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    name: str
+
+
+class SpellRead(BaseModel):
+    """Read schema for a spell, with translated text fields resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
     name: str
     level: int
     school: str
@@ -207,19 +217,23 @@ class SpellRead(BaseModel):
     concentration: bool
     description: str
     higher_levels: str | None
+    is_custom: bool
+    classes: list[SpellClassRead]
 
 
 class SpellSummary(BaseModel):
-    """Lightweight spell listing schema."""
+    """Lightweight spell listing schema, with translated `name` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     level: int
     school: str
     ritual: bool
     concentration: bool
+    is_custom: bool
 
 
 class WeaponDetailRead(BaseModel):

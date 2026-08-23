@@ -87,24 +87,33 @@ async def list_spells(
         int | None, Query(ge=0, le=9, description="Filter by spell level")
     ] = None,
     school: Annotated[
-        str | None, Query(description="Filter by school of magic")
+        str | None, Query(description="Filter by school of magic (index slug)")
     ] = None,
+    include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
 ) -> list[SpellSummary]:
     """List all spells, optionally filtered by name, level, or school."""
-    spells = await service.list_spells(db, search=search, level=level, school=school)
-    return [SpellSummary.model_validate(s) for s in spells]
+    return await service.list_spells_translated(
+        db,
+        search=search,
+        level=level,
+        school=school,
+        include_custom=include_custom,
+        locale=locale,
+    )
 
 
 @router.get("/spells/{spell_id}", response_model=SpellRead)
 async def get_spell(
     spell_id: uuid.UUID,
     db: DB,
+    locale: LocaleQ = "en",
 ) -> SpellRead:
-    """Get a spell by ID with full description."""
-    spell = await service.get_spell(db, spell_id)
+    """Get a spell by ID with full description and casting classes."""
+    spell = await service.get_spell_translated(db, spell_id, locale=locale)
     if spell is None:
         raise HTTPException(status_code=404, detail="Spell not found")
-    return SpellRead.model_validate(spell)
+    return spell
 
 
 @router.get("/items", response_model=list[ItemSummary])

@@ -645,24 +645,94 @@ class ClassLevelResource(Base):
 
 
 class Spell(Base):
-    """A spell from the SRD."""
+    """A spell from the SRD or a campaign homebrew.
+
+    Translatable text (`name`, `description`, `higher_levels`) lives in
+    `SpellI18n` — see `app.catalog.mixins` for the `_i18n` convention.
+    """
 
     __tablename__ = "catalog_spells"
+    __table_args__ = (
+        CheckConstraint(
+            _CUSTOM_CAMPAIGN_SCOPE_SQL, name="ck_catalog_spells_custom_campaign_scope"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     level: Mapped[int] = mapped_column(Integer, nullable=False)
-    school: Mapped[str] = mapped_column(String(50), nullable=False)
+    magic_school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_magic_schools.id"),
+        nullable=False,
+    )
     casting_time: Mapped[str] = mapped_column(String(100), nullable=False)
     range: Mapped[str] = mapped_column(String(100), nullable=False)
     duration: Mapped[str] = mapped_column(String(100), nullable=False)
     components: Mapped[str] = mapped_column(String(100), nullable=False)
     ritual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     concentration: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # FK to users.id / campaigns.id — enforced at DB level in migration.
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    magic_school: Mapped[MagicSchool] = relationship("MagicSchool")
+    classes: Mapped[list[SpellClass]] = relationship(
+        "SpellClass", back_populates="spell", cascade="all, delete-orphan"
+    )
+
+
+class SpellI18n(CatalogI18nMixin, Base):
+    """Translated text for a Spell."""
+
+    __tablename__ = "catalog_spells_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_spells_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_spells.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     higher_levels: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class SpellClass(Base):
+    """Junction: a ClassDefinition can cast a Spell."""
+
+    __tablename__ = "catalog_spell_classes"
+    __table_args__ = (
+        UniqueConstraint(
+            "spell_id", "class_definition_id", name="uq_catalog_spell_classes"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    spell_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_spells.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    class_definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    spell: Mapped[Spell] = relationship("Spell", back_populates="classes")
+    class_definition: Mapped[ClassDefinition] = relationship("ClassDefinition")
 
 
 class Item(Base):

@@ -1,262 +1,424 @@
 [
   {
-    "name": "Fire Bolt",
+    "index": "fire-bolt",
     "level": 0,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "120 feet",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "You hurl a mote of fire at a creature or object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage. A flammable object hit by this spell ignites if it isn't being worn or carried.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Fire Bolt",
+        "description": "You hurl a mote of fire at a creature or object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage. A flammable object hit by this spell ignites if it isn't being worn or carried.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Mage Hand",
+    "index": "mage-hand",
     "level": 0,
-    "school": "conjuration",
+    "magic_school_index": "conjuration",
     "casting_time": "1 action",
     "range": "30 feet",
     "duration": "1 minute",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "A spectral, floating hand appears at a point you choose within range. The hand lasts for the duration or until you dismiss it as an action. The hand vanishes if it is ever more than 30 feet away from you or if you cast this spell again.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Mage Hand",
+        "description": "A spectral, floating hand appears at a point you choose within range. The hand lasts for the duration or until you dismiss it as an action. The hand vanishes if it is ever more than 30 feet away from you or if you cast this spell again.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Prestidigitation",
+    "index": "prestidigitation",
     "level": 0,
-    "school": "transmutation",
+    "magic_school_index": "transmutation",
     "casting_time": "1 action",
     "range": "10 feet",
     "duration": "Up to 1 hour",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "This spell is a minor magical trick that novice spellcasters use for practice. You create one of the following magical effects within range: a sensory effect, light or snuff out a candle, clean or soil, chill/warm/flavor, make a color mark or symbol, or create a nonmagical trinket.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Prestidigitation",
+        "description": "This spell is a minor magical trick that novice spellcasters use for practice. You create one of the following magical effects within range: a sensory effect, light or snuff out a candle, clean or soil, chill/warm/flavor, make a color mark or symbol, or create a nonmagical trinket.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Sacred Flame",
+    "index": "sacred-flame",
     "level": 0,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "60 feet",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "Flame-like radiance descends on a creature that you can see within range. The target must succeed on a Dexterity saving throw or take 1d8 radiant damage. The target gains no benefit from cover for this saving throw.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Sacred Flame",
+        "description": "Flame-like radiance descends on a creature that you can see within range. The target must succeed on a Dexterity saving throw or take 1d8 radiant damage. The target gains no benefit from cover for this saving throw.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "cleric"
+    ]
   },
   {
-    "name": "Thaumaturgy",
+    "index": "thaumaturgy",
     "level": 0,
-    "school": "transmutation",
+    "magic_school_index": "transmutation",
     "casting_time": "1 action",
     "range": "30 feet",
     "duration": "Up to 1 minute",
     "components": "V",
     "ritual": false,
     "concentration": false,
-    "description": "You manifest a minor wonder, a sign of supernatural power, within range. You create one of the following magical effects within range: your voice booms up to three times as loud; you cause flames to flicker/brighten/dim; you cause harmless tremors; you create an instantaneous sound; you cause a door or window to fly open or slam shut; you alter the appearance of your eyes.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Thaumaturgy",
+        "description": "You manifest a minor wonder, a sign of supernatural power, within range. You create one of the following magical effects within range: your voice booms up to three times as loud; you cause flames to flicker/brighten/dim; you cause harmless tremors; you create an instantaneous sound; you cause a door or window to fly open or slam shut; you alter the appearance of your eyes.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "cleric"
+    ]
   },
   {
-    "name": "Magic Missile",
+    "index": "magic-missile",
     "level": 1,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "120 feet",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
-    "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st."
+    "i18n": {
+      "en": {
+        "name": "Magic Missile",
+        "description": "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
+        "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Cure Wounds",
+    "index": "cure-wounds",
     "level": 1,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "Touch",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
-    "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st."
+    "i18n": {
+      "en": {
+        "name": "Cure Wounds",
+        "description": "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+        "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st."
+      }
+    },
+    "classes": [
+      "cleric"
+    ]
   },
   {
-    "name": "Shield",
+    "index": "shield",
     "level": 1,
-    "school": "abjuration",
+    "magic_school_index": "abjuration",
     "casting_time": "1 reaction",
     "range": "Self",
     "duration": "1 round",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Shield",
+        "description": "An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Sleep",
+    "index": "sleep",
     "level": 1,
-    "school": "enchantment",
+    "magic_school_index": "enchantment",
     "casting_time": "1 action",
     "range": "90 feet",
     "duration": "1 minute",
     "components": "V, S, M",
     "ritual": false,
     "concentration": false,
-    "description": "This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points.",
-    "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d8 for each slot level above 1st."
+    "i18n": {
+      "en": {
+        "name": "Sleep",
+        "description": "This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points.",
+        "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d8 for each slot level above 1st."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Thunderwave",
+    "index": "thunderwave",
     "level": 1,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "Self (15-foot cube)",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "A wave of thunderous force sweeps out from you. Each creature in a 15-foot cube originating from you must make a Constitution saving throw. On a failed save, a creature takes 2d8 thunder damage and is pushed 10 feet away from you. On a successful save, the creature takes half as much damage and isn't pushed.",
-    "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d8 for each slot level above 1st."
+    "i18n": {
+      "en": {
+        "name": "Thunderwave",
+        "description": "A wave of thunderous force sweeps out from you. Each creature in a 15-foot cube originating from you must make a Constitution saving throw. On a failed save, a creature takes 2d8 thunder damage and is pushed 10 feet away from you. On a successful save, the creature takes half as much damage and isn't pushed.",
+        "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d8 for each slot level above 1st."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Detect Magic",
+    "index": "detect-magic",
     "level": 1,
-    "school": "divination",
+    "magic_school_index": "divination",
     "casting_time": "1 action",
     "range": "Self",
     "duration": "Concentration, up to 10 minutes",
     "components": "V, S",
     "ritual": true,
     "concentration": true,
-    "description": "For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Detect Magic",
+        "description": "For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard",
+      "cleric"
+    ]
   },
   {
-    "name": "Burning Hands",
+    "index": "burning-hands",
     "level": 1,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "Self (15-foot cone)",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "As you hold your hands with thumbs touching and fingers spread, a thin sheet of flames shoots forth from your outstretched fingertips. Each creature in a 15-foot cone must make a Dexterity saving throw. A creature takes 3d6 fire damage on a failed save, or half as much damage on a successful one.",
-    "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st."
+    "i18n": {
+      "en": {
+        "name": "Burning Hands",
+        "description": "As you hold your hands with thumbs touching and fingers spread, a thin sheet of flames shoots forth from your outstretched fingertips. Each creature in a 15-foot cone must make a Dexterity saving throw. A creature takes 3d6 fire damage on a failed save, or half as much damage on a successful one.",
+        "higher_levels": "When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Misty Step",
+    "index": "misty-step",
     "level": 2,
-    "school": "conjuration",
+    "magic_school_index": "conjuration",
     "casting_time": "1 bonus action",
     "range": "Self",
     "duration": "Instantaneous",
     "components": "V",
     "ritual": false,
     "concentration": false,
-    "description": "Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space that you can see.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Misty Step",
+        "description": "Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space that you can see.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Hold Person",
+    "index": "hold-person",
     "level": 2,
-    "school": "enchantment",
+    "magic_school_index": "enchantment",
     "casting_time": "1 action",
     "range": "60 feet",
     "duration": "Concentration, up to 1 minute",
     "components": "V, S, M",
     "ritual": false,
     "concentration": true,
-    "description": "Choose a humanoid that you can see within range. The target must succeed on a Wisdom saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another Wisdom saving throw. On a success, the spell ends on the target.",
-    "higher_levels": "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd."
+    "i18n": {
+      "en": {
+        "name": "Hold Person",
+        "description": "Choose a humanoid that you can see within range. The target must succeed on a Wisdom saving throw or be paralyzed for the duration. At the end of each of its turns, the target can make another Wisdom saving throw. On a success, the spell ends on the target.",
+        "higher_levels": "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd."
+      }
+    },
+    "classes": [
+      "wizard",
+      "cleric"
+    ]
   },
   {
-    "name": "Scorching Ray",
+    "index": "scorching-ray",
     "level": 2,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "120 feet",
     "duration": "Instantaneous",
     "components": "V, S",
     "ritual": false,
     "concentration": false,
-    "description": "You create three rays of fire and hurl them at targets within range. You can hurl them at one target or several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 fire damage.",
-    "higher_levels": "When you cast this spell using a spell slot of 3rd level or higher, you create one additional ray for each slot level above 2nd."
+    "i18n": {
+      "en": {
+        "name": "Scorching Ray",
+        "description": "You create three rays of fire and hurl them at targets within range. You can hurl them at one target or several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 fire damage.",
+        "higher_levels": "When you cast this spell using a spell slot of 3rd level or higher, you create one additional ray for each slot level above 2nd."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Fireball",
+    "index": "fireball",
     "level": 3,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "150 feet",
     "duration": "Instantaneous",
     "components": "V, S, M",
     "ritual": false,
     "concentration": false,
-    "description": "A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a Dexterity saving throw. A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.",
-    "higher_levels": "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd."
+    "i18n": {
+      "en": {
+        "name": "Fireball",
+        "description": "A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a Dexterity saving throw. A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.",
+        "higher_levels": "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Lightning Bolt",
+    "index": "lightning-bolt",
     "level": 3,
-    "school": "evocation",
+    "magic_school_index": "evocation",
     "casting_time": "1 action",
     "range": "Self (100-foot line)",
     "duration": "Instantaneous",
     "components": "V, S, M",
     "ritual": false,
     "concentration": false,
-    "description": "A stroke of lightning forming a line 100 feet long and 5 feet wide blasts out from you in a direction you choose. Each creature in the line must make a Dexterity saving throw. A creature takes 8d6 lightning damage on a failed save, or half as much damage on a successful one.",
-    "higher_levels": "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd."
+    "i18n": {
+      "en": {
+        "name": "Lightning Bolt",
+        "description": "A stroke of lightning forming a line 100 feet long and 5 feet wide blasts out from you in a direction you choose. Each creature in the line must make a Dexterity saving throw. A creature takes 8d6 lightning damage on a failed save, or half as much damage on a successful one.",
+        "higher_levels": "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Haste",
+    "index": "haste",
     "level": 3,
-    "school": "transmutation",
+    "magic_school_index": "transmutation",
     "casting_time": "1 action",
     "range": "30 feet",
     "duration": "Concentration, up to 1 minute",
     "components": "V, S, M",
     "ritual": false,
     "concentration": true,
-    "description": "Choose a willing creature that you can see within range. Until the spell ends, the target's speed is doubled, it gains a +2 bonus to AC, it has advantage on Dexterity saving throws, and it gains an additional action on each of its turns.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Haste",
+        "description": "Choose a willing creature that you can see within range. Until the spell ends, the target's speed is doubled, it gains a +2 bonus to AC, it has advantage on Dexterity saving throws, and it gains an additional action on each of its turns.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Counterspell",
+    "index": "counterspell",
     "level": 3,
-    "school": "abjuration",
+    "magic_school_index": "abjuration",
     "casting_time": "1 reaction",
     "range": "60 feet",
     "duration": "Instantaneous",
     "components": "S",
     "ritual": false,
     "concentration": false,
-    "description": "You attempt to interrupt a creature in the process of casting a spell. If the creature is casting a spell of 3rd level or lower, its spell fails and has no effect. If it is casting a spell of 4th level or higher, make an ability check using your spellcasting ability. The DC equals 10 + the spell's level. On a success, the creature's spell fails and has no effect.",
-    "higher_levels": "When you cast this spell using a spell slot of 4th level or higher, the interrupted spell has no effect if its level is less than or equal to the level of the spell slot you used."
+    "i18n": {
+      "en": {
+        "name": "Counterspell",
+        "description": "You attempt to interrupt a creature in the process of casting a spell. If the creature is casting a spell of 3rd level or lower, its spell fails and has no effect. If it is casting a spell of 4th level or higher, make an ability check using your spellcasting ability. The DC equals 10 + the spell's level. On a success, the creature's spell fails and has no effect.",
+        "higher_levels": "When you cast this spell using a spell slot of 4th level or higher, the interrupted spell has no effect if its level is less than or equal to the level of the spell slot you used."
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   },
   {
-    "name": "Polymorph",
+    "index": "polymorph",
     "level": 4,
-    "school": "transmutation",
+    "magic_school_index": "transmutation",
     "casting_time": "1 action",
     "range": "60 feet",
     "duration": "Concentration, up to 1 hour",
     "components": "V, S, M",
     "ritual": false,
     "concentration": true,
-    "description": "This spell transforms a creature that you can see within range into a new form. An unwilling creature must make a Wisdom saving throw to avoid the effect. The spell has no effect on a shapechanger or a creature with 0 hit points.",
-    "higher_levels": null
+    "i18n": {
+      "en": {
+        "name": "Polymorph",
+        "description": "This spell transforms a creature that you can see within range into a new form. An unwilling creature must make a Wisdom saving throw to avoid the effect. The spell has no effect on a shapechanger or a creature with 0 hit points.",
+        "higher_levels": null
+      }
+    },
+    "classes": [
+      "wizard"
+    ]
   }
 ]

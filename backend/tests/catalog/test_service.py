@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
+from app.catalog.models import Spell
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -171,19 +172,108 @@ async def test_list_spells_filter_by_level(db: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_list_spells_filter_by_school(db: AsyncSession) -> None:
-    """list_spells with school filter should restrict results."""
+    """list_spells with school filter should restrict results by MagicSchool index."""
     await seed_catalog(db)
     evocations = await service.list_spells(db, school="evocation")
-    assert all(s.school == "evocation" for s in evocations)
+    assert all(s.magic_school.index == "evocation" for s in evocations)
     assert len(evocations) > 0
 
 
 @pytest.mark.asyncio
-async def test_list_spells_search(db: AsyncSession) -> None:
-    """list_spells with search should match name substring."""
+async def test_list_spells_translated_search(db: AsyncSession) -> None:
+    """list_spells_translated with search should match translated name substring."""
     await seed_catalog(db)
-    results = await service.list_spells(db, search="fire")
+    results = await service.list_spells_translated(db, search="fire")
     assert all("fire" in s.name.lower() for s in results)
+    assert len(results) > 0
+
+
+@pytest.mark.asyncio
+async def test_get_spell_translated_resolves_classes(db: AsyncSession) -> None:
+    """get_spell_translated resolves name/description and casting classes."""
+    await seed_catalog(db)
+    results = await service.list_spells_translated(db, search="Fireball")
+    fireball = await service.get_spell_translated(db, results[0].id, locale="en")
+
+    assert fireball is not None
+    assert fireball.name == "Fireball"
+    assert fireball.school == "evocation"
+    assert any(c.name == "Wizard" for c in fireball.classes)
+
+
+@pytest.mark.asyncio
+async def test_get_spell_translated_resolves_multiple_classes(
+    db: AsyncSession,
+) -> None:
+    """A spell castable by more than one class resolves every SpellClass row."""
+    await seed_catalog(db)
+    results = await service.list_spells_translated(db, search="Detect Magic")
+    detect_magic = await service.get_spell_translated(db, results[0].id, locale="en")
+
+    assert detect_magic is not None
+    names = {c.name for c in detect_magic.classes}
+    assert names == {"Wizard", "Cleric"}
+
+
+@pytest.mark.asyncio
+async def test_list_spells_scoped_to_campaign_includes_srd_and_own_homebrew(
+    db: AsyncSession,
+) -> None:
+    """`list_spells(campaign_id=X)` returns SRD + own campaign homebrew, not others'."""
+    await seed_catalog(db)
+    srd_spells = await service.list_spells(db)
+    magic_school_id = srd_spells[0].magic_school_id
+
+    campaign_a = uuid.uuid4()
+    campaign_b = uuid.uuid4()
+    homebrew_a = Spell(
+        id=uuid.uuid4(),
+        index=None,
+        level=1,
+        magic_school_id=magic_school_id,
+        casting_time="1 action",
+        range="Self",
+        duration="Instantaneous",
+        components="V",
+        ritual=False,
+        concentration=False,
+        is_custom=True,
+        campaign_id=campaign_a,
+    )
+    homebrew_b = Spell(
+        id=uuid.uuid4(),
+        index=None,
+        level=1,
+        magic_school_id=magic_school_id,
+        casting_time="1 action",
+        range="Self",
+        duration="Instantaneous",
+        components="V",
+        ritual=False,
+        concentration=False,
+        is_custom=True,
+        campaign_id=campaign_b,
+    )
+    db.add_all([homebrew_a, homebrew_b])
+    await db.commit()
+
+    results = await service.list_spells(db, campaign_id=campaign_a)
+    ids = {s.id for s in results}
+
+    assert homebrew_a.id in ids
+    assert homebrew_b.id not in ids
+    assert {s.id for s in srd_spells} <= ids
+
+
+@pytest.mark.asyncio
+async def test_get_spell_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_spell_translated falls back to `en` when the locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_spells_translated(db, search="Fireball")
+    fireball = await service.get_spell_translated(db, results[0].id, locale="pt-BR")
+
+    assert fireball is not None
+    assert fireball.name == "Fireball"
 
 
 @pytest.mark.asyncio
