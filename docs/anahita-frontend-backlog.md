@@ -19,7 +19,7 @@
 | 0    | Fundação de app (providers, auth, API client, locale) | Concluída       | 2026-08-23           |
 | 1    | Campanhas, Personagens, Catálogo       | Concluída (todas as lacunas de backend identificadas foram implementadas e integradas — ver notas de cada história) | 2026-08-23 |
 | 2    | Sessão ao Vivo (Combat Tracker)        | Concluída       | 2026-08-23           |
-| 3    | World-building                          | Não iniciado    | —                    |
+| 3    | World-building                          | Concluída       | 2026-08-23           |
 | 4    | Loot, Inventário e Handouts             | Não iniciado    | —                    |
 | 5    | Registro e Lore                         | Não iniciado    | —                    |
 
@@ -170,9 +170,10 @@
   - [x] Testes: árvore de locations renderiza hierarquia correta; NPC card mostra stat block quando aplicável
   - **Nota:** `types/world.ts` era provisório (Fase 0) e ficou desatualizado em relação ao backend real da Fase 3 — corrigido inline: adicionado `id` às interfaces de junção (`NpcFaction`, `NpcLocation`, `NpcSession`, `LocationSession`, `FactionRelationship`, que o backend sempre retorna), acrescentado `LocationTreeNode` e os tipos `*Create`. `components/layout/campaign-sidebar.tsx` teve o item "World" marcado `implemented: true` (lacuna mecânica — senão a navegação continuaria desabilitada mesmo com as telas prontas). `FactionGraph` é uma lista de relações por facção (não um grafo visual) e `entity-link-badge` são badges de contagem simples — dentro do que o backlog permite ("lista de relações ou grafo simples"). Criação de NPC com stat block (busca no catálogo de monstros) e vínculos NPC↔sessão/local↔sessão via UI ficaram fora do escopo desta história (endpoints já existem no backend, prontos para uma UI dedicada numa iteração futura); o card já sabe renderizar o stat block quando o campo existir via API.
 
-- **Como DM, quero buscar por nome/descrição em NPCs, locais e facções.**
-  - [ ] Campo de busca no hub de world, chamando o endpoint de full-text search do backend
-  - [ ] Teste: busca retorna resultados combinando as três entidades
+- **Como DM, quero buscar por nome/descrição em NPCs, locais e facções.** ✅ (2026-08-23)
+  - [x] Campo de busca no hub de world, chamando o endpoint de full-text search do backend
+  - [x] Teste: busca retorna resultados combinando as três entidades — `app/campaigns/[campaignId]/world/page.test.tsx`
+  - **Nota:** `searchWorld`/`useWorldSearch` já tinham sido criados na história anterior (API/hook prontos, só sem UI); esta história só adicionou o campo de busca e a renderização dos resultados no hub. Cada resultado linka para a página de lista da entidade (`/world/npcs`, `/world/locations`, `/world/factions`) — não há rota de detalhe por entidade ainda, então não dá pra linkar direto no item.
 
 ---
 
