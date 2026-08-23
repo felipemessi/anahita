@@ -16,8 +16,8 @@
 
 | Fase | Domínio                          | Status                          | Última atualização |
 |------|-----------------------------------|----------------------------------|----------------------|
-| 0    | Catálogo SRD                      | Parcial (fundação i18n/custom-scope + vocabulário fixo + raças + classes prontos) | 2026-08-22    |
-| 1    | Fundação (Auth, Campaigns, Characters) | Parcial (Auth + Storage prontos) | 2026-08-22    |
+| 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
+| 1    | Fundação (Auth, Campaigns, Characters) | Parcial (Auth + Storage prontos; auth confirmado com teste de integração) | 2026-08-23    |
 | 2    | Sessão ao Vivo (Combat, WS)        | Não iniciado                     | —                    |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
@@ -131,7 +131,7 @@
 ### Pendente
 
 - **Como usuário, quero me registrar e fazer login para acessar minhas campanhas.** *(verificar se já coberto pelos endpoints de auth existentes — se sim, marcar como feito e pular)*
-  - [ ] Confirmar que `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` existem e têm teste de integração cobrindo o fluxo completo
+  - [x] Confirmar que `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` existem e têm teste de integração cobrindo o fluxo completo — endpoints já existiam; adicionado teste de integração HTTP end-to-end (`TestClient`/`httpx.AsyncClient` contra a app real, com `get_db` sobrescrito para SQLite em memória) em `tests/auth/test_router.py`, cobrindo registro → login → refresh (rotação de cookie) → refresh do token antigo rejeitado, e-mail duplicado, senha errada, refresh sem cookie, logout
 
 - **Como usuário, quero criar uma campanha e ser automaticamente seu DM.**
   - [ ] `app/campaigns/models.py`: `Campaign`, `CampaignMember`, `CampaignInvite` (seção 7.2 do PRD)
