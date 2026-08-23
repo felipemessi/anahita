@@ -13,7 +13,9 @@ from app.world.schemas import (
     FactionCreate,
     FactionRead,
     LocationCreate,
+    LocationParentUpdate,
     LocationRead,
+    LocationTreeNode,
     NPCCreate,
     NPCRead,
 )
@@ -83,6 +85,29 @@ async def list_locations(
     """List a campaign's locations."""
     locations = await service.list_locations(campaign_id, user.id, db)
     return [LocationRead.model_validate(loc) for loc in locations]
+
+
+@router.patch("/locations/{location_id}/parent", response_model=LocationRead)
+async def update_location_parent(
+    location_id: uuid.UUID,
+    body: LocationParentUpdate,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> LocationRead:
+    """Reparent a location; rejects any change that would create a cycle."""
+    location = await service.update_location_parent(location_id, user.id, body, db)
+    return LocationRead.model_validate(location)
+
+
+@router.get(
+    "/campaigns/{campaign_id}/locations/tree", response_model=list[LocationTreeNode]
+)
+async def get_location_tree(
+    campaign_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> list[LocationTreeNode]:
+    """Return a campaign's locations nested by parent, root locations first."""
+    return await service.get_location_tree(campaign_id, user.id, db)
 
 
 @router.post(

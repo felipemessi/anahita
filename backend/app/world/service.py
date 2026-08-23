@@ -1,6 +1,7 @@
 """WorldService orchestrates NPC, Location, and Faction management."""
 
 import uuid
+from collections import defaultdict
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -9,8 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog.models import Monster
+from app.world.domain import LocationCycleError, validate_no_parent_cycle
 from app.world.models import NPC, Faction, Location
-from app.world.schemas import FactionCreate, LocationCreate, NPCCreate
+from app.world.schemas import (
+    FactionCreate,
+    LocationCreate,
+    LocationParentUpdate,
+    LocationTreeNode,
+    NPCCreate,
+)
 
 
 class WorldService:
@@ -65,8 +73,17 @@ class WorldService:
         data: LocationCreate,
         db: AsyncSession,
     ) -> Location:
-        """Create a location; only the campaign's DM may do this."""
+        """Create a location; only the campaign's DM may do this.
+
+        `parent_location_id`, when given, must belong to this same campaign.
+        """
         await self._require_dm(campaign_id, requester_id, db)
+        if data.parent_location_id is not None:
+            parent = await self._require_location(data.parent_location_id, db)
+            if parent.campaign_id != campaign_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Location not found"
+                )
 
         location = Location(
             campaign_id=campaign_id,
@@ -91,6 +108,68 @@ class WorldService:
             .order_by(Location.name)
         )
         return list(result.scalars().all())
+
+    async def update_location_parent(
+        self,
+        location_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: LocationParentUpdate,
+        db: AsyncSession,
+    ) -> Location:
+        """Reparent a location; only the campaign's DM may do this.
+
+        Rejects a new parent from another campaign, and any parent that
+        would make `location_id` an ancestor of itself.
+        """
+        location = await self._require_location(location_id, db)
+        await self._require_dm(location.campaign_id, requester_id, db)
+
+        ancestor_ids: set[uuid.UUID] = set()
+        if data.parent_location_id is not None:
+            new_parent = await self._require_location(data.parent_location_id, db)
+            if new_parent.campaign_id != location.campaign_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Location not found"
+                )
+            ancestor_ids = await self._collect_ancestor_ids(new_parent.id, db)
+
+        try:
+            validate_no_parent_cycle(
+                location_id=location.id,
+                new_parent_id=data.parent_location_id,
+                new_parent_ancestor_ids=ancestor_ids,
+            )
+        except LocationCycleError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
+
+        location.parent_location_id = data.parent_location_id
+        await db.commit()
+        await db.refresh(location)
+        return location
+
+    async def get_location_tree(
+        self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[LocationTreeNode]:
+        """Return a campaign's locations nested by `parent_location_id`."""
+        locations = await self.list_locations(campaign_id, requester_id, db)
+        by_parent: dict[uuid.UUID | None, list[Location]] = defaultdict(list)
+        for location in locations:
+            by_parent[location.parent_location_id].append(location)
+
+        def build(parent_id: uuid.UUID | None) -> list[LocationTreeNode]:
+            return [
+                LocationTreeNode(
+                    id=loc.id,
+                    name=loc.name,
+                    location_type=loc.location_type,
+                    children=build(loc.id),
+                )
+                for loc in by_parent.get(parent_id, [])
+            ]
+
+        return build(None)
 
     async def create_faction(
         self,
@@ -125,6 +204,32 @@ class WorldService:
             .order_by(Faction.name)
         )
         return list(result.scalars().all())
+
+    async def _require_location(
+        self, location_id: uuid.UUID, db: AsyncSession
+    ) -> Location:
+        """Fetch a location by id, or raise 404."""
+        result = await db.execute(select(Location).where(Location.id == location_id))
+        location = result.scalar_one_or_none()
+        if location is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Location not found"
+            )
+        return location
+
+    async def _collect_ancestor_ids(
+        self, start_id: uuid.UUID, db: AsyncSession
+    ) -> set[uuid.UUID]:
+        """Walk `parent_location_id` upward from `start_id`, inclusive of it."""
+        ancestor_ids: set[uuid.UUID] = set()
+        current_id: uuid.UUID | None = start_id
+        while current_id is not None:
+            ancestor_ids.add(current_id)
+            result = await db.execute(
+                select(Location.parent_location_id).where(Location.id == current_id)
+            )
+            current_id = result.scalar_one_or_none()
+        return ancestor_ids
 
     async def _require_visible_monster(
         self, campaign_id: uuid.UUID, monster_id: uuid.UUID, db: AsyncSession

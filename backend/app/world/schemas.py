@@ -1,5 +1,7 @@
 """Pydantic request/response schemas for the world-building domain."""
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -57,6 +59,23 @@ class LocationRead(BaseModel):
     location_type: LocationType
     description: str
     parent_location_id: uuid.UUID | None
+
+
+class LocationParentUpdate(BaseModel):
+    """Request body to reparent a location within the hierarchy."""
+
+    parent_location_id: uuid.UUID | None = None
+
+
+class LocationTreeNode(BaseModel):
+    """A location and its descendants, nested by `parent_location_id`."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    location_type: LocationType
+    children: list[LocationTreeNode] = []
 
 
 class FactionCreate(BaseModel):

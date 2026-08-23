@@ -242,10 +242,11 @@
   - [x] Testes: NPC sem stat block, NPC com stat block do SRD, NPC com monstro homebrew da campanha — `tests/world/test_service.py`
   - **Nota:** lacuna mecânica preenchida inline — a história só previa NPC, mas `Location`/`Faction` ganharam CRUD básico (create/list, DM-only para criar) também nesta história, já que nenhuma outra história do backlog cria esses endpoints e as futuras junções (NPCFaction, NPCLocation etc.) precisam de algo pra referenciar. `service.py` valida que `stat_block_id` só aceita monstro SRD (`campaign_id IS NULL`) ou homebrew da própria campanha, nunca homebrew de outra campanha.
 
-- **Como DM, quero organizar locais em hierarquia (região → cidade → taverna).**
-  - [ ] `service.py`: navegação de `parent_location_id`, prevenção de ciclo
-  - [ ] `router.py`: árvore de locais por campanha
-  - [ ] Teste: ciclo é rejeitado; árvore de 3 níveis resolve corretamente
+- **Como DM, quero organizar locais em hierarquia (região → cidade → taverna).** ✅ (2026-08-23)
+  - [x] `service.py`: navegação de `parent_location_id`, prevenção de ciclo — `WorldService.update_location_parent`/`get_location_tree`, `domain.py::validate_no_parent_cycle`
+  - [x] `router.py`: árvore de locais por campanha — `GET /campaigns/{campaign_id}/locations/tree`, `PATCH /locations/{location_id}/parent`
+  - [x] Teste: ciclo é rejeitado (auto-referência e referência a descendente); árvore de 3 níveis resolve corretamente — `tests/world/test_service.py`
+  - **Nota:** lacuna mecânica preenchida inline — `create_location` também passou a validar que `parent_location_id` pertence à mesma campanha (mesma regra já aplicada em `update_location_parent`), já que a história anterior não tinha essa checagem ainda.
 
 - **Como DM, quero relacionar NPCs a facções, locais e sessões para montar o histórico da campanha.**
   - [ ] `app/world/models.py`: `NPCFaction`, `NPCLocation`, `NPCSession`, `LocationSession`, `FactionRelationship` (tabelas de junção da seção 7.7)
