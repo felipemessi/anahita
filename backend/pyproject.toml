@@ -53,6 +53,9 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"
+markers = [
+    "postgres: requires a real Postgres connection (tsvector, etc.) — skipped if unreachable",
+]
 
 [tool.coverage.run]
 source = ["app", "engine"]

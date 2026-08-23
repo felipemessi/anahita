@@ -426,3 +426,25 @@ async def test_faction_cannot_have_relationship_with_itself(
             db,
         )
     assert exc.value.status_code == 400
+
+
+async def test_search_rejects_non_members(
+    db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Search requires campaign membership, checked before any query runs.
+
+    `search_world_entities` uses Postgres-only `tsvector` SQL, so it's
+    monkeypatched here — this test only exercises the membership gate, which
+    is DB-agnostic and safe to cover on SQLite.
+    """
+    campaign, _dm, _player = await _make_campaign_with_dm_and_player(db)
+    outsider = await _make_user(db, email="outsider@example.com")
+    monkeypatch.setattr(
+        "app.world.service.search_world_entities",
+        lambda *args, **kwargs: pytest.fail("should not be called"),
+    )
+    service = WorldService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.search(campaign.id, outsider.id, "anything", db)
+    assert exc.value.status_code == 403

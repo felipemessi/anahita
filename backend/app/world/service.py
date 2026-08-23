@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog.models import Monster
+from app.queries.world_queries import search_world_entities
 from app.sessions.models import Session
 from app.world.domain import LocationCycleError, validate_no_parent_cycle
 from app.world.models import (
@@ -33,6 +34,7 @@ from app.world.schemas import (
     NPCFactionCreate,
     NPCLocationCreate,
     NPCSessionCreate,
+    WorldSearchResult,
 )
 
 
@@ -219,6 +221,29 @@ class WorldService:
             .order_by(Faction.name)
         )
         return list(result.scalars().all())
+
+    async def search(
+        self,
+        campaign_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        query_text: str,
+        db: AsyncSession,
+    ) -> list[WorldSearchResult]:
+        """Search a campaign's NPCs, Locations, and Factions by name/description.
+
+        Postgres-only (uses `tsvector`); requester must be a campaign member.
+        """
+        await self._require_membership(campaign_id, requester_id, db)
+        hits = await search_world_entities(campaign_id, query_text, db)
+        return [
+            WorldSearchResult(
+                entity_type=hit.entity_type,
+                id=hit.id,
+                name=hit.name,
+                snippet=hit.snippet,
+            )
+            for hit in hits
+        ]
 
     async def link_npc_faction(
         self,
