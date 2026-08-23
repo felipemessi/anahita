@@ -4,12 +4,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   addCharacterClass,
+  addCharacterEquipment,
+  addCharacterFeature,
+  addCharacterSpell,
   createCharacter,
   getCharacter,
   listCharacters,
   updateCharacterHp,
 } from "@/lib/api/characters";
-import type { CharacterClassCreate, CharacterCreate } from "@/types/character";
+import type {
+  CharacterClassCreate,
+  CharacterCreate,
+  CharacterEquipmentCreate,
+  CharacterFeatureCreate,
+  CharacterSpellCreate,
+} from "@/types/character";
 
 export const CHARACTERS_QUERY_KEY = ["characters"] as const;
 
@@ -43,6 +52,46 @@ export function useAddCharacterClass(characterId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CharacterClassCreate) => addCharacterClass(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/** Add a known/prepared spell to a character. */
+export function useAddCharacterSpell(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterSpellCreate) => addCharacterSpell(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/** Add an item to a character's personal inventory. */
+export function useAddCharacterEquipment(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterEquipmentCreate) =>
+      addCharacterEquipment(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/** Record a class/feat feature on a character. */
+export function useAddCharacterFeature(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterFeatureCreate) => addCharacterFeature(characterId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],

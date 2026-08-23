@@ -78,6 +78,7 @@ from app.catalog.models import (
 )
 from app.catalog.schemas import (
     ArmorDetailRead,
+    BackgroundCreate,
     BackgroundEquipmentRead,
     BackgroundFeatureRead,
     BackgroundRead,
@@ -88,6 +89,7 @@ from app.catalog.schemas import (
     ClassLevelResourceRead,
     ClassLevelSpellSlotRead,
     ClassSummary,
+    FeatCreate,
     FeatPrerequisiteRead,
     FeatRead,
     FeatSummary,
@@ -97,6 +99,7 @@ from app.catalog.schemas import (
     ItemPropertyRead,
     ItemRead,
     ItemSummary,
+    MagicItemCreate,
     MagicItemRead,
     MagicItemSummary,
     MonsterActionDamageRead,
@@ -116,6 +119,7 @@ from app.catalog.schemas import (
     RaceRead,
     RaceSummary,
     RaceTraitRead,
+    RuleCreate,
     RuleRead,
     RuleSectionRead,
     RuleSummary,
@@ -1626,11 +1630,25 @@ async def _translate_rule_section(
     )
 
 
-async def list_rules(session: AsyncSession) -> list[Rule]:
-    """Return all rules (base rows, eager-loaded sections, untranslated)."""
+async def list_rules(
+    session: AsyncSession,
+    *,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+) -> list[Rule]:
+    """Return all rules (base rows, eager-loaded sections, untranslated).
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
     stmt = select(Rule).options(
         selectinload(Rule.sections).selectinload(RuleRuleSection.rule_section)
     )
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Rule.campaign_id.is_(None), Rule.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(Rule.is_custom.is_(False))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
@@ -1671,10 +1689,17 @@ async def get_rule_translated(
 
 
 async def list_rules_translated(
-    session: AsyncSession, *, search: str | None = None, locale: str = "en"
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
 ) -> list[RuleSummary]:
     """Return rules with `name` resolved for `locale`, optionally name-filtered."""
-    rules = await list_rules(session)
+    rules = await list_rules(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
     summaries = []
     for rule in rules:
         t = await get_translated(
@@ -1883,5 +1908,107 @@ async def create_custom_monster(
     )
     await session.commit()
     result = await get_monster_translated(session, monster.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_magic_item(
+    session: AsyncSession, data: MagicItemCreate
+) -> MagicItemRead:
+    """Create a homebrew magic item and return it translated (locale `en`).
+
+    Homebrew magic items reuse the SRD `adventuring-gear` equipment category
+    (v1 simplification, same as `create_custom_item`). Raises 422 if that
+    category isn't seeded.
+    """
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    category_result = await session.execute(
+        select(EquipmentCategory).where(EquipmentCategory.index == "adventuring-gear")
+    )
+    equipment_category = category_result.scalar_one_or_none()
+    if equipment_category is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Catalog isn't seeded with equipment categories yet",
+        )
+
+    magic_item = MagicItem(
+        equipment_category_id=equipment_category.id,
+        rarity=data.rarity,
+        is_custom=True,
+        campaign_id=data.campaign_id,
+    )
+    session.add(magic_item)
+    await session.flush()
+    session.add(
+        MagicItemI18n(
+            entity_id=magic_item.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+        )
+    )
+    await session.commit()
+    result = await get_magic_item_translated(session, magic_item.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_background(
+    session: AsyncSession, data: BackgroundCreate
+) -> BackgroundRead:
+    """Create a homebrew background and return it translated (locale `en`)."""
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    background = Background(is_custom=True, campaign_id=data.campaign_id)
+    session.add(background)
+    await session.flush()
+    session.add(
+        BackgroundI18n(
+            entity_id=background.id,
+            locale="en",
+            name=data.name,
+            personality_traits=data.personality_traits,
+            ideals=data.ideals,
+            bonds=data.bonds,
+            flaws=data.flaws,
+        )
+    )
+    await session.commit()
+    result = await get_background_translated(session, background.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_feat(session: AsyncSession, data: FeatCreate) -> FeatRead:
+    """Create a homebrew feat and return it translated (locale `en`)."""
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    feat = Feat(is_custom=True, campaign_id=data.campaign_id)
+    session.add(feat)
+    await session.flush()
+    session.add(
+        FeatI18n(
+            entity_id=feat.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+        )
+    )
+    await session.commit()
+    result = await get_feat_translated(session, feat.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_rule(session: AsyncSession, data: RuleCreate) -> RuleRead:
+    """Create a homebrew rule and return it translated (locale `en`)."""
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    rule = Rule(is_custom=True, campaign_id=data.campaign_id)
+    session.add(rule)
+    await session.flush()
+    session.add(
+        RuleI18n(entity_id=rule.id, locale="en", name=data.name, desc=data.desc)
+    )
+    await session.commit()
+    result = await get_rule_translated(session, rule.id, locale="en")
     assert result is not None  # just created it
     return result

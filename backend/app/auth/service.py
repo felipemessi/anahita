@@ -1,5 +1,7 @@
 """AuthService orchestrates registration, login, refresh, and logout."""
 
+import uuid
+
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,3 +69,12 @@ class AuthService:
         """Revoke the given refresh token."""
         await self._strategy.revoke_token(raw_token, db)
         await db.commit()
+
+    async def list_users_by_ids(
+        self, ids: list[uuid.UUID], db: AsyncSession
+    ) -> list[User]:
+        """Return the users matching `ids` (silently skips ids that don't exist)."""
+        if not ids:
+            return []
+        result = await db.execute(select(User).where(User.id.in_(ids)))
+        return list(result.scalars().all())

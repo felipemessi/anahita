@@ -23,6 +23,12 @@ export interface CampaignCreate {
   setting?: string | null;
 }
 
+export interface CampaignUpdate {
+  name?: string;
+  description?: string;
+  setting?: string;
+}
+
 export interface CampaignMember {
   id: string;
   campaign_id: string;

@@ -10,10 +10,12 @@ import {
   listCampaigns,
   listMembers,
   redeemInvite,
+  updateCampaign,
 } from "@/lib/api/campaigns";
 import type {
   CampaignCreate,
   CampaignInviteCreate,
+  CampaignUpdate,
 } from "@/types/campaign";
 
 export const CAMPAIGNS_QUERY_KEY = ["campaigns"] as const;
@@ -60,6 +62,19 @@ export function useCreateCampaign() {
     mutationFn: (data: CampaignCreate) => createCampaign(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY });
+    },
+  });
+}
+
+/** Update a campaign's general settings (DM only); invalidates its detail on success. */
+export function useUpdateCampaign(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CampaignUpdate) => updateCampaign(campaignId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CAMPAIGNS_QUERY_KEY, campaignId],
+      });
     },
   });
 }

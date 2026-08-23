@@ -10,16 +10,19 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.catalog import service
 from app.catalog.schemas import (
+    BackgroundCreate,
     BackgroundRead,
     BackgroundSummary,
     ClassDefinitionCreate,
     ClassDefinitionRead,
     ClassSummary,
+    FeatCreate,
     FeatRead,
     FeatSummary,
     ItemCreate,
     ItemRead,
     ItemSummary,
+    MagicItemCreate,
     MagicItemRead,
     MagicItemSummary,
     MonsterCreate,
@@ -28,6 +31,7 @@ from app.catalog.schemas import (
     RaceCreate,
     RaceRead,
     RaceSummary,
+    RuleCreate,
     RuleRead,
     RuleSummary,
     SpellCreate,
@@ -260,6 +264,17 @@ async def get_magic_item(
     return magic_item
 
 
+@router.post(
+    "/magic-items", response_model=MagicItemRead, status_code=status.HTTP_201_CREATED
+)
+async def create_magic_item(
+    body: MagicItemCreate, user: CurrentUser, db: DB
+) -> MagicItemRead:
+    """Create a homebrew magic item, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_magic_item(db, body)
+
+
 @router.get("/backgrounds", response_model=list[BackgroundSummary])
 async def list_backgrounds(
     db: DB,
@@ -293,6 +308,17 @@ async def get_background(
     return background
 
 
+@router.post(
+    "/backgrounds", response_model=BackgroundRead, status_code=status.HTTP_201_CREATED
+)
+async def create_background(
+    body: BackgroundCreate, user: CurrentUser, db: DB
+) -> BackgroundRead:
+    """Create a homebrew background, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_background(db, body)
+
+
 @router.get("/feats", response_model=list[FeatSummary])
 async def list_feats(
     db: DB,
@@ -322,6 +348,13 @@ async def get_feat(
     if feat is None:
         raise HTTPException(status_code=404, detail="Feat not found")
     return feat
+
+
+@router.post("/feats", response_model=FeatRead, status_code=status.HTTP_201_CREATED)
+async def create_feat(body: FeatCreate, user: CurrentUser, db: DB) -> FeatRead:
+    """Create a homebrew feat, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_feat(db, body)
 
 
 @router.get("/monsters", response_model=list[MonsterSummary])
@@ -368,10 +401,18 @@ async def create_monster(body: MonsterCreate, user: CurrentUser, db: DB) -> Mons
 async def list_rules(
     db: DB,
     search: SearchQ = None,
+    include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[RuleSummary]:
     """List all rules, optionally filtered by name."""
-    return await service.list_rules_translated(db, search=search, locale=locale)
+    return await service.list_rules_translated(
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
+    )
 
 
 @router.get("/rules/{rule_id}", response_model=RuleRead)
@@ -385,3 +426,10 @@ async def get_rule(
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
     return rule
+
+
+@router.post("/rules", response_model=RuleRead, status_code=status.HTTP_201_CREATED)
+async def create_rule(body: RuleCreate, user: CurrentUser, db: DB) -> RuleRead:
+    """Create a homebrew rule, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_rule(db, body)

@@ -16,6 +16,18 @@ class CampaignCreate(BaseModel):
     setting: str | None = None
 
 
+class CampaignUpdate(BaseModel):
+    """Request body to update a campaign's general settings.
+
+    Every field is optional — only the ones supplied are changed (mirrors
+    `characters.schemas.CharacterUpdate`).
+    """
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    setting: str | None = None
+
+
 class CampaignRead(BaseModel):
     """Response schema for a campaign."""
 

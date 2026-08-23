@@ -1,8 +1,9 @@
 """Auth endpoints: register, login, refresh, logout."""
 
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -89,6 +90,21 @@ async def me(
 ) -> UserPublic:
     """Return the public profile of the currently authenticated user."""
     return UserPublic.model_validate(current_user)
+
+
+@router.get("/users", response_model=list[UserPublic])
+async def list_users(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+    _current_user: Annotated[User, Depends(get_current_user)],
+    ids: Annotated[
+        list[uuid.UUID],
+        Query(description="Repeat for each id, e.g. ?ids=<uuid>&ids=<uuid>"),
+    ],
+) -> list[UserPublic]:
+    """Resolve public profiles for a batch of user ids (e.g. campaign member names)."""
+    users = await service.list_users_by_ids(ids, db)
+    return [UserPublic.model_validate(u) for u in users]
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

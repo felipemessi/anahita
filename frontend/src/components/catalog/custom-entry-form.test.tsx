@@ -59,4 +59,37 @@ describe("CustomEntryForm", () => {
     expect(payload).not.toHaveProperty("campaign_id");
     expect(payload).not.toHaveProperty("is_custom");
   });
+
+  it("uses 'desc' (not 'description') for the rules category, matching RuleCreate", async () => {
+    render(<CustomEntryForm category="rules" campaignId="camp-1" />);
+
+    // Only one "Descrição" field for rules (the "desc"-keyed one) — the
+    // common "description" field is omitted since RuleCreate has no such field.
+    expect(screen.getAllByLabelText(/^descrição$/i)).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText(/^nome$/i), {
+      target: { value: "House Rule: Flanking" },
+    });
+    fireEvent.change(screen.getByLabelText(/^descrição$/i), {
+      target: { value: "Flanking grants advantage." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /criar homebrew/i }));
+
+    await screen.findByRole("button", { name: /criar homebrew/i });
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "House Rule: Flanking",
+        desc: "Flanking grants advantage.",
+      }),
+    );
+    const [payload] = mutateAsync.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).not.toHaveProperty("description");
+  });
+
+  it("splits background fields (personality_traits/ideals/bonds/flaws), no description", () => {
+    render(<CustomEntryForm category="backgrounds" campaignId="camp-1" />);
+    expect(screen.queryByLabelText(/^descrição$/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/traços de personalidade/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/ideais/i)).toBeInTheDocument();
+  });
 });

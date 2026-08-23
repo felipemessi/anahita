@@ -5,7 +5,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.domain import AbilityScore
-from app.characters.domain import Skill
+from app.characters.domain import FeatureSourceType, Skill
 
 
 class CharacterAbilityScoreCreate(BaseModel):
@@ -83,6 +83,73 @@ class CharacterCreate(BaseModel):
     classes: list[CharacterClassCreate] = Field(min_length=1)
 
 
+class CharacterSpellCreate(BaseModel):
+    """Request body to add a known/prepared spell to a character."""
+
+    spell_id: uuid.UUID
+    prepared: bool = False
+    source_class: str | None = None
+
+
+class CharacterSpellRead(BaseModel):
+    """Response schema for a character's known spell."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    spell_id: uuid.UUID
+    prepared: bool
+    source_class: str | None
+
+
+class CharacterEquipmentCreate(BaseModel):
+    """Request body to add an item to a character's personal inventory."""
+
+    item_id: uuid.UUID
+    equipped: bool = False
+    quantity: int = Field(default=1, ge=1)
+    attunement: bool = False
+
+
+class CharacterEquipmentRead(BaseModel):
+    """Response schema for an item in a character's personal inventory."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    item_id: uuid.UUID
+    equipped: bool
+    quantity: int
+    attunement: bool
+
+
+class CharacterFeatureCreate(BaseModel):
+    """Request body to record a class/feat feature on a character.
+
+    Racial features live on `Race` itself (catalog), not here — see
+    `app/characters/models.py::CharacterFeature`.
+    """
+
+    source_type: FeatureSourceType
+    source_name: str = Field(min_length=1, max_length=255)
+    feature_name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    level_acquired: int = Field(default=1, ge=1, le=20)
+
+
+class CharacterFeatureRead(BaseModel):
+    """Response schema for a character's recorded feature."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_type: FeatureSourceType
+    source_name: str
+    feature_name: str
+    description: str | None
+    level_acquired: int
+
+
 class CharacterUpdate(BaseModel):
     """Request body to update a character's combat-facing fields.
 
@@ -121,3 +188,6 @@ class CharacterRead(BaseModel):
     ability_scores: list[CharacterAbilityScoreRead]
     skills: list[CharacterSkillRead]
     classes: list[CharacterClassRead]
+    spells: list[CharacterSpellRead]
+    equipment: list[CharacterEquipmentRead]
+    features: list[CharacterFeatureRead]

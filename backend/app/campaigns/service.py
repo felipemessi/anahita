@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignInvite, CampaignMember
-from app.campaigns.schemas import CampaignCreate, CampaignInviteCreate
+from app.campaigns.schemas import CampaignCreate, CampaignInviteCreate, CampaignUpdate
 from app.queries.campaign_queries import list_members_for_campaign
 
 
@@ -138,6 +138,33 @@ class CampaignService:
         """List every member of `campaign_id`. Viewable by any of its members."""
         await self.get_own_membership(campaign_id, user_id, db)
         return await list_members_for_campaign(campaign_id, db)
+
+    async def update_campaign(
+        self,
+        campaign_id: uuid.UUID,
+        user_id: uuid.UUID,
+        data: CampaignUpdate,
+        db: AsyncSession,
+    ) -> Campaign:
+        """Update a campaign's general settings. Only the campaign's DM may do this."""
+        await self._require_dm(campaign_id, user_id, db)
+        result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+        campaign = result.scalar_one_or_none()
+        if campaign is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found"
+            )
+
+        if data.name is not None:
+            campaign.name = data.name
+        if data.description is not None:
+            campaign.description = data.description
+        if data.setting is not None:
+            campaign.setting = data.setting
+
+        await db.commit()
+        await db.refresh(campaign)
+        return campaign
 
     async def _require_dm(
         self, campaign_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession

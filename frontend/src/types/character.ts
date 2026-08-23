@@ -52,6 +52,53 @@ export interface CharacterSkill {
   bonus: number;
 }
 
+export interface CharacterSpellCreate {
+  spell_id: string;
+  prepared?: boolean;
+  source_class?: string | null;
+}
+
+export interface CharacterSpell {
+  id: string;
+  spell_id: string;
+  prepared: boolean;
+  source_class: string | null;
+}
+
+export interface CharacterEquipmentCreate {
+  item_id: string;
+  equipped?: boolean;
+  quantity?: number;
+  attunement?: boolean;
+}
+
+export interface CharacterEquipment {
+  id: string;
+  item_id: string;
+  equipped: boolean;
+  quantity: number;
+  attunement: boolean;
+}
+
+export type FeatureSourceType = "class" | "feat";
+
+export interface CharacterFeatureCreate {
+  source_type: FeatureSourceType;
+  source_name: string;
+  feature_name: string;
+  description?: string | null;
+  level_acquired?: number;
+}
+
+export interface CharacterFeature {
+  id: string;
+  source_type: FeatureSourceType;
+  source_name: string;
+  feature_name: string;
+  description: string | null;
+  level_acquired: number;
+}
+
 export interface CharacterClassCreate {
   class_definition_id: string;
   subclass_id?: string | null;
@@ -100,4 +147,7 @@ export interface Character {
   ability_scores: CharacterAbilityScore[];
   skills: CharacterSkill[];
   classes: CharacterClass[];
+  spells: CharacterSpell[];
+  equipment: CharacterEquipment[];
+  features: CharacterFeature[];
 }
