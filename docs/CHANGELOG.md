@@ -9,6 +9,26 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Catálogo SRD 2014 implementado no backend: fundação i18n/custom-scope e
+  vocabulário fixo, proficiências (com concessões de classe/raça), raças,
+  classes com progressão/features/subclasses, magias, equipamento,
+  itens mágicos com variantes, backgrounds, feats, monstros/stat blocks e
+  regras de referência, com seed completo em inglês e tradução parcial
+  pt-BR.
+- Task `test-cov` (via `pytest-cov`) para gerar relatório de cobertura de
+  testes em HTML.
+- Criação de campanha com o usuário autenticado atribuído automaticamente
+  como mestre (DM).
+- Geração e resgate de convite de campanha, permitindo que jogadores
+  ingressem em uma campanha existente.
+- Listagem das campanhas às quais o usuário autenticado pertence.
+- Criação de ficha de personagem com validação de referências ao catálogo.
+- Modificadores de habilidade e bônus de perícia calculados, expostos na
+  ficha de personagem.
+- Suporte a multiclasse, com validação de pré-requisitos de atributo por
+  classe.
+- Sessões de jogo com numeração sequencial por campanha e notas privadas
+  do mestre.
 - Modelagem completa do catálogo SRD 2014 no PRD do backend (seção 7.4):
   expandido de 4 para as 24 categorias (vocabulário fixo, raças, classes e
   progressão, magias, equipamento e itens mágicos, backgrounds e feats,
