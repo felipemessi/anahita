@@ -48,6 +48,8 @@ Anahita é uma plataforma multi-mesa para gerenciamento de campanhas de D&D 5e. 
 - **Rules engine desacoplada.** Módulo Python puro, sem dependência de FastAPI ou SQLAlchemy. Testável com pytest puro.
 - **Storage abstrato.** Interface única para armazenamento de arquivos. Implementação local (filesystem) agora, object storage (S3/R2/B2) no futuro. Arquivos nunca são armazenados no banco — o banco guarda apenas o `storage_key` (string de referência).
 - **Sem vendor lock-in.** Nenhuma dependência de serviços gerenciados específicos (Supabase, Vercel, etc.). Tudo roda em Docker Compose numa VPS.
+- **i18n relacional no catálogo.** Toda entidade de catálogo com texto traduzível (nome, descrição, etc.) tem uma tabela `*_i18n` separada: `entity_id` (FK), `locale` (string/enum extensível — hoje `en` e `pt-BR`), colunas de texto. Unique `(entity_id, locale)`. A tabela base guarda apenas dados estruturais (números, enums, FKs) e o `index` — o slug estável do SRD (ex. `acid-arrow`), usado como chave de rastreabilidade e de idempotência do seed. Mantém a regra "sem JSONB / sem polimorfismo genérico": nenhuma tabela de tradução genérica tipo EAV, uma tabela `_i18n` por entidade.
+- **Conteúdo custom é sempre preso a uma campanha.** Toda entidade de catálogo suporta `is_custom: bool` + `campaign_id: FK nullable`, com a constraint `is_custom = false ⟺ campaign_id IS NULL`. Conteúdo do SRD (`is_custom=false`) é global, read-only, compartilhado por todas as campanhas. Conteúdo homebrew (`is_custom=true`) só existe, é visível e é utilizável dentro da campanha em que foi criado — nunca aparece no catálogo global nem em outra campanha. Regra válida para as 24 categorias de catálogo (seção 7.4), não só Race/Class.
 
 ---
 
@@ -121,31 +123,37 @@ Criar **S3StorageService** que implementa a mesma interface. Troca via config (v
 
 ## 6. Fases de Entrega
 
+### Fase 0 — Catálogo SRD
+
+Modelagem e seed das 24 categorias de referência do SRD 2014 (ver seção 7.4): vocabulário fixo, equipamento, progressão de classe, backgrounds/feats, monstros. Não é uma fase "visível" para o usuário final, mas é pré-requisito de dados para as fases seguintes — sem ela, Character sheet (Fase 1) e Combat tracker (Fase 2) não têm o que popular.
+
 ### Fase 1 — Fundação
 
-Fichas de personagem, modelo de campanha, convite de jogadores, gestão básica de sessões com notas. Entrega uma ferramenta usável para o DM organizar a mesa.
+Fichas de personagem, modelo de campanha, convite de jogadores, gestão básica de sessões com notas. Entrega uma ferramenta usável para o DM organizar a mesa. Consome do catálogo (Fase 0): `Race`/`Subrace`/`RaceTrait`, `ClassDefinition`/`SubclassDefinition`/`Feature`/`ClassLevel`, `Background`, `Feat`, `Spell`, `Item`/`EquipmentCategory`.
 
 ### Fase 2 — Sessão ao Vivo
 
-Combat tracker (iniciativa, HP, condições, turnos) e quick notes durante a sessão. Design mobile-first para uso na mesa. WebSocket para estado em tempo real.
+Combat tracker (iniciativa, HP, condições, turnos) e quick notes durante a sessão. Design mobile-first para uso na mesa. WebSocket para estado em tempo real. Consome do catálogo: `Monster` (stat block completo para NPCs/monstros em `EncounterParticipant`), `Condition`, `DamageType`.
 
 ### Fase 3 — World-building
 
-Locais, NPCs, facções, relacionamentos entre entidades, links com sessões. Mapas como upload de imagens com pins clicáveis. Full-text search via `tsvector` do Postgres.
+Locais, NPCs, facções, relacionamentos entre entidades, links com sessões. Mapas como upload de imagens com pins clicáveis. Full-text search via `tsvector` do Postgres. Consome do catálogo: `Monster` (NPCs com stat block via `NPC.stat_block_id`), `Language`.
 
 ### Fase 4 — Loot, Inventário e Compartilhamento
 
-Inventário do grupo, distribuição de loot pós-combate, sistema de handouts (conteúdo liberado pelo DM para jogadores).
+Inventário do grupo, distribuição de loot pós-combate, sistema de handouts (conteúdo liberado pelo DM para jogadores). Consome do catálogo: `Item`, `MagicItem`.
 
 ### Fase 5 — Registro e Lore
 
 Diário de campanha, recaps, timeline de eventos, wiki da campanha. Potencial uso de IA para gerar resumos a partir das notas do DM.
 
+O suporte i18n do catálogo (seção 2.1) é transversal a todas as fases: qualquer tela que exiba conteúdo de catálogo lê a tradução do locale ativo, com fallback para `en`.
+
 ---
 
 ## 7. Modelo de Dados
 
-~32 tabelas, organizadas por domínio. Todas relacionais, sem JSONB.
+~85 tabelas, organizadas por domínio. Todas relacionais, sem JSONB. A maior parte do crescimento vem do catálogo de referência (seção 7.4): 24 categorias do SRD, cada uma com tabela base + tabela `_i18n` + tabelas filhas para dados aninhados (ver padrão descrito no início da seção 7.4).
 
 ### 7.1 Auth & Users
 
@@ -314,9 +322,348 @@ Features raciais vêm do catálogo Race/RaceTrait. CharacterFeature armazena ape
 
 ### 7.4 Catálogos de Referência (D&D 5e SRD)
 
-Pré-populados via seeds. Flag `is_custom` para homebrews vinculados a uma campanha.
+Pré-populados via seeds a partir do SRD 2014 (fonte de referência: `_data/2014/en` e `_data/2014/pt-BR`, vendorizado fora do controle de versão — usado só como vocabulário/spec, não lido em runtime). 24 categorias, organizadas em 7 grupos abaixo. Duas regras se aplicam a **todas** as tabelas-base deste catálogo (seção 2.1):
+
+1. **Custom = preso à campanha.** `is_custom: Boolean` (default `false`) + `campaign_id: FK nullable`, com `is_custom=false ⟺ campaign_id IS NULL`. SRD é global (`campaign_id=null`); homebrew só existe dentro da campanha que o criou.
+2. **i18n via tabela `_i18n`.** Toda tabela-base com texto traduzível tem uma tabela irmã `<tabela>_i18n` (`entity_id` FK, `locale`, colunas de texto), unique `(entity_id, locale)`. A tabela base guarda `index` (slug do SRD, ex. `acid-arrow`) para idempotência do seed — homebrew não tem `index` do SRD (nullable). Tabelas puramente estruturais (sem texto livre, ex. `RaceAbilityBonus`) não têm `_i18n`.
+
+As tabelas abaixo omitem `id UUID (PK)`, `is_custom`, `campaign_id` e `created_by_id` quando idênticas ao padrão acima, para focar no que é específico de cada entidade.
+
+#### 7.4.1 Vocabulário fixo
+
+Tabelas pequenas, baixa cardinalidade, sem relações complexas — `AbilityScoreDefinition`, `SkillDefinition`, `Alignment`, `Condition`, `DamageType`, `MagicSchool`, `Language`, `WeaponProperty`. Todas seguem o mesmo formato: tabela base com `index` + campos estruturais, tabela `_i18n` com `name`/`desc`.
+
+| Tabela                  | Campos estruturais (além de index/is_custom/campaign_id) | i18n (`name` + ...)      |
+|--------------------------|------------------------------------------------------------|---------------------------|
+| AbilityScoreDefinition   | —                                                            | `full_name`, `desc`       |
+| SkillDefinition          | `ability_score_id` FK                                       | `desc`                    |
+| Alignment                | —                                                            | `abbreviation`, `desc`    |
+| Condition                | —                                                            | `desc`                    |
+| DamageType               | —                                                            | `desc`                    |
+| MagicSchool              | —                                                            | `desc` (nullable)         |
+| Language                 | `language_type` Enum (standard, exotic)                     | `desc`, `script`, `typical_speakers` |
+| WeaponProperty           | —                                                            | `desc`                    |
+
+#### 7.4.2 Raças
 
 **Race**
+
+| Coluna          | Tipo      | Notas                        |
+|-----------------|-----------|-------------------------------|
+| id              | UUID (PK) |                               |
+| index           | String    | nullable (slug SRD)          |
+| speed           | Integer   |                               |
+| size            | Enum      | small, medium                 |
+| darkvision_range| Integer   | 0 se não tem                  |
+| is_custom       | Boolean   | default false                 |
+| campaign_id     | FK        | nullable (null = SRD)         |
+| created_by_id   | FK User   | nullable                      |
+
+**RaceI18n** — `race_id` FK, `locale`, `name`, `description`, `age`, `alignment_desc`, `size_description`, `language_desc`.
+
+**RaceTrait**
+
+| Coluna            | Tipo      | Notas                                            |
+|-------------------|-----------|---------------------------------------------------|
+| id                | UUID (PK) |                                                   |
+| race_id           | FK Race   |                                                   |
+| mechanical_effect | String    | vocabulário estruturado (resistance:fire, etc.)   |
+
+**RaceTraitI18n** — `race_trait_id` FK, `locale`, `trait_name`, `description`.
+
+**Subrace**
+
+| Coluna      | Tipo      | Notas    |
+|-------------|-----------|----------|
+| id          | UUID (PK) |          |
+| race_id     | FK Race   |          |
+
+**SubraceI18n** — `subrace_id` FK, `locale`, `name`, `description`.
+
+**SubraceTrait**
+
+| Coluna            | Tipo      | Notas    |
+|-------------------|-----------|----------|
+| id                | UUID (PK) |          |
+| subrace_id        | FK        |          |
+| mechanical_effect | String    |          |
+
+**SubraceTraitI18n** — `subrace_trait_id` FK, `locale`, `trait_name`, `description`.
+
+**RaceAbilityBonus**
+
+| Coluna     | Tipo      | Notas                                             |
+|------------|-----------|-----------------------------------------------------|
+| id         | UUID (PK) |                                                   |
+| race_id    | FK        | nullable                                          |
+| subrace_id | FK        | nullable                                          |
+| ability    | Enum      | str, dex, con, int, wis, cha                      |
+| bonus      | Integer   |                                                   |
+
+Constraint: exatamente um dos dois FKs preenchido.
+
+#### 7.4.3 Habilidades, perícias e proficiências
+
+**Proficiency**
+
+| Coluna              | Tipo      | Notas                                                        |
+|---------------------|-----------|---------------------------------------------------------------|
+| id                  | UUID (PK) |                                                               |
+| index               | String    | nullable                                                      |
+| proficiency_type    | Enum      | skill, saving_throw, weapon, armor, tool, other               |
+| skill_id            | FK        | nullable — preenchido se proficiency_type=skill               |
+| ability_score_id    | FK        | nullable — preenchido se proficiency_type=saving_throw         |
+| equipment_category_id | FK      | nullable — preenchido se proficiency_type=weapon/armor/tool    |
+
+FKs nullable e mutuamente exclusivos por `proficiency_type` (referência explícita, não polimorfismo genérico).
+
+**ProficiencyI18n** — `proficiency_id` FK, `locale`, `name`.
+
+**ProficiencyClass** / **ProficiencyRace** — tabelas de junção `(proficiency_id, class_definition_id)` / `(proficiency_id, race_id)`, indicando quais classes/raças concedem aquela proficiência por padrão.
+
+#### 7.4.4 Classes e progressão
+
+**ClassDefinition**
+
+| Coluna                       | Tipo      | Notas                              |
+|------------------------------|-----------|-------------------------------------|
+| id                           | UUID (PK) |                                     |
+| index                        | String    | nullable                            |
+| hit_die                      | Integer   | 6, 8, 10, 12                       |
+| primary_ability              | String    |                                     |
+| saving_throw_proficiencies   | String    | par de abilities                    |
+| is_custom                    | Boolean   | default false                       |
+| created_by_id                | FK User   | nullable                           |
+| campaign_id                  | FK        | nullable (null = SRD)              |
+
+**ClassDefinitionI18n** — `class_definition_id` FK, `locale`, `name`.
+
+**SubclassDefinition**
+
+| Coluna              | Tipo      | Notas                    |
+|---------------------|-----------|--------------------------|
+| id                  | UUID (PK) |                          |
+| class_definition_id | FK        |                          |
+| index               | String    | nullable                 |
+| is_custom           | Boolean   |                          |
+| created_by_id       | FK User   | nullable                 |
+| campaign_id         | FK        | nullable                 |
+
+**SubclassDefinitionI18n** — `subclass_definition_id` FK, `locale`, `name`, `description`, `flavor`.
+
+**Feature** — generaliza `ClassLevelFeature`: cobre features de classe *e* subclasse, incluindo sub-features (ex. Fighting Style dentro de uma feature maior).
+
+| Coluna                 | Tipo      | Notas                                             |
+|------------------------|-----------|-----------------------------------------------------|
+| id                     | UUID (PK) |                                                   |
+| index                  | String    | nullable                                          |
+| class_definition_id    | FK        | nullable                                          |
+| subclass_definition_id | FK        | nullable — exatamente um dos dois preenchido       |
+| level                  | Integer   |                                                   |
+| parent_feature_id      | FK self   | nullable — sub-feature                            |
+| mechanical_effect      | String    | vocabulário estruturado                           |
+| is_custom / campaign_id | —         | padrão do catálogo                                |
+
+**FeatureI18n** — `feature_id` FK, `locale`, `feature_name`, `description`.
+
+**FeaturePrerequisite** — `feature_id` FK, `prerequisite_type` (level, feature, spell), `level` nullable, `required_feature_id` FK nullable, `spell_id` FK nullable.
+
+**ClassLevel** — a tabela de progressão por nível (equivalente a `5e-SRD-Levels`).
+
+| Coluna                  | Tipo      | Notas                                    |
+|--------------------------|-----------|---------------------------------------------|
+| id                      | UUID (PK) |                                            |
+| class_definition_id     | FK        |                                            |
+| subclass_definition_id  | FK        | nullable                                   |
+| level                   | Integer   | 1-20                                       |
+| proficiency_bonus       | Integer   | nullable (repete o cálculo da engine, mas alguns níveis têm exceções documentadas no SRD) |
+| ability_score_bonuses   | Integer   | nullable                                   |
+
+Unique `(class_definition_id, subclass_definition_id, level)`.
+
+**ClassLevelFeature** — junção `(class_level_id, feature_id)`.
+
+**ClassLevelSpellSlot** — `class_level_id` FK, `spell_level` Integer (0=cantrips_known), `slot_count` Integer.
+
+**ClassLevelResource** — mecânicas específicas por nível (rage_count, ki_points, sneak_attack_dice, sorcery_points, wild_shape_max_cr, martial_arts_dice, etc.), reaproveitando o padrão de vocabulário estruturado já usado em `mechanical_effect` (seção 8.3):
+
+| Coluna         | Tipo    | Notas                                    |
+|----------------|---------|---------------------------------------------|
+| id             | UUID (PK) |                                          |
+| class_level_id | FK      |                                              |
+| resource_key   | String  | ex: `rage_count`, `ki_points`, `sneak_attack_dice` |
+| value          | String  | ex: `"3"`, `"2d6"`                          |
+
+#### 7.4.5 Magias
+
+**Spell**
+
+| Coluna        | Tipo      | Notas        |
+|---------------|-----------|---------------|
+| id            | UUID (PK) |               |
+| index         | String    | nullable      |
+| level         | Integer   | 0 = cantrip  |
+| magic_school_id | FK      |               |
+| casting_time  | String    |               |
+| range         | String    |               |
+| duration      | String    |               |
+| components    | String    |               |
+| ritual        | Boolean   |               |
+| concentration | Boolean   |               |
+| is_custom     | Boolean   | default false |
+| campaign_id   | FK        | nullable      |
+| created_by_id | FK User   | nullable      |
+
+**SpellI18n** — `spell_id` FK, `locale`, `name`, `description`, `higher_levels` (nullable).
+
+**SpellClass** — junção `(spell_id, class_definition_id)` — quais classes podem conjurar a magia.
+
+#### 7.4.6 Equipamento e itens mágicos
+
+**EquipmentCategory** — `id`, `index`, i18n (`name`).
+
+**Item**
+
+| Coluna      | Tipo      | Notas                                            |
+|-------------|-----------|-----------------------------------------------------|
+| id          | UUID (PK) |                                                   |
+| index       | String    | nullable                                          |
+| item_type   | Enum      | weapon, armor, gear, tool, consumable              |
+| equipment_category_id | FK |                                              |
+| rarity      | String    | nullable                                          |
+| weight      | Float     |                                                   |
+| cost        | Integer   | em copper pieces                                  |
+| is_custom   | Boolean   | default false                                     |
+| campaign_id | FK        | nullable                                          |
+| created_by_id | FK User | nullable                                          |
+
+**ItemI18n** — `item_id` FK, `locale`, `name`, `description`.
+
+**ItemProperty** — junção `(item_id, weapon_property_id)`.
+
+**WeaponDetail**
+
+| Coluna            | Tipo      | Notas        |
+|-------------------|-----------|---------------|
+| id                | UUID (PK) |               |
+| item_id           | FK Item   |               |
+| damage_dice       | String    | ex: 1d8       |
+| damage_type_id    | FK        |               |
+| weapon_range      | String    |               |
+
+**ArmorDetail**
+
+| Coluna                | Tipo      | Notas    |
+|-----------------------|-----------|----------|
+| id                    | UUID (PK) |          |
+| item_id               | FK Item   |          |
+| base_ac               | Integer   |          |
+| dex_bonus_cap         | Integer   | nullable |
+| stealth_disadvantage  | Boolean   |          |
+| strength_requirement  | Integer   | nullable |
+
+**MagicItem**
+
+| Coluna                | Tipo      | Notas                                    |
+|-----------------------|-----------|---------------------------------------------|
+| id                    | UUID (PK) |                                            |
+| index                 | String    | nullable                                   |
+| equipment_category_id | FK       |                                            |
+| rarity                | String    |                                            |
+| is_variant            | Boolean   |                                            |
+| variant_of_id         | FK self   | nullable                                   |
+| is_custom / campaign_id | —       | padrão do catálogo                         |
+
+**MagicItemI18n** — `magic_item_id` FK, `locale`, `name`, `description`.
+
+#### 7.4.7 Backgrounds e feats
+
+**Background**
+
+| Coluna         | Tipo      | Notas    |
+|----------------|-----------|----------|
+| id             | UUID (PK) |          |
+| index          | String    | nullable |
+| is_custom / campaign_id | — | padrão do catálogo |
+
+**BackgroundI18n** — `background_id` FK, `locale`, `name`, `personality_traits`, `ideals`, `bonds`, `flaws` (texto livre — no SRD são tabelas de rolagem, tratadas aqui como texto descritivo; normalização em tabela de opções fica para uma fase futura se for necessário rolar/escolher via UI).
+
+**BackgroundProficiency** — junção `(background_id, proficiency_id)`.
+
+**BackgroundEquipment** — `(background_id, item_id, quantity)`.
+
+**BackgroundFeature** — `background_id` FK (1:1) + i18n (`feature_name`, `description`).
+
+**Feat**
+
+| Coluna         | Tipo      | Notas    |
+|----------------|-----------|----------|
+| id             | UUID (PK) |          |
+| index          | String    | nullable |
+| is_custom / campaign_id | — | padrão do catálogo |
+
+**FeatI18n** — `feat_id` FK, `locale`, `name`, `description`.
+
+**FeatPrerequisite** — `feat_id` FK, `ability_score_id` FK nullable, `minimum_score` Integer.
+
+#### 7.4.8 Monstros (stat blocks)
+
+Substitui o `stat_block_id` solto na tabela `NPC` (seção 7.7): a partir de agora aponta para `Monster`. Mesmo padrão `is_custom`/`campaign_id` do restante do catálogo — um DM pode criar um monstro homebrew, preso à sua campanha.
+
+**Monster**
+
+| Coluna              | Tipo      | Notas                                    |
+|---------------------|-----------|---------------------------------------------|
+| id                  | UUID (PK) |                                            |
+| index               | String    | nullable                                   |
+| size                | Enum      | tiny, small, medium, large, huge, gargantuan |
+| creature_type       | String    | ex: dragon, humanoid                       |
+| creature_subtype    | String    | nullable                                   |
+| alignment           | String    |                                            |
+| hit_points          | Integer   |                                            |
+| hit_dice            | String    | ex: 13d10+52                               |
+| challenge_rating    | Float     |                                            |
+| xp                  | Integer   |                                            |
+| proficiency_bonus   | Integer   | nullable                                   |
+| languages           | String    | prose (ex: "Common, Draconic")             |
+| strength, dexterity, constitution, intelligence, wisdom, charisma | Integer | seis colunas |
+| is_custom / campaign_id | —     | padrão do catálogo                         |
+
+**MonsterI18n** — `monster_id` FK, `locale`, `name`, `description`.
+
+**MonsterSpeed** — `monster_id` FK (1:1), `walk`, `burrow`, `climb`, `fly`, `swim` (String nullable), `hover` (Boolean).
+
+**MonsterSense** — `monster_id` FK (1:1), `passive_perception` Integer, `blindsight`, `darkvision`, `tremorsense`, `truesight` (String nullable).
+
+**MonsterArmorClass** — `monster_id` FK, `ac_type` String, `value` Integer, `condition_id` FK nullable, `description` String nullable (um monstro pode ter múltiplas entradas de AC).
+
+**MonsterProficiency** — `monster_id` FK, `proficiency_id` FK, `value` Integer.
+
+**MonsterDamageModifier** — `monster_id` FK, `damage_type_id` FK, `modifier_type` Enum (vulnerable, resistant, immune).
+
+**MonsterConditionImmunity** — junção `(monster_id, condition_id)`.
+
+**MonsterAction** / **MonsterLegendaryAction** / **MonsterReaction** / **MonsterSpecialAbility** — mesma forma, quatro tabelas (uma por seção do stat block):
+
+| Coluna         | Tipo      | Notas                                  |
+|----------------|-----------|--------------------------------------------|
+| id             | UUID (PK) |                                            |
+| monster_id     | FK        |                                            |
+| name           | String    |                                            |
+| description    | Text      |                                            |
+| attack_bonus   | Integer   | nullable                                   |
+| save_ability_score_id | FK | nullable                                   |
+| save_dc        | Integer   | nullable                                   |
+| usage_type     | String    | nullable (ex: recharge_5_6, per_day)       |
+| usage_times    | Integer   | nullable                                   |
+
+**MonsterActionDamage** — `monster_action_id` FK (aponta para qualquer uma das quatro tabelas acima via `source_table` + `source_id` **não** — em vez de polimorfismo genérico, cada uma das quatro tabelas de ação tem sua própria tabela `*Damage` filha: `MonsterActionDamage`, `MonsterLegendaryActionDamage`, `MonsterReactionDamage`, `MonsterSpecialAbilityDamage`, todas com o mesmo shape `(action_id FK, damage_dice String, damage_type_id FK)`.
+
+#### 7.4.9 Regras narrativas
+
+**RuleSection** — `id`, `index`, i18n (`name`, `desc`).
+
+**Rule** — `id`, `index`, i18n (`name`, `desc`); **RuleRuleSection** — junção `(rule_id, rule_section_id)`.
 
 | Coluna          | Tipo      | Notas                        |
 |-----------------|-----------|-------------------------------|
@@ -559,7 +906,7 @@ Regra: um participant é PC **ou** NPC, nunca ambos. Validado na camada de aplic
 | description   | Text      |                              |
 | personality   | Text      | nullable                     |
 | is_alive      | Boolean   |                              |
-| stat_block_id | FK        | nullable (NPCs com stats)    |
+| stat_block_id | FK Monster | nullable (NPCs com stats — catálogo, seção 7.4.8; pode ser SRD ou monstro homebrew da campanha) |
 | created_at    | Timestamp |                              |
 
 **Location**
@@ -933,3 +1280,8 @@ Apenas `role=dm` pode enviar comandos. Jogadores são read-only. Validação no 
 | Generic Handler  | Handler que interpreta classes customizadas via dados do banco           |
 | Storage Key      | Referência abstrata a um arquivo no storage (nunca path absoluto)        |
 | StorageService   | Interface abstrata para upload/download de arquivos                      |
+| Stat Block       | Ficha de atributos/ações de um monstro ou NPC (tabela `Monster`, seção 7.4.8) |
+| Locale           | Idioma de uma tradução de catálogo (`en`, `pt-BR`, extensível)           |
+| i18n             | Padrão relacional de tradução: tabela `_i18n` irmã de cada tabela de catálogo com texto |
+| Feature          | Habilidade concedida por classe/subclasse em um nível (tabela `Feature`, seção 7.4.4) — distinto de Trait, que é racial |
+| Trait            | Habilidade racial (tabela `RaceTrait`/`SubraceTrait`, seção 7.4.2) — distinto de Feature, que é de classe |

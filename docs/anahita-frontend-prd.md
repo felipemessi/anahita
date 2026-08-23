@@ -40,6 +40,7 @@ Frontend do Anahita — plataforma multi-mesa para gerenciamento de campanhas de
 - **Imagens:** usar `sharp` + loader customizado ou `unpic` em vez do image optimizer da Vercel.
 - **App Router com Server Components** para dados estáveis. Client Components com TanStack Query para dados mutáveis. WebSocket para real-time.
 - **Node.js runtime** padrão em todas as rotas (nunca Edge Runtime).
+- **i18n restrito ao conteúdo de catálogo.** O backend traduz apenas o catálogo SRD (raças, classes, magias, itens, monstros, etc. — ver PRD Backend seção 7.4). A interface (labels, botões, textos de sistema) **não** é traduzida nesta fase — só o conteúdo de catálogo respeita o locale escolhido. Evita o custo de um framework de i18n completo (next-intl, etc.) enquanto o produto ainda não precisa disso.
 
 ---
 
@@ -68,6 +69,10 @@ Usados para: combat tracker, reveal de handouts durante sessão.
 O `CombatProvider` mantém a conexão WebSocket e expõe o estado via React Context. O hook `useCombat()` dá acesso ao estado do encounter e funções de ação. Reconexão automática com `state_sync` na reconexão.
 
 Estado do WebSocket **não** se mistura com o cache do TanStack Query — são fontes de dados independentes.
+
+### 3.4 Locale do Catálogo
+
+O usuário escolhe um locale (`en` ou `pt-BR`, extensível) para exibição do catálogo SRD, persistido em cookie (`anahita_locale`) e lido tanto por Server Components (`lib/api/server.ts`) quanto pelo client (`lib/api/client.ts`) — ambos anexam `?locale=` nas chamadas a `lib/api/catalog.ts`. O backend resolve fallback para `en` quando a tradução não existe (ex. maior parte do pt-BR ainda é parcial). Um `locale-switcher.tsx` no header troca o cookie e invalida o cache do TanStack Query relacionado a catálogo. Não afeta dados gerados pelo usuário (nomes de campanha, personagens, notas) — esses ficam no idioma em que foram digitados.
 
 ---
 
@@ -126,6 +131,7 @@ shadcn/ui como base. Componentes instalados sob `src/components/ui/`. Customizad
 /campaigns/[id]/sessions/[id]  → Sessão (notas, encounters, handouts)
 /campaigns/[id]/combat/[id]    → Combat tracker (WebSocket, fullscreen mobile)
 /campaigns/[id]/characters     → Lista de personagens
+/campaigns/[id]/characters/new → Wizard de criação de personagem
 /campaigns/[id]/characters/[id]→ Ficha de personagem
 /campaigns/[id]/world          → Hub de world-building
 /campaigns/[id]/world/npcs     → NPCs
@@ -133,10 +139,19 @@ shadcn/ui como base. Componentes instalados sob `src/components/ui/`. Customizad
 /campaigns/[id]/world/factions → Facções (com relacionamentos)
 /campaigns/[id]/inventory      → Inventário do grupo
 /campaigns/[id]/handouts       → Handouts (DM: gerencia / Player: visualiza)
+/campaigns/[id]/catalog        → Hub do catálogo (SRD + homebrew da campanha)
+/campaigns/[id]/catalog/[category]        → Lista de uma categoria (races, classes, spells,
+                                              equipment, magic-items, monsters, backgrounds, feats, rules)
+/campaigns/[id]/catalog/[category]/new    → Criar entrada homebrew (DM only, presa à campanha)
+/campaigns/[id]/catalog/[category]/[id]   → Detalhe de uma entrada de catálogo
 /campaigns/[id]/settings       → Config da campanha, membros
 
 /join/[inviteCode]             → Aceitar convite via link
 ```
+
+### 6.1a Sobre `/campaigns/[id]/catalog`
+
+Cada campanha vê o catálogo global do SRD (2014) mais qualquer homebrew criado *nela* (nunca homebrew de outra campanha — reflete a regra do backend, PRD Backend seção 2.1/7.4: `is_custom=true` sempre preso a um `campaign_id`). Jogadores têm acesso de leitura a tudo (para consulta durante criação/uso de ficha); apenas o DM vê e usa `catalog/[category]/new`. As 9 categorias com telas dedicadas na v1 (races, classes, spells, equipment, magic-items, monsters, backgrounds, feats, rules) cobrem o que a ficha de personagem, o combat tracker e os NPCs consomem; as demais 15 categorias do SRD (ability scores, skills, conditions, damage types, etc. — PRD Backend seção 7.4.1/7.4.3) alimentam essas telas como vocabulário de apoio (dropdowns, badges) e não precisam de tela própria por ora.
 
 ### 6.1 Layouts
 
@@ -174,8 +189,18 @@ frontend/
 │   │   │       │       └── page.tsx
 │   │   │       ├── characters/
 │   │   │       │   ├── page.tsx
+│   │   │       │   ├── new/
+│   │   │       │   │   └── page.tsx          # Wizard de criação
 │   │   │       │   └── [characterId]/
 │   │   │       │       └── page.tsx
+│   │   │       ├── catalog/
+│   │   │       │   ├── page.tsx              # Hub
+│   │   │       │   └── [category]/
+│   │   │       │       ├── page.tsx          # Lista + busca
+│   │   │       │       ├── new/
+│   │   │       │       │   └── page.tsx      # Criar homebrew (DM only)
+│   │   │       │       └── [entryId]/
+│   │   │       │           └── page.tsx      # Detalhe
 │   │   │       ├── world/
 │   │   │       │   ├── page.tsx          # Hub
 │   │   │       │   ├── npcs/
@@ -203,13 +228,28 @@ frontend/
 │   │   │   ├── character-sheet.tsx
 │   │   │   ├── ability-scores.tsx
 │   │   │   ├── skill-list.tsx
-│   │   │   └── spell-slots.tsx
+│   │   │   ├── spell-slots.tsx
+│   │   │   └── creation-wizard/
+│   │   │       ├── step-race.tsx
+│   │   │       ├── step-class.tsx
+│   │   │       ├── step-background.tsx
+│   │   │       ├── step-ability-scores.tsx
+│   │   │       ├── step-equipment.tsx
+│   │   │       └── step-review.tsx
+│   │   ├── catalog/
+│   │   │   ├── catalog-list.tsx
+│   │   │   ├── catalog-filter-bar.tsx
+│   │   │   ├── catalog-entry-detail.tsx
+│   │   │   ├── custom-entry-form.tsx         # criação de homebrew (por categoria)
+│   │   │   ├── monster-stat-block.tsx        # reutilizado em combat e world/npcs
+│   │   │   └── locale-switcher.tsx
 │   │   ├── combat/
 │   │   │   ├── initiative-tracker.tsx
 │   │   │   ├── participant-card.tsx
 │   │   │   ├── condition-badges.tsx
 │   │   │   ├── damage-dialog.tsx
-│   │   │   └── turn-indicator.tsx
+│   │   │   ├── turn-indicator.tsx
+│   │   │   └── monster-picker.tsx            # busca no catálogo (Monster) ao adicionar participante
 │   │   ├── sessions/
 │   │   │   ├── session-card.tsx
 │   │   │   ├── note-editor.tsx
@@ -237,13 +277,15 @@ frontend/
 │   │   │   ├── world.ts
 │   │   │   ├── handouts.ts
 │   │   │   ├── inventory.ts
-│   │   │   └── catalog.ts
+│   │   │   └── catalog.ts                # 9 categorias com tela própria + locale param
 │   │   ├── ws/
 │   │   │   ├── combat-socket.ts          # WebSocket client
 │   │   │   └── types.ts                  # Tipos dos eventos WS
 │   │   ├── auth/
 │   │   │   ├── session.ts                # Leitura do token/cookie
 │   │   │   └── middleware.ts             # Proteção de rotas
+│   │   ├── i18n/
+│   │   │   └── locale.ts                 # Leitura/escrita do cookie anahita_locale
 │   │   └── utils/
 │   │       ├── dnd-rules.ts              # Cálculos client-side (modifier, etc.)
 │   │       └── formatting.ts             # Formatação de dados D&D
@@ -254,7 +296,8 @@ frontend/
 │   │   ├── use-combat.ts                 # WebSocket hook
 │   │   ├── use-world.ts
 │   │   ├── use-handouts.ts
-│   │   └── use-inventory.ts
+│   │   ├── use-inventory.ts
+│   │   └── use-catalog.ts                # lista/detalhe/create homebrew, aware de locale
 │   ├── providers/
 │   │   ├── query-provider.tsx            # TanStack Query
 │   │   ├── combat-provider.tsx           # WebSocket state
@@ -267,7 +310,8 @@ frontend/
 │   │   ├── world.ts
 │   │   ├── handout.ts
 │   │   ├── inventory.ts
-│   │   └── catalog.ts
+│   │   └── catalog.ts                    # espelha as 24 categorias do catálogo (PRD Backend 7.4),
+│   │                                      # cada entrada com campo `translations: {name, desc, ...}`
 │   └── styles/
 │       └── globals.css                   # Tailwind + CSS variables do tema
 ├── next.config.ts
@@ -317,7 +361,7 @@ Tap no card do participante abre painel de ações:
 ### 8.3 Controles Globais
 
 - **Avançar turno:** botão fixo no rodapé, sempre acessível. Mostra quem é o próximo.
-- **Adicionar participante:** botão no header. Abre form rápido (nome, HP, AC, iniciativa).
+- **Adicionar participante:** botão no header. Duas opções: (1) buscar um monstro no catálogo (`monster-picker.tsx`, autocompleta nome/HP/AC a partir do stat block) ou (2) form manual rápido (nome, HP, AC, iniciativa) para NPCs sem stat block. Personagens (PCs) da campanha aparecem numa lista separada para adicionar direto, sem digitar nada.
 - **Encerrar combate:** botão no header com confirmação.
 
 ### 8.4 Layout Fullscreen
@@ -342,6 +386,14 @@ Visão geral: próxima sessão agendada, personagens ativos, atividade recente. 
 
 Para o DM: notas rápidas, lista de NPCs/locais recém-editados, handouts pendentes de reveal.
 
+### 9.3a Criação de Personagem (`/campaigns/[id]/characters/new`)
+
+Wizard em etapas (`components/characters/creation-wizard/`), cada uma consumindo o catálogo da campanha (SRD + homebrew): Raça/Subraça → Classe/Subclasse → Background → Ability Scores (point buy ou array padrão) → Perícias (a partir das escolhas de classe/background) → Equipamento inicial (a partir do `starting_equipment` da classe/background) → Spells (se conjurador) → Revisão. Cada etapa mostra só as opções válidas para as escolhas anteriores (ex. perícias disponíveis dependem da classe escolhida). Ao confirmar, envia tudo em uma única mutação para `POST /characters`.
+
+### 9.3b Catálogo (`/campaigns/[id]/catalog`)
+
+Hub com uma aba por categoria (races, classes, spells, equipment, magic-items, monsters, backgrounds, feats, rules). Cada aba: `catalog-list.tsx` com busca/filtro (`catalog-filter-bar.tsx` — por nível/escola em spells, por CR/tipo em monsters, etc.) e `catalog-entry-detail.tsx` ao abrir um item. Entradas do SRD têm um badge diferenciando de entradas homebrew da campanha. DM vê botão "criar homebrew" (`custom-entry-form.tsx`) em cada categoria — o form é sempre criado já com `campaign_id` da campanha atual (nunca global). `monster-stat-block.tsx` é o componente de detalhe da categoria Monsters, reaproveitado em World (NPCs) e no Combat tracker.
+
 ### 9.3 Ficha de Personagem (`/campaigns/[id]/characters/[id]`)
 
 Layout tabbed ou scrollable com seções:
@@ -360,7 +412,7 @@ Cálculos de modifier, proficiency, skill bonus feitos client-side via `lib/util
 
 Hub com três seções navegáveis: NPCs, Locations, Factions.
 
-- **NPCs:** cards com nome, raça, ocupação, facções vinculadas. Busca por nome.
+- **NPCs:** cards com nome, raça, ocupação, facções vinculadas. Busca por nome. NPC com `stat_block_id` mostra um botão "ver stat block" que abre `monster-stat-block.tsx` (mesmo componente do catálogo de Monsters).
 - **Locations:** árvore hierárquica (região → cidade → taverna). Expandir/colapsar.
 - **Factions:** lista com relacionamentos entre facções visualizados (graph simples ou lista de relações).
 
@@ -513,3 +565,6 @@ Let's Encrypt via certbot. Certificados montados no Nginx. Renovação automáti
 | Optimistic update  | UI atualiza antes da confirmação do servidor                            |
 | Combat Provider    | React Context que gerencia WebSocket do combat tracker                   |
 | Storage Key        | Referência abstrata a um arquivo (sem path absoluto)                    |
+| Locale             | Idioma de exibição do catálogo (`en`, `pt-BR`); não afeta a UI          |
+| Homebrew           | Entrada de catálogo customizada, sempre presa a uma campanha             |
+| Stat Block         | Ficha de atributos/ações de um monstro (componente `monster-stat-block.tsx`) |
