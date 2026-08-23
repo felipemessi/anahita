@@ -146,9 +146,9 @@
   - [x] Testes: convite expirado não pode ser resgatado (410), convite usado não pode ser reusado (409), código inexistente (404), não-DM não pode criar convite (403), fluxo HTTP completo DM cria → jogador resgata — `tests/campaigns/test_invites.py`, `tests/campaigns/test_router.py`
 
 - **Como usuário, quero ver todas as campanhas em que participo (como DM ou jogador).**
-  - [ ] Query em `app/queries/` (cross-domain: User → CampaignMember → Campaign)
-  - [ ] `router.py`: `GET /campaigns` filtrado pelo usuário autenticado
-  - [ ] Teste: usuário vê só suas campanhas, não as de outros
+  - [x] Query em `app/queries/` (cross-domain: User → CampaignMember → Campaign) — `app/queries/campaign_queries.py::list_campaigns_for_user`
+  - [x] `router.py`: `GET /campaigns` filtrado pelo usuário autenticado
+  - [x] Teste: usuário vê só suas campanhas (dono ou jogador via convite resgatado), não as de outros; lista vazia quando não há vínculo — `tests/queries/test_campaign_queries.py`, `tests/campaigns/test_router.py`
 
 - **Como jogador, quero criar uma ficha de personagem vinculada à minha campanha.**
   - [ ] `app/characters/models.py`: `Character`, `CharacterAbilityScore`, `CharacterSkill`, `CharacterClass`, `CharacterFeature`, `CharacterRaceChoice`, `CharacterSpell`, `CharacterEquipment` (seção 7.3 do PRD)

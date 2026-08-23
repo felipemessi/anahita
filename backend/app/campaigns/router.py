@@ -18,6 +18,7 @@ from app.campaigns.schemas import (
 from app.campaigns.service import CampaignService
 from app.core.dependencies import get_current_user
 from app.database import get_db
+from app.queries.campaign_queries import list_campaigns_for_user
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -28,6 +29,13 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 def get_campaign_service() -> CampaignService:
     """Return a CampaignService instance."""
     return CampaignService()
+
+
+@router.get("", response_model=list[CampaignRead])
+async def list_my_campaigns(user: CurrentUser, db: DB) -> list[CampaignRead]:
+    """List every campaign the authenticated user belongs to, as DM or player."""
+    campaigns = await list_campaigns_for_user(user.id, db)
+    return [CampaignRead.model_validate(c) for c in campaigns]
 
 
 @router.post("", response_model=CampaignRead, status_code=status.HTTP_201_CREATED)

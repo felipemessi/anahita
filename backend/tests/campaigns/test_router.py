@@ -104,6 +104,29 @@ async def test_dm_can_invite_and_player_can_redeem(client: AsyncClient) -> None:
     assert body["role"] == "player"
 
 
+async def test_list_campaigns_returns_only_the_users_own(client: AsyncClient) -> None:
+    """GET /campaigns filtered to the authenticated user's own campaigns."""
+    alice_token = await _register_and_login(client, "alice@example.com")
+    await client.post(
+        "/campaigns",
+        json={"name": "Alice's Table"},
+        headers={"Authorization": f"Bearer {alice_token}"},
+    )
+    bob_token = await _register_and_login(client, "bob@example.com")
+    await client.post(
+        "/campaigns",
+        json={"name": "Bob's Table"},
+        headers={"Authorization": f"Bearer {bob_token}"},
+    )
+
+    resp = await client.get(
+        "/campaigns", headers={"Authorization": f"Bearer {alice_token}"}
+    )
+    assert resp.status_code == 200
+    names = [c["name"] for c in resp.json()]
+    assert names == ["Alice's Table"]
+
+
 async def test_non_dm_cannot_create_invite_over_http(client: AsyncClient) -> None:
     """A non-DM member is rejected with 403 when creating an invite."""
     dm_token = await _register_and_login(client, "dm@example.com")
