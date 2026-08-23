@@ -1,201 +1,380 @@
 [
   {
-    "name": "Human",
+    "index": "human",
     "speed": 30,
     "size": "medium",
     "darkvision_range": 0,
-    "description": "Humans are the most adaptable and ambitious people among the common races. Whatever drives them, humans are the innovators, the achievers, and the pioneers of the worlds.",
+    "i18n": {
+      "en": {
+        "name": "Human",
+        "description": "Humans are the most adaptable and ambitious people among the common races. Whatever drives them, humans are the innovators, the achievers, and the pioneers of the worlds.",
+        "age": "Humans reach adulthood in their late teens and live less than a century.",
+        "alignment_desc": "Humans tend toward no particular alignment. The best and the worst are found among them.",
+        "size_description": "Humans vary widely in height and build, from barely 5 feet to well over 6 feet tall. Regardless of your position in that range, your size is Medium.",
+        "language_desc": "You can speak, read, and write Common and one extra language of your choice."
+      }
+    },
     "ability_bonuses": [
-      {"ability": "str", "bonus": 1},
-      {"ability": "dex", "bonus": 1},
-      {"ability": "con", "bonus": 1},
-      {"ability": "int", "bonus": 1},
-      {"ability": "wis", "bonus": 1},
-      {"ability": "cha", "bonus": 1}
+      {
+        "ability": "str",
+        "bonus": 1
+      },
+      {
+        "ability": "dex",
+        "bonus": 1
+      },
+      {
+        "ability": "con",
+        "bonus": 1
+      },
+      {
+        "ability": "int",
+        "bonus": 1
+      },
+      {
+        "ability": "wis",
+        "bonus": 1
+      },
+      {
+        "ability": "cha",
+        "bonus": 1
+      }
     ],
     "traits": [
       {
-        "trait_name": "Extra Language",
-        "description": "You can speak, read, and write one extra language of your choice.",
-        "mechanical_effect": "extra_language:1"
+        "mechanical_effect": "extra_language:1",
+        "i18n": {
+          "en": {
+            "trait_name": "Extra Language",
+            "description": "You can speak, read, and write one extra language of your choice."
+          }
+        }
       }
     ],
     "subraces": []
   },
   {
-    "name": "Elf",
+    "index": "elf",
     "speed": 30,
     "size": "medium",
     "darkvision_range": 60,
-    "description": "Elves are a magical people of otherworldly grace, living in the world but not entirely part of it. They live in places of ethereal beauty, in the midst of ancient forests or in silvery spires glittering with faerie light.",
+    "i18n": {
+      "en": {
+        "name": "Elf",
+        "description": "Elves are a magical people of otherworldly grace, living in the world but not entirely part of it. They live in places of ethereal beauty, in the midst of ancient forests or in silvery spires glittering with faerie light.",
+        "age": "Elves reach physical maturity at about the same age as humans, but their elven upbringing instills wisdom that is only achieved by humans with decades more experience. Elves can live to be over 700 years old.",
+        "alignment_desc": "Elves love freedom, variety, and self-expression, so they lean strongly toward the gentler aspects of chaos.",
+        "size_description": "Elves range from under 5 to over 6 feet tall and have slender builds. Your size is Medium.",
+        "language_desc": "You can speak, read, and write Common and Elvish."
+      }
+    },
     "ability_bonuses": [
-      {"ability": "dex", "bonus": 2}
+      {
+        "ability": "dex",
+        "bonus": 2
+      }
     ],
     "traits": [
       {
-        "trait_name": "Darkvision",
-        "description": "Accustomed to twilit forests and the night sky, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light.",
-        "mechanical_effect": "darkvision:60"
+        "mechanical_effect": "darkvision:60",
+        "i18n": {
+          "en": {
+            "trait_name": "Darkvision",
+            "description": "Accustomed to twilit forests and the night sky, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light."
+          }
+        }
       },
       {
-        "trait_name": "Keen Senses",
-        "description": "You have proficiency in the Perception skill.",
-        "mechanical_effect": "proficiency:perception"
+        "mechanical_effect": "proficiency:perception",
+        "i18n": {
+          "en": {
+            "trait_name": "Keen Senses",
+            "description": "You have proficiency in the Perception skill."
+          }
+        }
       },
       {
-        "trait_name": "Fey Ancestry",
-        "description": "You have advantage on saving throws against being charmed, and magic can't put you to sleep.",
-        "mechanical_effect": "saving_throw_advantage:charmed,immunity:magical_sleep"
+        "mechanical_effect": "saving_throw_advantage:charmed,immunity:magical_sleep",
+        "i18n": {
+          "en": {
+            "trait_name": "Fey Ancestry",
+            "description": "You have advantage on saving throws against being charmed, and magic can't put you to sleep."
+          }
+        }
       },
       {
-        "trait_name": "Trance",
-        "description": "Elves don't need to sleep. Instead, they meditate deeply, remaining semiconscious, for 4 hours a day.",
-        "mechanical_effect": null
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "trait_name": "Trance",
+            "description": "Elves don't need to sleep. Instead, they meditate deeply, remaining semiconscious, for 4 hours a day."
+          }
+        }
       }
     ],
     "subraces": [
       {
-        "name": "High Elf",
-        "description": "As a high elf, you have a keen mind and a mastery of at least the basics of magic.",
-        "traits": [
+        "index": "high-elf",
+        "i18n": {
+          "en": {
+            "name": "High Elf",
+            "description": "As a high elf, you have a keen mind and a mastery of at least the basics of magic."
+          }
+        },
+        "ability_bonuses": [
           {
-            "trait_name": "Elf Weapon Training",
-            "description": "You have proficiency with the longsword, shortsword, shortbow, and longbow.",
-            "mechanical_effect": "proficiency:longsword,shortsword,shortbow,longbow"
-          },
-          {
-            "trait_name": "Cantrip",
-            "description": "You know one cantrip of your choice from the wizard spell list.",
-            "mechanical_effect": "cantrip:wizard"
-          },
-          {
-            "trait_name": "Extra Language",
-            "description": "You can speak, read, and write one extra language of your choice.",
-            "mechanical_effect": "extra_language:1"
+            "ability": "int",
+            "bonus": 1
           }
         ],
-        "ability_bonuses": [
-          {"ability": "int", "bonus": 1}
+        "traits": [
+          {
+            "mechanical_effect": "proficiency:longsword,shortsword,shortbow,longbow",
+            "i18n": {
+              "en": {
+                "trait_name": "Elf Weapon Training",
+                "description": "You have proficiency with the longsword, shortsword, shortbow, and longbow."
+              }
+            }
+          },
+          {
+            "mechanical_effect": "cantrip:wizard",
+            "i18n": {
+              "en": {
+                "trait_name": "Cantrip",
+                "description": "You know one cantrip of your choice from the wizard spell list."
+              }
+            }
+          },
+          {
+            "mechanical_effect": "extra_language:1",
+            "i18n": {
+              "en": {
+                "trait_name": "Extra Language",
+                "description": "You can speak, read, and write one extra language of your choice."
+              }
+            }
+          }
         ]
       },
       {
-        "name": "Wood Elf",
-        "description": "As a wood elf, you have keen senses and intuition, and your fleet feet carry you quickly through your native forests.",
-        "traits": [
+        "index": "wood-elf",
+        "i18n": {
+          "en": {
+            "name": "Wood Elf",
+            "description": "As a wood elf, you have keen senses and intuition, and your fleet feet carry you quickly through your native forests."
+          }
+        },
+        "ability_bonuses": [
           {
-            "trait_name": "Elf Weapon Training",
-            "description": "You have proficiency with the longsword, shortsword, shortbow, and longbow.",
-            "mechanical_effect": "proficiency:longsword,shortsword,shortbow,longbow"
-          },
-          {
-            "trait_name": "Fleet of Foot",
-            "description": "Your base walking speed increases to 35 feet.",
-            "mechanical_effect": "speed_bonus:5"
-          },
-          {
-            "trait_name": "Mask of the Wild",
-            "description": "You can attempt to hide even when you are only lightly obscured by foliage, heavy rain, falling snow, mist, and other natural phenomena.",
-            "mechanical_effect": null
+            "ability": "wis",
+            "bonus": 1
           }
         ],
-        "ability_bonuses": [
-          {"ability": "wis", "bonus": 1}
+        "traits": [
+          {
+            "mechanical_effect": "proficiency:longsword,shortsword,shortbow,longbow",
+            "i18n": {
+              "en": {
+                "trait_name": "Elf Weapon Training",
+                "description": "You have proficiency with the longsword, shortsword, shortbow, and longbow."
+              }
+            }
+          },
+          {
+            "mechanical_effect": "speed_bonus:5",
+            "i18n": {
+              "en": {
+                "trait_name": "Fleet of Foot",
+                "description": "Your base walking speed increases to 35 feet."
+              }
+            }
+          },
+          {
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "trait_name": "Mask of the Wild",
+                "description": "You can attempt to hide even when you are only lightly obscured by foliage, heavy rain, falling snow, mist, and other natural phenomena."
+              }
+            }
+          }
         ]
       }
     ]
   },
   {
-    "name": "Dwarf",
+    "index": "dwarf",
     "speed": 25,
     "size": "medium",
     "darkvision_range": 60,
-    "description": "Bold and hardy, dwarves are known as skilled warriors, miners, and workers of stone and metal. Though they stand well under 5 feet tall, dwarves are so broad and compact that they can weigh as much as a human standing nearly two feet taller.",
+    "i18n": {
+      "en": {
+        "name": "Dwarf",
+        "description": "Bold and hardy, dwarves are known as skilled warriors, miners, and workers of stone and metal. Though they stand well under 5 feet tall, dwarves are so broad and compact that they can weigh as much as a human standing nearly two feet taller.",
+        "age": "Dwarves mature at the same rate as humans, but they're considered young until they reach the age of 50. Dwarves can live to be more than 350 years old.",
+        "alignment_desc": "Most dwarves are lawful, believing firmly in the benefits of a well-ordered society, and they tend toward good as well.",
+        "size_description": "Dwarves stand between 4 and 5 feet tall and average about 150 pounds. Your size is Medium.",
+        "language_desc": "You can speak, read, and write Common and Dwarvish."
+      }
+    },
     "ability_bonuses": [
-      {"ability": "con", "bonus": 2}
+      {
+        "ability": "con",
+        "bonus": 2
+      }
     ],
     "traits": [
       {
-        "trait_name": "Darkvision",
-        "description": "Accustomed to life underground, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light.",
-        "mechanical_effect": "darkvision:60"
+        "mechanical_effect": "darkvision:60",
+        "i18n": {
+          "en": {
+            "trait_name": "Darkvision",
+            "description": "Accustomed to life underground, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light."
+          }
+        }
       },
       {
-        "trait_name": "Dwarven Resilience",
-        "description": "You have advantage on saving throws against poison, and you have resistance against poison damage.",
-        "mechanical_effect": "saving_throw_advantage:poison,resistance:poison"
+        "mechanical_effect": "saving_throw_advantage:poison,resistance:poison",
+        "i18n": {
+          "en": {
+            "trait_name": "Dwarven Resilience",
+            "description": "You have advantage on saving throws against poison, and you have resistance against poison damage."
+          }
+        }
       },
       {
-        "trait_name": "Dwarven Combat Training",
-        "description": "You have proficiency with the battleaxe, handaxe, light hammer, and warhammer.",
-        "mechanical_effect": "proficiency:battleaxe,handaxe,light_hammer,warhammer"
+        "mechanical_effect": "proficiency:battleaxe,handaxe,light_hammer,warhammer",
+        "i18n": {
+          "en": {
+            "trait_name": "Dwarven Combat Training",
+            "description": "You have proficiency with the battleaxe, handaxe, light hammer, and warhammer."
+          }
+        }
       },
       {
-        "trait_name": "Tool Proficiency",
-        "description": "You gain proficiency with the artisan's tools of your choice: smith's tools, brewer's supplies, or mason's tools.",
-        "mechanical_effect": "proficiency:smiths_tools|brewers_supplies|masons_tools"
+        "mechanical_effect": "proficiency:smiths_tools|brewers_supplies|masons_tools",
+        "i18n": {
+          "en": {
+            "trait_name": "Tool Proficiency",
+            "description": "You gain proficiency with the artisan's tools of your choice: smith's tools, brewer's supplies, or mason's tools."
+          }
+        }
       },
       {
-        "trait_name": "Stonecunning",
-        "description": "Whenever you make an Intelligence (History) check related to the origin of stonework, you are considered proficient in the History skill and add double your proficiency bonus to the check.",
-        "mechanical_effect": "expertise:history_stonework"
+        "mechanical_effect": "expertise:history_stonework",
+        "i18n": {
+          "en": {
+            "trait_name": "Stonecunning",
+            "description": "Whenever you make an Intelligence (History) check related to the origin of stonework, you are considered proficient in the History skill and add double your proficiency bonus to the check."
+          }
+        }
       }
     ],
     "subraces": [
       {
-        "name": "Hill Dwarf",
-        "description": "As a hill dwarf, you have keen senses, deep intuition, and remarkable resilience.",
-        "traits": [
+        "index": "hill-dwarf",
+        "i18n": {
+          "en": {
+            "name": "Hill Dwarf",
+            "description": "As a hill dwarf, you have keen senses, deep intuition, and remarkable resilience."
+          }
+        },
+        "ability_bonuses": [
           {
-            "trait_name": "Dwarven Toughness",
-            "description": "Your hit point maximum increases by 1, and it increases by 1 every time you gain a level.",
-            "mechanical_effect": "hp_bonus_per_level:1"
+            "ability": "wis",
+            "bonus": 1
           }
         ],
-        "ability_bonuses": [
-          {"ability": "wis", "bonus": 1}
+        "traits": [
+          {
+            "mechanical_effect": "hp_bonus_per_level:1",
+            "i18n": {
+              "en": {
+                "trait_name": "Dwarven Toughness",
+                "description": "Your hit point maximum increases by 1, and it increases by 1 every time you gain a level."
+              }
+            }
+          }
         ]
       }
     ]
   },
   {
-    "name": "Halfling",
+    "index": "halfling",
     "speed": 25,
     "size": "small",
     "darkvision_range": 0,
-    "description": "The comforts of home are the goals of most halflings' lives: a place to settle in peace and quiet, far from marauding monsters and clashing armies; a blazing fire and a generous meal; fine drink and fine conversation.",
+    "i18n": {
+      "en": {
+        "name": "Halfling",
+        "description": "The comforts of home are the goals of most halflings' lives: a place to settle in peace and quiet, far from marauding monsters and clashing armies; a blazing fire and a generous meal; fine drink and fine conversation.",
+        "age": "Halflings reach adulthood at the age of 20 and live into their second century.",
+        "alignment_desc": "Most halflings are lawful good, being genial and open, they hate to see others in pain, and they have no tolerance for oppression.",
+        "size_description": "Halflings average about 3 feet tall and weigh about 40 pounds. Your size is Small.",
+        "language_desc": "You can speak, read, and write Common and Halfling."
+      }
+    },
     "ability_bonuses": [
-      {"ability": "dex", "bonus": 2}
+      {
+        "ability": "dex",
+        "bonus": 2
+      }
     ],
     "traits": [
       {
-        "trait_name": "Lucky",
-        "description": "When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll.",
-        "mechanical_effect": "reroll:1s"
+        "mechanical_effect": "reroll:1s",
+        "i18n": {
+          "en": {
+            "trait_name": "Lucky",
+            "description": "When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll."
+          }
+        }
       },
       {
-        "trait_name": "Brave",
-        "description": "You have advantage on saving throws against being frightened.",
-        "mechanical_effect": "saving_throw_advantage:frightened"
+        "mechanical_effect": "saving_throw_advantage:frightened",
+        "i18n": {
+          "en": {
+            "trait_name": "Brave",
+            "description": "You have advantage on saving throws against being frightened."
+          }
+        }
       },
       {
-        "trait_name": "Halfling Nimbleness",
-        "description": "You can move through the space of any creature that is of a size larger than yours.",
-        "mechanical_effect": null
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "trait_name": "Halfling Nimbleness",
+            "description": "You can move through the space of any creature that is of a size larger than yours."
+          }
+        }
       }
     ],
     "subraces": [
       {
-        "name": "Lightfoot",
-        "description": "As a lightfoot halfling, you can easily hide from notice, even using other people as cover. You're inclined to be affable and get along well with others.",
-        "traits": [
+        "index": "lightfoot",
+        "i18n": {
+          "en": {
+            "name": "Lightfoot",
+            "description": "As a lightfoot halfling, you can easily hide from notice, even using other people as cover. You're inclined to be affable and get along well with others."
+          }
+        },
+        "ability_bonuses": [
           {
-            "trait_name": "Naturally Stealthy",
-            "description": "You can attempt to hide even when you are obscured only by a creature that is at least one size larger than you.",
-            "mechanical_effect": null
+            "ability": "cha",
+            "bonus": 1
           }
         ],
-        "ability_bonuses": [
-          {"ability": "cha", "bonus": 1}
+        "traits": [
+          {
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "trait_name": "Naturally Stealthy",
+                "description": "You can attempt to hide even when you are obscured only by a creature that is at least one size larger than you."
+              }
+            }
+          }
         ]
       }
     ]

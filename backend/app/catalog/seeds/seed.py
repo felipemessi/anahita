@@ -3,6 +3,7 @@
 import json
 import uuid
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,15 +15,43 @@ from app.catalog.models import (
     Item,
     Race,
     RaceAbilityBonus,
+    RaceI18n,
     RaceTrait,
+    RaceTraitI18n,
     Spell,
     SubclassDefinition,
     Subrace,
+    SubraceI18n,
     SubraceTrait,
+    SubraceTraitI18n,
     WeaponDetail,
 )
 
 _DATA_DIR = Path(__file__).parent / "data"
+
+
+async def _seed_i18n(
+    session: AsyncSession,
+    # Typed loosely: every `_i18n` model shares id/entity_id/locale plus its
+    # own translated columns (see `app.catalog.mixins.CatalogI18nMixin`), but
+    # that mixin alone doesn't expose enough for mypy to check the **fields
+    # kwargs against each concrete subclass's constructor.
+    i18n_model: Any,
+    entity_id: uuid.UUID,
+    translations: dict[str, dict[str, str | None]],
+) -> None:
+    """Add one `_i18n` row per locale in `translations` (e.g. `{"en": {...}}`).
+
+    Flushes first so `entity_id`'s parent row exists before the FK-backed
+    `_i18n` insert — dialects that enforce FKs at insert time (Postgres, unlike
+    SQLite's default) reject an out-of-order autoflush otherwise, since the
+    parent and `_i18n` row are usually `add()`-ed in separate statements.
+    """
+    await session.flush()
+    for locale, fields in translations.items():
+        session.add(
+            i18n_model(id=uuid.uuid4(), entity_id=entity_id, locale=locale, **fields)
+        )
 
 
 async def seed_catalog(session: AsyncSession) -> None:
@@ -43,14 +72,14 @@ async def _seed_races(session: AsyncSession) -> None:
     for entry in data:
         race = Race(
             id=uuid.uuid4(),
-            name=entry["name"],
+            index=entry["index"],
             speed=entry["speed"],
             size=entry["size"],
             darkvision_range=entry["darkvision_range"],
-            description=entry["description"],
             is_custom=False,
         )
         session.add(race)
+        await _seed_i18n(session, RaceI18n, race.id, entry["i18n"])
 
         for ab in entry.get("ability_bonuses", []):
             session.add(
@@ -63,24 +92,22 @@ async def _seed_races(session: AsyncSession) -> None:
             )
 
         for t in entry.get("traits", []):
-            session.add(
-                RaceTrait(
-                    id=uuid.uuid4(),
-                    race_id=race.id,
-                    trait_name=t["trait_name"],
-                    description=t["description"],
-                    mechanical_effect=t.get("mechanical_effect"),
-                )
+            trait = RaceTrait(
+                id=uuid.uuid4(),
+                race_id=race.id,
+                mechanical_effect=t.get("mechanical_effect"),
             )
+            session.add(trait)
+            await _seed_i18n(session, RaceTraitI18n, trait.id, t["i18n"])
 
         for sr_data in entry.get("subraces", []):
             subrace = Subrace(
                 id=uuid.uuid4(),
                 race_id=race.id,
-                name=sr_data["name"],
-                description=sr_data["description"],
+                index=sr_data["index"],
             )
             session.add(subrace)
+            await _seed_i18n(session, SubraceI18n, subrace.id, sr_data["i18n"])
 
             for ab in sr_data.get("ability_bonuses", []):
                 session.add(
@@ -93,15 +120,13 @@ async def _seed_races(session: AsyncSession) -> None:
                 )
 
             for t in sr_data.get("traits", []):
-                session.add(
-                    SubraceTrait(
-                        id=uuid.uuid4(),
-                        subrace_id=subrace.id,
-                        trait_name=t["trait_name"],
-                        description=t["description"],
-                        mechanical_effect=t.get("mechanical_effect"),
-                    )
+                subrace_trait = SubraceTrait(
+                    id=uuid.uuid4(),
+                    subrace_id=subrace.id,
+                    mechanical_effect=t.get("mechanical_effect"),
                 )
+                session.add(subrace_trait)
+                await _seed_i18n(session, SubraceTraitI18n, subrace_trait.id, t["i18n"])
 
 
 async def _seed_classes(session: AsyncSession) -> None:

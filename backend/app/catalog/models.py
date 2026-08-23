@@ -30,7 +30,12 @@ _CUSTOM_CAMPAIGN_SCOPE_SQL = (
 
 
 class Race(Base):
-    """A playable race from the SRD or a campaign homebrew."""
+    """A playable race from the SRD or a campaign homebrew.
+
+    Translatable text (`name`, `description`, `age`, `alignment_desc`,
+    `size_description`, `language_desc`) lives in `RaceI18n` — see
+    `app.catalog.mixins` for the `_i18n` convention.
+    """
 
     __tablename__ = "catalog_races"
     __table_args__ = (
@@ -42,13 +47,12 @@ class Race(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     speed: Mapped[int] = mapped_column(Integer, nullable=False)
     size: Mapped[str] = mapped_column(
         String(20), nullable=False, default=CreatureSize.medium.value
     )
     darkvision_range: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # FK to campaigns.id — enforced at DB level in migration, omitted here to avoid
     # cross-domain metadata coupling in tests (campaigns domain not yet implemented).
@@ -73,8 +77,32 @@ class Race(Base):
     )
 
 
+class RaceI18n(CatalogI18nMixin, Base):
+    """Translated text for a Race."""
+
+    __tablename__ = "catalog_races_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_races_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_races.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    age: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    alignment_desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    size_description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    language_desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
 class RaceTrait(Base):
-    """A racial trait associated with a Race."""
+    """A racial trait associated with a Race.
+
+    Translatable text (`trait_name`, `description`) lives in `RaceTraitI18n`.
+    """
 
     __tablename__ = "catalog_race_traits"
 
@@ -86,15 +114,33 @@ class RaceTrait(Base):
         ForeignKey("catalog_races.id", ondelete="CASCADE"),
         nullable=False,
     )
-    trait_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     mechanical_effect: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     race: Mapped[Race] = relationship("Race", back_populates="traits")
 
 
+class RaceTraitI18n(CatalogI18nMixin, Base):
+    """Translated text for a RaceTrait."""
+
+    __tablename__ = "catalog_race_traits_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_race_traits_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_race_traits.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trait_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
 class Subrace(Base):
-    """A subrace variant of a Race."""
+    """A subrace variant of a Race.
+
+    Translatable text (`name`, `description`) lives in `SubraceI18n`.
+    """
 
     __tablename__ = "catalog_subraces"
 
@@ -106,8 +152,7 @@ class Subrace(Base):
         ForeignKey("catalog_races.id", ondelete="CASCADE"),
         nullable=False,
     )
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
 
     race: Mapped[Race] = relationship("Race", back_populates="subraces")
     traits: Mapped[list[SubraceTrait]] = relationship(
@@ -121,8 +166,28 @@ class Subrace(Base):
     )
 
 
+class SubraceI18n(CatalogI18nMixin, Base):
+    """Translated text for a Subrace."""
+
+    __tablename__ = "catalog_subraces_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_subraces_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_subraces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
 class SubraceTrait(Base):
-    """A trait specific to a Subrace."""
+    """A trait specific to a Subrace.
+
+    Translatable text (`trait_name`, `description`) lives in `SubraceTraitI18n`.
+    """
 
     __tablename__ = "catalog_subrace_traits"
 
@@ -134,11 +199,26 @@ class SubraceTrait(Base):
         ForeignKey("catalog_subraces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    trait_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     mechanical_effect: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     subrace: Mapped[Subrace] = relationship("Subrace", back_populates="traits")
+
+
+class SubraceTraitI18n(CatalogI18nMixin, Base):
+    """Translated text for a SubraceTrait."""
+
+    __tablename__ = "catalog_subrace_traits_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_subrace_traits_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_subrace_traits.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trait_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
 class RaceAbilityBonus(Base):

@@ -20,10 +20,24 @@ from app.catalog.models import (
     ProficiencyClass,
     ProficiencyRace,
     Race,
+    RaceI18n,
+    RaceTrait,
+    RaceTraitI18n,
     SkillDefinition,
     Spell,
     Subrace,
+    SubraceI18n,
+    SubraceTrait,
+    SubraceTraitI18n,
     WeaponProperty,
+)
+from app.catalog.schemas import (
+    RaceAbilityBonusRead,
+    RaceRead,
+    RaceSummary,
+    RaceTraitRead,
+    SubraceRead,
+    SubraceTraitRead,
 )
 
 
@@ -57,11 +71,10 @@ async def get_translated[T: CatalogI18nMixin](
 async def list_races(
     session: AsyncSession,
     *,
-    search: str | None = None,
     include_custom: bool = True,
     campaign_id: uuid.UUID | None = None,
 ) -> list[Race]:
-    """Return all races, optionally filtered by name substring.
+    """Return all races (base rows, eager-loaded traits/subraces, untranslated).
 
     When `campaign_id` is given, scopes the listing to SRD content
     (`campaign_id IS NULL`) plus homebrew belonging to that campaign — never
@@ -69,18 +82,12 @@ async def list_races(
     it only controls whether *any* homebrew is included when no campaign is
     given (e.g. an unauthenticated/global catalog browse).
     """
-    stmt = (
-        select(Race)
-        .options(
-            selectinload(Race.traits),
-            selectinload(Race.ability_bonuses),
-            selectinload(Race.subraces).selectinload(Subrace.traits),
-            selectinload(Race.subraces).selectinload(Subrace.ability_bonuses),
-        )
-        .order_by(Race.name)
+    stmt = select(Race).options(
+        selectinload(Race.traits),
+        selectinload(Race.ability_bonuses),
+        selectinload(Race.subraces).selectinload(Subrace.traits),
+        selectinload(Race.subraces).selectinload(Subrace.ability_bonuses),
     )
-    if search:
-        stmt = stmt.where(Race.name.ilike(f"%{search}%"))
     if campaign_id is not None:
         stmt = stmt.where(
             or_(Race.campaign_id.is_(None), Race.campaign_id == campaign_id)
@@ -92,7 +99,7 @@ async def list_races(
 
 
 async def get_race(session: AsyncSession, race_id: uuid.UUID) -> Race | None:
-    """Return a single race by ID, or None if not found."""
+    """Return a single race by ID (untranslated), or None if not found."""
     stmt = (
         select(Race)
         .where(Race.id == race_id)
@@ -105,6 +112,141 @@ async def get_race(session: AsyncSession, race_id: uuid.UUID) -> Race | None:
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def _translate_race_trait(
+    session: AsyncSession, trait: RaceTrait, locale: str
+) -> RaceTraitRead:
+    t = await get_translated(
+        session,
+        RaceTraitI18n,
+        RaceTraitI18n.entity_id,
+        entity_id=trait.id,
+        locale=locale,
+    )
+    return RaceTraitRead(
+        id=trait.id,
+        trait_name=t.trait_name if t else "",
+        description=t.description if t else "",
+        mechanical_effect=trait.mechanical_effect,
+    )
+
+
+async def _translate_subrace_trait(
+    session: AsyncSession, trait: SubraceTrait, locale: str
+) -> SubraceTraitRead:
+    t = await get_translated(
+        session,
+        SubraceTraitI18n,
+        SubraceTraitI18n.entity_id,
+        entity_id=trait.id,
+        locale=locale,
+    )
+    return SubraceTraitRead(
+        id=trait.id,
+        trait_name=t.trait_name if t else "",
+        description=t.description if t else "",
+        mechanical_effect=trait.mechanical_effect,
+    )
+
+
+async def _translate_subrace(
+    session: AsyncSession, subrace: Subrace, locale: str
+) -> SubraceRead:
+    t = await get_translated(
+        session, SubraceI18n, SubraceI18n.entity_id, entity_id=subrace.id, locale=locale
+    )
+    traits = [
+        await _translate_subrace_trait(session, trait, locale)
+        for trait in subrace.traits
+    ]
+    return SubraceRead(
+        id=subrace.id,
+        index=subrace.index,
+        name=t.name if t else "",
+        description=t.description if t else "",
+        traits=traits,
+        ability_bonuses=[
+            RaceAbilityBonusRead.model_validate(ab) for ab in subrace.ability_bonuses
+        ],
+    )
+
+
+async def get_race_translated(
+    session: AsyncSession, race_id: uuid.UUID, *, locale: str = "en"
+) -> RaceRead | None:
+    """Return a race by ID with every translatable field resolved for `locale`."""
+    race = await get_race(session, race_id)
+    if race is None:
+        return None
+    t = await get_translated(
+        session, RaceI18n, RaceI18n.entity_id, entity_id=race.id, locale=locale
+    )
+    traits = [
+        await _translate_race_trait(session, trait, locale) for trait in race.traits
+    ]
+    subraces = [
+        await _translate_subrace(session, subrace, locale) for subrace in race.subraces
+    ]
+    return RaceRead(
+        id=race.id,
+        index=race.index,
+        name=t.name if t else "",
+        description=t.description if t else "",
+        age=t.age if t else "",
+        alignment_desc=t.alignment_desc if t else "",
+        size_description=t.size_description if t else "",
+        language_desc=t.language_desc if t else "",
+        speed=race.speed,
+        size=race.size,
+        darkvision_range=race.darkvision_range,
+        is_custom=race.is_custom,
+        traits=traits,
+        subraces=subraces,
+        ability_bonuses=[
+            RaceAbilityBonusRead.model_validate(ab) for ab in race.ability_bonuses
+        ],
+    )
+
+
+async def list_races_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[RaceSummary]:
+    """Return all races with `name` resolved for `locale`, optionally name-filtered.
+
+    Race counts are small (a few dozen at most, even with homebrew), so
+    resolving translations per-row here is simpler than a fallback-aware SQL
+    join and cheap enough in practice.
+    """
+    races = await list_races(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
+    summaries = []
+    for race in races:
+        t = await get_translated(
+            session, RaceI18n, RaceI18n.entity_id, entity_id=race.id, locale=locale
+        )
+        summaries.append(
+            RaceSummary(
+                id=race.id,
+                index=race.index,
+                name=t.name if t else "",
+                speed=race.speed,
+                size=race.size,
+                darkvision_range=race.darkvision_range,
+                is_custom=race.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
 
 
 async def list_classes(

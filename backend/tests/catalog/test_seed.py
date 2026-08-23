@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.catalog import service
 from app.catalog.models import ClassDefinition, Item, Race, Spell
 from app.catalog.seeds.seed import seed_catalog
 
@@ -13,8 +14,12 @@ async def test_seed_creates_races(db: AsyncSession) -> None:
     """seed_catalog should insert all four SRD races."""
     await seed_catalog(db)
 
-    races = (await db.execute(select(Race).order_by(Race.name))).scalars().all()
-    names = {r.name for r in races}
+    races = (await db.execute(select(Race).order_by(Race.index))).scalars().all()
+    indexes = {r.index for r in races}
+    assert indexes == {"dwarf", "elf", "halfling", "human"}
+
+    summaries = await service.list_races_translated(db)
+    names = {r.name for r in summaries}
     assert names == {"Dwarf", "Elf", "Halfling", "Human"}
 
 
@@ -23,7 +28,11 @@ async def test_seed_creates_classes(db: AsyncSession) -> None:
     """seed_catalog should insert the four SRD classes."""
     await seed_catalog(db)
 
-    classes = (await db.execute(select(ClassDefinition).order_by(ClassDefinition.name))).scalars().all()
+    classes = (
+        (await db.execute(select(ClassDefinition).order_by(ClassDefinition.name)))
+        .scalars()
+        .all()
+    )
     names = {c.name for c in classes}
     assert names == {"Cleric", "Fighter", "Rogue", "Wizard"}
 

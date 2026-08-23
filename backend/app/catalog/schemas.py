@@ -38,11 +38,12 @@ class RaceAbilityBonusRead(BaseModel):
 
 
 class SubraceRead(BaseModel):
-    """Read schema for a subrace."""
+    """Read schema for a subrace, with translated `name`/`description` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     description: str
     traits: list[SubraceTraitRead]
@@ -50,16 +51,21 @@ class SubraceRead(BaseModel):
 
 
 class RaceRead(BaseModel):
-    """Read schema for a race."""
+    """Read schema for a race, with translated text fields resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
+    description: str
+    age: str
+    alignment_desc: str
+    size_description: str
+    language_desc: str
     speed: int
     size: str
     darkvision_range: int
-    description: str
     is_custom: bool
     traits: list[RaceTraitRead]
     subraces: list[SubraceRead]
@@ -67,11 +73,12 @@ class RaceRead(BaseModel):
 
 
 class RaceSummary(BaseModel):
-    """Lightweight race listing schema."""
+    """Lightweight race listing schema, with translated `name` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     speed: int
     size: str

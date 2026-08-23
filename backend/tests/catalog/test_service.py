@@ -26,10 +26,10 @@ async def test_list_races_returns_all(db: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_races_search(db: AsyncSession) -> None:
-    """list_races with search should filter by name substring."""
+async def test_list_races_translated_search(db: AsyncSession) -> None:
+    """list_races_translated with search should filter by translated name substring."""
     await seed_catalog(db)
-    results = await service.list_races(db, search="elf")
+    results = await service.list_races_translated(db, search="elf")
     assert all("elf" in r.name.lower() for r in results)
     assert len(results) == 1
 
@@ -38,8 +38,8 @@ async def test_list_races_search(db: AsyncSession) -> None:
 async def test_get_race_loads_traits_and_subraces(db: AsyncSession) -> None:
     """get_race should eagerly load traits, subraces and ability bonuses."""
     await seed_catalog(db)
-    races = await service.list_races(db, search="Elf")
-    elf = await service.get_race(db, races[0].id)
+    results = await service.list_races_translated(db, search="Elf")
+    elf = await service.get_race(db, results[0].id)
 
     assert elf is not None
     assert len(elf.traits) > 0
@@ -48,9 +48,43 @@ async def test_get_race_loads_traits_and_subraces(db: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_race_translated_resolves_all_text_fields(db: AsyncSession) -> None:
+    """get_race_translated should resolve race, trait, and subrace text for `en`."""
+    await seed_catalog(db)
+    results = await service.list_races_translated(db, search="Elf")
+    elf = await service.get_race_translated(db, results[0].id, locale="en")
+
+    assert elf is not None
+    assert elf.name == "Elf"
+    assert elf.description
+    assert elf.age
+    assert all(t.trait_name for t in elf.traits)
+    assert all(sr.name for sr in elf.subraces)
+    assert all(t.trait_name for sr in elf.subraces for t in sr.traits)
+
+
+@pytest.mark.asyncio
+async def test_get_race_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_race_translated falls back to `en` when the locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_races_translated(db, search="Elf")
+    elf = await service.get_race_translated(db, results[0].id, locale="pt-BR")
+
+    assert elf is not None
+    assert elf.name == "Elf"
+
+
+@pytest.mark.asyncio
 async def test_get_race_not_found_returns_none(db: AsyncSession) -> None:
     """get_race should return None for an unknown ID."""
     result = await service.get_race(db, uuid.uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_race_translated_not_found_returns_none(db: AsyncSession) -> None:
+    """get_race_translated should return None for an unknown ID."""
+    result = await service.get_race_translated(db, uuid.uuid4())
     assert result is None
 
 

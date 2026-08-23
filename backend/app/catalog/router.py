@@ -24,6 +24,7 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 DB = Annotated[AsyncSession, Depends(get_db)]
 SearchQ = Annotated[str | None, Query(description="Filter by name substring")]
 IncludeCustomQ = Annotated[bool, Query()]
+LocaleQ = Annotated[str, Query(description="Locale for translated text (en, pt-BR)")]
 
 
 @router.get("/races", response_model=list[RaceSummary])
@@ -31,22 +32,25 @@ async def list_races(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
 ) -> list[RaceSummary]:
     """List all races, optionally filtered by name."""
-    races = await service.list_races(db, search=search, include_custom=include_custom)
-    return [RaceSummary.model_validate(r) for r in races]
+    return await service.list_races_translated(
+        db, search=search, include_custom=include_custom, locale=locale
+    )
 
 
 @router.get("/races/{race_id}", response_model=RaceRead)
 async def get_race(
     race_id: uuid.UUID,
     db: DB,
+    locale: LocaleQ = "en",
 ) -> RaceRead:
     """Get a race by ID with full details (traits, subraces, ability bonuses)."""
-    race = await service.get_race(db, race_id)
+    race = await service.get_race_translated(db, race_id, locale=locale)
     if race is None:
         raise HTTPException(status_code=404, detail="Race not found")
-    return RaceRead.model_validate(race)
+    return race
 
 
 @router.get("/classes", response_model=list[ClassSummary])

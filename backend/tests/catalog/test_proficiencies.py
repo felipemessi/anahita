@@ -178,7 +178,7 @@ async def test_list_proficiencies_for_class_and_race(db: AsyncSession) -> None:
         is_custom=False,
     )
     db.add(cls)
-    race = Race(id=uuid.uuid4(), name="Human", speed=30, is_custom=False)
+    race = Race(id=uuid.uuid4(), index="human", speed=30, is_custom=False)
     db.add(race)
     db.add(
         ProficiencyClass(

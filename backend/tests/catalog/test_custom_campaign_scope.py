@@ -41,7 +41,7 @@ async def test_db_check_constraint_rejects_custom_without_campaign(
     db.add(
         Race(
             id=uuid.uuid4(),
-            name="Broken Homebrew Race",
+            index="broken-homebrew-race",
             speed=30,
             is_custom=True,
             campaign_id=None,
@@ -59,17 +59,17 @@ async def test_list_races_scoped_to_campaign_includes_srd_and_own_homebrew(
     campaign_a = uuid.uuid4()
     campaign_b = uuid.uuid4()
 
-    srd_race = Race(id=uuid.uuid4(), name="Human", speed=30, is_custom=False)
+    srd_race = Race(id=uuid.uuid4(), index="human", speed=30, is_custom=False)
     homebrew_a = Race(
         id=uuid.uuid4(),
-        name="Homebrew A",
+        index="homebrew-a",
         speed=30,
         is_custom=True,
         campaign_id=campaign_a,
     )
     homebrew_b = Race(
         id=uuid.uuid4(),
-        name="Homebrew B",
+        index="homebrew-b",
         speed=30,
         is_custom=True,
         campaign_id=campaign_b,
@@ -78,6 +78,6 @@ async def test_list_races_scoped_to_campaign_includes_srd_and_own_homebrew(
     await db.commit()
 
     results = await service.list_races(db, campaign_id=campaign_a)
-    names = {r.name for r in results}
+    indexes = {r.index for r in results}
 
-    assert names == {"Human", "Homebrew A"}
+    assert indexes == {"human", "homebrew-a"}
