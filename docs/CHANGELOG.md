@@ -136,3 +136,23 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   entrou/saiu, dano/cura, condição ganha/perdida, avanço de turno e fim de
   encontro, em ordem cronológica. A entrada de log sobrevive à remoção do
   participante que referenciava (`ON DELETE SET NULL`).
+
+### Added
+- Fase 2 do frontend (Sessão ao Vivo), história 1: gestão de sessões de
+  jogo e suas notas — lista e criação de sessões (mestre), notas por
+  sessão com marcação de privada restrita ao mestre (a filtragem em si já
+  era feita pelo backend).
+- Fase 2 do frontend, história 2: combat tracker mobile-first em tempo
+  real via WebSocket (`/ws/combat/{encounter_id}`) — reconexão automática
+  com backoff exponencial, resincronização via `state_sync`, iniciativa
+  ordenada com destaque do turno atual, barra de PV/CA/condições por
+  participante. Ponto de entrada para criar/iniciar um encontro adicionado
+  à tela de sessão.
+- Fase 2 do frontend, história 3: ações rápidas de dano/cura (presets de
+  um toque + valor customizado) e toggle de condição por participante,
+  botão fixo de avançar turno, e formulário de adicionar participante com
+  busca no catálogo de monstros (autocompleta PV/CA/nome) ou preenchimento
+  manual para NPCs sem stat block.
+- Fase 2 do frontend, história 4 (última da fase — Sessão ao Vivo
+  completa): visão do jogador no combat tracker, sem nenhum controle de
+  ação do mestre, atualizada em tempo real pelo mesmo WebSocket.
