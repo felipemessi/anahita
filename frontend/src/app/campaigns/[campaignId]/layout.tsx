@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 
 import { CampaignSidebar } from "@/components/layout/campaign-sidebar";
 import { Header } from "@/components/layout/header";
@@ -13,8 +13,18 @@ export default function CampaignLayout({
   children: React.ReactNode;
 }) {
   const { campaignId } = useParams<{ campaignId: string }>();
+  const pathname = usePathname();
   const { data: campaign } = useCampaign(campaignId);
   const { data: membership } = useMyMembership(campaignId);
+
+  // The live combat tracker (Fase 2 história 2) is fullscreen mobile-first —
+  // it hides the campaign chrome instead of getting its own route segment
+  // outside `[campaignId]`, since it still needs `campaignId` from this
+  // layout's params.
+  const isFullscreenCombat = /\/combat\/[^/]+/.test(pathname ?? "");
+  if (isFullscreenCombat) {
+    return <div className="min-h-screen">{children}</div>;
+  }
 
   return (
     <div className="flex min-h-screen flex-col">

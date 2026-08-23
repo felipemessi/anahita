@@ -1,10 +1,23 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { useMyMembership } from "@/hooks/use-campaign";
+import {
+  useCreateEncounter,
+  useEncounters,
+  useStartEncounter,
+} from "@/hooks/use-combat";
 import { useSessions } from "@/hooks/use-session";
 import { NoteEditor } from "@/components/sessions/note-editor";
+
+const ENCOUNTER_STATUS_LABEL: Record<string, string> = {
+  preparing: "Preparando",
+  active: "Em andamento",
+  completed: "Concluído",
+};
 
 /**
  * There's no `GET /sessions/{id}` — the backend only exposes the list
@@ -20,6 +33,20 @@ export default function SessionDetailPage() {
   const { data: membership } = useMyMembership(campaignId);
   const isDm = membership?.role === "dm";
   const session = sessions?.find((s) => s.id === sessionId);
+
+  const { data: encounters } = useEncounters(sessionId);
+  const [encounterName, setEncounterName] = useState("");
+  const createEncounter = useCreateEncounter(sessionId);
+  const startEncounter = useStartEncounter();
+
+  function handleCreateEncounter(event: React.FormEvent) {
+    event.preventDefault();
+    if (!encounterName.trim()) return;
+    createEncounter.mutate(
+      { name: encounterName.trim() },
+      { onSuccess: () => setEncounterName("") },
+    );
+  }
 
   if (isLoading) {
     return <p className="p-6 text-sm text-muted-foreground">Carregando…</p>;
@@ -49,6 +76,67 @@ export default function SessionDetailPage() {
           </p>
         </section>
       ) : null}
+
+      <section className="space-y-4">
+        <h2 className="font-semibold">Encontros</h2>
+
+        {isDm ? (
+          <form onSubmit={handleCreateEncounter} className="flex gap-2">
+            <input
+              value={encounterName}
+              onChange={(event) => setEncounterName(event.target.value)}
+              placeholder="Nome do encontro"
+              className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={!encounterName.trim() || createEncounter.isPending}
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              Criar
+            </button>
+          </form>
+        ) : null}
+
+        {encounters && encounters.length > 0 ? (
+          <ul className="space-y-2">
+            {encounters.map((encounter) => (
+              <li
+                key={encounter.id}
+                className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{encounter.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {ENCOUNTER_STATUS_LABEL[encounter.status] ?? encounter.status}
+                  </p>
+                </div>
+                {isDm && encounter.status === "preparing" ? (
+                  <button
+                    type="button"
+                    onClick={() => startEncounter.mutate(encounter.id)}
+                    disabled={startEncounter.isPending}
+                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
+                  >
+                    Iniciar
+                  </button>
+                ) : (
+                  <Link
+                    href={`/campaigns/${campaignId}/combat/${encounter.id}`}
+                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
+                  >
+                    Abrir tracker
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Nenhum encontro nesta sessão ainda.
+          </p>
+        )}
+      </section>
 
       <NoteEditor sessionId={session.id} isDm={isDm} />
     </main>
