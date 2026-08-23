@@ -6,6 +6,7 @@ import type {
   CampaignInvite,
   CampaignInviteCreate,
   CampaignMember,
+  CampaignUpdate,
 } from "@/types/campaign";
 
 /** Calls the campaigns endpoints exposed by backend/app/campaigns/router.py. */
@@ -31,6 +32,17 @@ export function createCampaign(data: CampaignCreate): Promise<Campaign> {
 /** Get a campaign's detail. Viewable by any of its members. */
 export function getCampaign(campaignId: string): Promise<Campaign> {
   return apiFetch<Campaign>(`/campaigns/${campaignId}`);
+}
+
+/** Update a campaign's general settings; only the campaign's DM may do this. */
+export function updateCampaign(
+  campaignId: string,
+  data: CampaignUpdate,
+): Promise<Campaign> {
+  return apiFetch<Campaign>(`/campaigns/${campaignId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 /** Get the authenticated user's own membership (id + role) in a campaign. */

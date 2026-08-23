@@ -90,3 +90,18 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   mestre; `GET /catalog/{category}` ganhou o parâmetro `campaign_id` para
   escopar a listagem de homebrew à própria campanha (antes vazava homebrew
   de outras campanhas quando `include_custom` estava ativo).
+
+### Added
+- `PATCH /campaigns/{id}` (editar nome/descrição/cenário, só o mestre) e
+  formulário de edição correspondente em `settings/page.tsx`.
+- `GET /auth/users?ids=`, resolvendo perfil público em lote a partir de uma
+  lista de ids; a lista de membros da campanha agora mostra o username em
+  vez do UUID cru.
+- Criação de homebrew para as 4 categorias de catálogo restantes
+  (`POST /catalog/{magic-items,backgrounds,feats,rules}`), completando as 9
+  categorias com tela dedicada; `GET /catalog/rules` também ganhou o
+  parâmetro `campaign_id` para escopar homebrew (único que ainda faltava).
+- `POST /characters/{id}/{spells,equipment,features}`, permitindo registrar
+  magias conhecidas/preparadas, itens do inventário pessoal e
+  características de classe/talento na ficha; a ficha de personagem no
+  frontend ganhou as seções correspondentes (antes "em breve").

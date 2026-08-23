@@ -20,9 +20,10 @@ const COMMON_FIELDS: FieldConfig[] = [
 ];
 
 /**
- * Category-specific fields beyond name/description, for the categories with
- * dedicated support in v1 (races, classes, spells, equipment, monsters —
- * backlog Fase 1). Other categories get the common fields only.
+ * Category-specific fields beyond name/description, for every category with
+ * a homebrew-creation endpoint (backlog Fase 1). `rules` and `backgrounds`
+ * don't use the common `description` field — their backend schema has no
+ * such field — so they're excluded via `OMIT_COMMON_KEYS` below.
  */
 const EXTRA_FIELDS: Partial<Record<CatalogCategory, FieldConfig[]>> = {
   classes: [
@@ -49,6 +50,20 @@ const EXTRA_FIELDS: Partial<Record<CatalogCategory, FieldConfig[]>> = {
     { key: "hit_points", label: "Pontos de vida", type: "number", required: true },
     { key: "challenge_rating", label: "Desafio (CR)", type: "number", required: true },
   ],
+  "magic-items": [{ key: "rarity", label: "Raridade", type: "text" }],
+  backgrounds: [
+    { key: "personality_traits", label: "Traços de personalidade", type: "textarea" },
+    { key: "ideals", label: "Ideais", type: "textarea" },
+    { key: "bonds", label: "Vínculos", type: "textarea" },
+    { key: "flaws", label: "Defeitos", type: "textarea" },
+  ],
+  rules: [{ key: "desc", label: "Descrição", type: "textarea" }],
+};
+
+/** Categories whose backend schema has no `description` field. */
+const OMIT_COMMON_KEYS: Partial<Record<CatalogCategory, string[]>> = {
+  backgrounds: ["description"],
+  rules: ["description"],
 };
 
 /**
@@ -65,7 +80,12 @@ export function CustomEntryForm<C extends CatalogCategory>({
   campaignId: string;
   onCreated?: (entry: CatalogDetailByCategory[C]) => void;
 }) {
-  const fields = [...COMMON_FIELDS, ...(EXTRA_FIELDS[category] ?? [])];
+  const omitKeys: string[] =
+    (OMIT_COMMON_KEYS as Record<string, string[] | undefined>)[category] ?? [];
+  const fields = [
+    ...COMMON_FIELDS.filter((f) => !omitKeys.includes(f.key)),
+    ...(EXTRA_FIELDS[category] ?? []),
+  ];
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const createEntry = useCreateCustomEntry(category, campaignId);

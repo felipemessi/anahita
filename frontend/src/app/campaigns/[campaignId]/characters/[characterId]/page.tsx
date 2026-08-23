@@ -6,7 +6,10 @@ import { CharacterSheet } from "@/components/characters/character-sheet";
 import { useCharacter } from "@/hooks/use-character";
 
 export default function CharacterSheetPage() {
-  const { characterId } = useParams<{ campaignId: string; characterId: string }>();
+  const { campaignId, characterId } = useParams<{
+    campaignId: string;
+    characterId: string;
+  }>();
   const { data: character, isLoading } = useCharacter(characterId);
 
   if (isLoading) {
@@ -19,7 +22,7 @@ export default function CharacterSheetPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <CharacterSheet character={character} />
+      <CharacterSheet campaignId={campaignId} character={character} />
     </main>
   );
 }
