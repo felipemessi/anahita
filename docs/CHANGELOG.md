@@ -170,3 +170,18 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 - ESLint passou a ignorar `next-env.d.ts` (arquivo auto-gerado pelo Next a
   cada `dev`/`build`, nunca editado à mão), que estava quebrando o lint
   sempre que alguém rodava o servidor de desenvolvimento localmente.
+
+### Added
+- Fase 3 do backend, história 1: NPCs com stat block opcional referenciando
+  o catálogo de monstros (SRD ou homebrew da própria campanha), locais e
+  facções com CRUD básico (mestre cria, qualquer membro lista).
+- Fase 3 do backend, história 2: locais organizáveis em hierarquia (região
+  → cidade → taverna), com árvore por campanha e prevenção de ciclo ao
+  reatribuir o local pai.
+- Fase 3 do backend, história 3: NPCs relacionáveis a facções (com papel),
+  locais (residente/frequentador/controlador) e sessões (nota de
+  aparição), locais relacionáveis a sessões (nota de visita), e relações
+  entre facções (aliada, hostil, neutra, vassala, parceira comercial).
+- Fase 3 do backend, história 4 (última da fase — World-building
+  completo): busca por nome/descrição cross-entidade em NPCs, locais e
+  facções de uma campanha, via busca textual do Postgres.
