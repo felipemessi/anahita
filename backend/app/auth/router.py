@@ -5,9 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.models import User
 from app.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
 from app.auth.service import AuthService
 from app.auth.strategies.local import LocalAuthStrategy
+from app.core.dependencies import get_current_user
 from app.database import get_db
 
 _REFRESH_COOKIE = "refresh_token"
@@ -79,6 +81,14 @@ async def refresh(
         max_age=_COOKIE_MAX_AGE,
     )
     return TokenResponse(access_token=access)
+
+
+@router.get("/me", response_model=UserPublic)
+async def me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserPublic:
+    """Return the public profile of the currently authenticated user."""
+    return UserPublic.model_validate(current_user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
