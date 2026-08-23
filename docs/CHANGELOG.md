@@ -9,6 +9,9 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Endpoint `GET /auth/me`, retornando o perfil (email, username) do usuário
+  autenticado — lacuna identificada pelo frontend, já que o token de acesso
+  só carrega o id do usuário.
 - Fundação do frontend (Fase 0): projeto Next.js inicializado (App Router,
   TypeScript strict, Tailwind, shadcn-ready), providers (`QueryProvider`,
   `ThemeProvider`) com tema deep navy + gold e DM Sans/Space Mono, landing
