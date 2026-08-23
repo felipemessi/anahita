@@ -125,7 +125,7 @@ export default function NpcsPage() {
         <ul className="space-y-2">
           {npcs.map((npc) => (
             <li key={npc.id}>
-              <NpcCard npc={npc} />
+              <NpcCard npc={npc} campaignId={campaignId} isDm={isDm} />
             </li>
           ))}
         </ul>

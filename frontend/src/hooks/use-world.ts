@@ -8,11 +8,14 @@ import {
   createNpc,
   getLocationTree,
   linkFactionRelationship,
+  linkLocationSession,
   linkNpcFaction,
   linkNpcLocation,
+  linkNpcSession,
   listFactionRelationships,
   listFactions,
   listLocations,
+  listLocationSessions,
   listNpcFactions,
   listNpcLocations,
   listNpcs,
@@ -24,9 +27,11 @@ import type {
   FactionCreate,
   FactionRelationshipCreate,
   LocationCreate,
+  LocationSessionCreate,
   NpcCreate,
   NpcFactionCreate,
   NpcLocationCreate,
+  NpcSessionCreate,
 } from "@/types/world";
 
 export const WORLD_QUERY_KEY = ["world"] as const;
@@ -175,6 +180,41 @@ export function useNpcSessions(npcId: string) {
     queryKey: [...WORLD_QUERY_KEY, "npcs", npcId, "sessions"],
     queryFn: () => listNpcSessions(npcId),
     enabled: Boolean(npcId),
+  });
+}
+
+/** Link an NPC to a session appearance (DM only); invalidates that NPC's sessions. */
+export function useLinkNpcSession(npcId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: NpcSessionCreate) => linkNpcSession(npcId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...WORLD_QUERY_KEY, "npcs", npcId, "sessions"],
+      });
+    },
+  });
+}
+
+/** A location's session visits. */
+export function useLocationSessions(locationId: string) {
+  return useQuery({
+    queryKey: [...WORLD_QUERY_KEY, "locations", locationId, "sessions"],
+    queryFn: () => listLocationSessions(locationId),
+    enabled: Boolean(locationId),
+  });
+}
+
+/** Link a location to a session visit (DM only); invalidates that location's sessions. */
+export function useLinkLocationSession(locationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: LocationSessionCreate) => linkLocationSession(locationId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...WORLD_QUERY_KEY, "locations", locationId, "sessions"],
+      });
+    },
   });
 }
 
