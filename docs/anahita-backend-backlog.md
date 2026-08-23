@@ -114,9 +114,9 @@
   - [x] Testes de idempotência do seed (rodar duas vezes não duplica) — `test_seed_is_idempotent`, cobre todas as 20 categorias
 
 - **Como desenvolvedor, quero um seed parcial em pt-BR para as categorias que já têm tradução disponível.**
-  - [ ] Mapear quais das 12 categorias com dado em `_data/2014/pt-BR` correspondem a quais tabelas `_i18n` já implementadas
-  - [ ] Estender o seed para popular linhas `_i18n` com `locale='pt-BR'` a partir desses arquivos, sem quebrar quando uma categoria não tem pt-BR (fallback para `en` continua funcionando)
-  - [ ] Teste: entidade sem tradução pt-BR retorna `en` via fallback; entidade com tradução pt-BR retorna a tradução
+  - [x] Mapear quais das 12 categorias com dado em `_data/2014/pt-BR` correspondem a quais tabelas `_i18n` já implementadas — `AbilityScoreDefinitionI18n`, `SkillDefinitionI18n`, `AlignmentI18n`, `ConditionI18n`, `DamageTypeI18n`, `MagicSchoolI18n`, `LanguageI18n`, `WeaponPropertyI18n`, `RaceI18n`, `BackgroundI18n`+`BackgroundFeatureI18n`, `FeatI18n`, `RuleSectionI18n` (as `convert_srd.py`'s pt-BR section docstring); `RaceTrait`/`Subrace` nomes existem no fonte mas sem descrição traduzida, e `Rule` (as 33 entradas finas) não tem fonte pt-BR — ambos ficam de fora, fallback para `en` intacto
+  - [x] Estender o seed para popular linhas `_i18n` com `locale='pt-BR'` a partir desses arquivos, sem quebrar quando uma categoria não tem pt-BR (fallback para `en` continua funcionando) — `seed.py`: `_load_pt_br`/`_translations`, mesma passada que já semeia `en`
+  - [x] Teste: entidade sem tradução pt-BR retorna `en` via fallback (`test_get_rule_translated_falls_back_to_en`, `test_get_monster_translated_falls_back_to_en`); entidade com tradução pt-BR retorna a tradução (`test_get_race/background/feat_translated_resolves_pt_br`, `test_get_rule_translated_resolves_section_pt_br`)
 
 ---
 
