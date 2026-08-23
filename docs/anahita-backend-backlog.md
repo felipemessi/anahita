@@ -235,11 +235,12 @@
 
 ## Fase 3 — World-building
 
-- **Como DM, quero cadastrar NPCs com ou sem stat block (usando o catálogo de Monstros da Fase 0).**
-  - [ ] `app/world/models.py`: `NPC` (com `stat_block_id → Monster`), `Location`, `Faction` (seção 7.7 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Testes: NPC sem stat block, NPC com stat block do SRD, NPC com monstro homebrew da campanha
+- **Como DM, quero cadastrar NPCs com ou sem stat block (usando o catálogo de Monstros da Fase 0).** ✅ (2026-08-23)
+  - [x] `app/world/models.py`: `NPC` (com `stat_block_id → Monster`), `Location`, `Faction` (seção 7.7 do PRD)
+  - [x] Migração Alembic — `alembic/versions/fbcce0468d89_*.py` (upgrade/downgrade testados contra Postgres, duas vezes)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py`
+  - [x] Testes: NPC sem stat block, NPC com stat block do SRD, NPC com monstro homebrew da campanha — `tests/world/test_service.py`
+  - **Nota:** lacuna mecânica preenchida inline — a história só previa NPC, mas `Location`/`Faction` ganharam CRUD básico (create/list, DM-only para criar) também nesta história, já que nenhuma outra história do backlog cria esses endpoints e as futuras junções (NPCFaction, NPCLocation etc.) precisam de algo pra referenciar. `service.py` valida que `stat_block_id` só aceita monstro SRD (`campaign_id IS NULL`) ou homebrew da própria campanha, nunca homebrew de outra campanha.
 
 - **Como DM, quero organizar locais em hierarquia (região → cidade → taverna).**
   - [ ] `service.py`: navegação de `parent_location_id`, prevenção de ciclo
