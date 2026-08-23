@@ -2,18 +2,41 @@
 
 import uuid
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.catalog.domain import CreatureSize
+from app.catalog.domain import CreatureSize, LanguageType
+from app.catalog.mixins import CatalogEntityMixin, CatalogI18nMixin
 from app.database import Base
+
+#: Reused by every catalog table that carries `is_custom`/`campaign_id` but
+#: predates `CatalogEntityMixin` (Race, ClassDefinition, SubclassDefinition) —
+#: see `app.catalog.mixins.CatalogEntityMixin` for the canonical version.
+_CUSTOM_CAMPAIGN_SCOPE_SQL = (
+    "(NOT is_custom AND campaign_id IS NULL) OR (is_custom AND campaign_id IS NOT NULL)"
+)
 
 
 class Race(Base):
     """A playable race from the SRD or a campaign homebrew."""
 
     __tablename__ = "catalog_races"
+    __table_args__ = (
+        CheckConstraint(
+            _CUSTOM_CAMPAIGN_SCOPE_SQL, name="ck_catalog_races_custom_campaign_scope"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -154,6 +177,12 @@ class ClassDefinition(Base):
     """A character class definition from the SRD or a campaign homebrew."""
 
     __tablename__ = "catalog_class_definitions"
+    __table_args__ = (
+        CheckConstraint(
+            _CUSTOM_CAMPAIGN_SCOPE_SQL,
+            name="ck_catalog_class_definitions_custom_campaign_scope",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -210,6 +239,12 @@ class SubclassDefinition(Base):
     """A subclass (archetype) for a ClassDefinition."""
 
     __tablename__ = "catalog_subclass_definitions"
+    __table_args__ = (
+        CheckConstraint(
+            _CUSTOM_CAMPAIGN_SCOPE_SQL,
+            name="ck_catalog_subclass_definitions_custom_campaign_scope",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -330,3 +365,217 @@ class ArmorDetail(Base):
     strength_requirement: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     item: Mapped[Item] = relationship("Item", back_populates="armor_detail")
+
+
+# --- Fixed vocabulary (SRD 2014 §7.4.1) ------------------------------------
+#
+# Small, low-cardinality reference tables with no complex relations. Each has
+# a base table (`CatalogEntityMixin`: id/index/is_custom/campaign_id/
+# created_by_id) and an `_i18n` sibling (`CatalogI18nMixin`: id/locale) — see
+# `app.catalog.mixins` for the full convention.
+
+
+class AbilityScoreDefinition(CatalogEntityMixin, Base):
+    """One of the six core ability scores (str, dex, con, int, wis, cha)."""
+
+    __tablename__ = "catalog_ability_score_definitions"
+
+
+class AbilityScoreDefinitionI18n(CatalogI18nMixin, Base):
+    """Translated text for an AbilityScoreDefinition."""
+
+    __tablename__ = "catalog_ability_score_definitions_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_ability_score_definitions_i18n"
+        ),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class SkillDefinition(CatalogEntityMixin, Base):
+    """A skill tied to a governing ability score (e.g. Stealth -> dex)."""
+
+    __tablename__ = "catalog_skill_definitions"
+
+    ability_score_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=False,
+    )
+
+
+class SkillDefinitionI18n(CatalogI18nMixin, Base):
+    """Translated text for a SkillDefinition."""
+
+    __tablename__ = "catalog_skill_definitions_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_skill_definitions_i18n"
+        ),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_skill_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class Alignment(CatalogEntityMixin, Base):
+    """A moral/ethical alignment (e.g. Lawful Good)."""
+
+    __tablename__ = "catalog_alignments"
+
+
+class AlignmentI18n(CatalogI18nMixin, Base):
+    """Translated text for an Alignment."""
+
+    __tablename__ = "catalog_alignments_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_alignments_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_alignments.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    abbreviation: Mapped[str] = mapped_column(String(5), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class Condition(CatalogEntityMixin, Base):
+    """A status condition (e.g. Blinded, Poisoned)."""
+
+    __tablename__ = "catalog_conditions"
+
+
+class ConditionI18n(CatalogI18nMixin, Base):
+    """Translated text for a Condition."""
+
+    __tablename__ = "catalog_conditions_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_conditions_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_conditions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class DamageType(CatalogEntityMixin, Base):
+    """A damage type (e.g. Fire, Slashing)."""
+
+    __tablename__ = "catalog_damage_types"
+
+
+class DamageTypeI18n(CatalogI18nMixin, Base):
+    """Translated text for a DamageType."""
+
+    __tablename__ = "catalog_damage_types_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_damage_types_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_damage_types.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class MagicSchool(CatalogEntityMixin, Base):
+    """A school of magic (e.g. Evocation, Necromancy)."""
+
+    __tablename__ = "catalog_magic_schools"
+
+
+class MagicSchoolI18n(CatalogI18nMixin, Base):
+    """Translated text for a MagicSchool."""
+
+    __tablename__ = "catalog_magic_schools_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_magic_schools_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_magic_schools.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    desc: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Language(CatalogEntityMixin, Base):
+    """A language spoken in the setting (e.g. Common, Elvish)."""
+
+    __tablename__ = "catalog_languages"
+
+    language_type: Mapped[str] = mapped_column(
+        SAEnum(LanguageType, name="languagetype"),
+        nullable=False,
+        default=LanguageType.standard,
+    )
+
+
+class LanguageI18n(CatalogI18nMixin, Base):
+    """Translated text for a Language."""
+
+    __tablename__ = "catalog_languages_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_languages_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_languages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    script: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    typical_speakers: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class WeaponProperty(CatalogEntityMixin, Base):
+    """A weapon property (e.g. Finesse, Heavy, Two-Handed)."""
+
+    __tablename__ = "catalog_weapon_properties"
+
+
+class WeaponPropertyI18n(CatalogI18nMixin, Base):
+    """Translated text for a WeaponProperty."""
+
+    __tablename__ = "catalog_weapon_properties_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_weapon_properties_i18n"
+        ),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_weapon_properties.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")

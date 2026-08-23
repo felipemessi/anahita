@@ -213,3 +213,94 @@ class ItemSummary(BaseModel):
     rarity: str | None
     weight: float
     cost: int
+
+
+# --- Fixed vocabulary (SRD 2014 §7.4.1) -------------------------------------
+#
+# These entities have no `name`/translated text on the base row — that lives
+# in the matching `_i18n` table (see `app.catalog.mixins`). Read schemas here
+# expose only the structural fields; translated text is resolved separately
+# via `app.catalog.service.get_translated` and composed by the caller once an
+# endpoint needs it (no router yet for this fixed vocabulary — seed-only).
+
+
+class AbilityScoreDefinitionRead(BaseModel):
+    """Read schema for an ability score definition."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    is_custom: bool
+
+
+class SkillDefinitionRead(BaseModel):
+    """Read schema for a skill definition."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    ability_score_id: uuid.UUID
+    is_custom: bool
+
+
+class AlignmentRead(BaseModel):
+    """Read schema for an alignment."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    is_custom: bool
+
+
+class ConditionRead(BaseModel):
+    """Read schema for a condition."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    is_custom: bool
+
+
+class DamageTypeRead(BaseModel):
+    """Read schema for a damage type."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    is_custom: bool
+
+
+class MagicSchoolRead(BaseModel):
+    """Read schema for a school of magic."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    is_custom: bool
+
+
+class LanguageRead(BaseModel):
+    """Read schema for a language."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    language_type: str
+    is_custom: bool
+
+
+class WeaponPropertyRead(BaseModel):
+    """Read schema for a weapon property."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    is_custom: bool

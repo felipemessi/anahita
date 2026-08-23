@@ -2,17 +2,53 @@
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import InstrumentedAttribute, selectinload
 
+from app.catalog.mixins import CatalogI18nMixin
 from app.catalog.models import (
+    AbilityScoreDefinition,
+    Alignment,
     ClassDefinition,
+    Condition,
+    DamageType,
     Item,
+    Language,
+    MagicSchool,
     Race,
+    SkillDefinition,
     Spell,
     Subrace,
+    WeaponProperty,
 )
+
+
+async def get_translated[T: CatalogI18nMixin](
+    session: AsyncSession,
+    i18n_model: type[T],
+    entity_fk: InstrumentedAttribute[uuid.UUID],
+    *,
+    entity_id: uuid.UUID,
+    locale: str,
+) -> T | None:
+    """Return the `_i18n` row for `entity_id` in `locale`, falling back to `en`.
+
+    Generic helper reused by every catalog category that follows the `_i18n`
+    convention (see `app.catalog.mixins`): pass the `_i18n` model class and its
+    `entity_id` FK column, and it resolves the translation with fallback.
+    """
+    stmt = select(i18n_model).where(entity_fk == entity_id, i18n_model.locale == locale)
+    result = await session.execute(stmt)
+    row = result.scalar_one_or_none()
+    if row is not None or locale == "en":
+        return row
+
+    fallback_stmt = select(i18n_model).where(
+        entity_fk == entity_id, i18n_model.locale == "en"
+    )
+    fallback_result = await session.execute(fallback_stmt)
+    return fallback_result.scalar_one_or_none()
 
 
 async def list_races(
@@ -20,8 +56,16 @@ async def list_races(
     *,
     search: str | None = None,
     include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
 ) -> list[Race]:
-    """Return all races, optionally filtered by name substring."""
+    """Return all races, optionally filtered by name substring.
+
+    When `campaign_id` is given, scopes the listing to SRD content
+    (`campaign_id IS NULL`) plus homebrew belonging to that campaign — never
+    homebrew from another campaign. `include_custom` is ignored in that case;
+    it only controls whether *any* homebrew is included when no campaign is
+    given (e.g. an unauthenticated/global catalog browse).
+    """
     stmt = (
         select(Race)
         .options(
@@ -34,7 +78,11 @@ async def list_races(
     )
     if search:
         stmt = stmt.where(Race.name.ilike(f"%{search}%"))
-    if not include_custom:
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Race.campaign_id.is_(None), Race.campaign_id == campaign_id)
+        )
+    elif not include_custom:
         stmt = stmt.where(Race.is_custom.is_(False))
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -61,8 +109,12 @@ async def list_classes(
     *,
     search: str | None = None,
     include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
 ) -> list[ClassDefinition]:
-    """Return all class definitions, optionally filtered by name substring."""
+    """Return all class definitions, optionally filtered by name substring.
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
     stmt = (
         select(ClassDefinition)
         .options(
@@ -73,7 +125,14 @@ async def list_classes(
     )
     if search:
         stmt = stmt.where(ClassDefinition.name.ilike(f"%{search}%"))
-    if not include_custom:
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(
+                ClassDefinition.campaign_id.is_(None),
+                ClassDefinition.campaign_id == campaign_id,
+            )
+        )
+    elif not include_custom:
         stmt = stmt.where(ClassDefinition.is_custom.is_(False))
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -154,4 +213,135 @@ async def get_item(session: AsyncSession, item_id: uuid.UUID) -> Item | None:
         )
     )
     result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# --- Fixed vocabulary (SRD 2014 §7.4.1) -------------------------------------
+#
+# Read-only: this fixed vocabulary is seeded, not created via API. Translated
+# text is resolved separately via `get_translated` (see above) — callers pass
+# the matching `_i18n` model and its `entity_id` column.
+
+
+async def list_ability_scores(session: AsyncSession) -> list[AbilityScoreDefinition]:
+    """Return all ability score definitions."""
+    result = await session.execute(
+        select(AbilityScoreDefinition).order_by(AbilityScoreDefinition.index)
+    )
+    return list(result.scalars().all())
+
+
+async def get_ability_score(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> AbilityScoreDefinition | None:
+    """Return a single ability score definition by ID, or None if not found."""
+    result = await session.execute(
+        select(AbilityScoreDefinition).where(AbilityScoreDefinition.id == entity_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_skills(session: AsyncSession) -> list[SkillDefinition]:
+    """Return all skill definitions."""
+    result = await session.execute(
+        select(SkillDefinition).order_by(SkillDefinition.index)
+    )
+    return list(result.scalars().all())
+
+
+async def get_skill(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> SkillDefinition | None:
+    """Return a single skill definition by ID, or None if not found."""
+    result = await session.execute(
+        select(SkillDefinition).where(SkillDefinition.id == entity_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_alignments(session: AsyncSession) -> list[Alignment]:
+    """Return all alignments."""
+    result = await session.execute(select(Alignment).order_by(Alignment.index))
+    return list(result.scalars().all())
+
+
+async def get_alignment(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> Alignment | None:
+    """Return a single alignment by ID, or None if not found."""
+    result = await session.execute(select(Alignment).where(Alignment.id == entity_id))
+    return result.scalar_one_or_none()
+
+
+async def list_conditions(session: AsyncSession) -> list[Condition]:
+    """Return all conditions."""
+    result = await session.execute(select(Condition).order_by(Condition.index))
+    return list(result.scalars().all())
+
+
+async def get_condition(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> Condition | None:
+    """Return a single condition by ID, or None if not found."""
+    result = await session.execute(select(Condition).where(Condition.id == entity_id))
+    return result.scalar_one_or_none()
+
+
+async def list_damage_types(session: AsyncSession) -> list[DamageType]:
+    """Return all damage types."""
+    result = await session.execute(select(DamageType).order_by(DamageType.index))
+    return list(result.scalars().all())
+
+
+async def get_damage_type(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> DamageType | None:
+    """Return a single damage type by ID, or None if not found."""
+    result = await session.execute(select(DamageType).where(DamageType.id == entity_id))
+    return result.scalar_one_or_none()
+
+
+async def list_magic_schools(session: AsyncSession) -> list[MagicSchool]:
+    """Return all schools of magic."""
+    result = await session.execute(select(MagicSchool).order_by(MagicSchool.index))
+    return list(result.scalars().all())
+
+
+async def get_magic_school(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> MagicSchool | None:
+    """Return a single school of magic by ID, or None if not found."""
+    result = await session.execute(
+        select(MagicSchool).where(MagicSchool.id == entity_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_languages(session: AsyncSession) -> list[Language]:
+    """Return all languages."""
+    result = await session.execute(select(Language).order_by(Language.index))
+    return list(result.scalars().all())
+
+
+async def get_language(session: AsyncSession, entity_id: uuid.UUID) -> Language | None:
+    """Return a single language by ID, or None if not found."""
+    result = await session.execute(select(Language).where(Language.id == entity_id))
+    return result.scalar_one_or_none()
+
+
+async def list_weapon_properties(session: AsyncSession) -> list[WeaponProperty]:
+    """Return all weapon properties."""
+    result = await session.execute(
+        select(WeaponProperty).order_by(WeaponProperty.index)
+    )
+    return list(result.scalars().all())
+
+
+async def get_weapon_property(
+    session: AsyncSession, entity_id: uuid.UUID
+) -> WeaponProperty | None:
+    """Return a single weapon property by ID, or None if not found."""
+    result = await session.execute(
+        select(WeaponProperty).where(WeaponProperty.id == entity_id)
+    )
     return result.scalar_one_or_none()

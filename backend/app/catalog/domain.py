@@ -1,6 +1,7 @@
-"""Domain enums for the catalog domain."""
+"""Domain enums and invariants for the catalog domain."""
 
 import enum
+import uuid
 
 
 class CreatureSize(enum.StrEnum):
@@ -71,3 +72,36 @@ class DamageType(enum.StrEnum):
     radiant = "radiant"
     slashing = "slashing"
     thunder = "thunder"
+
+
+class LanguageType(enum.StrEnum):
+    """Language categories from D&D 5e SRD."""
+
+    standard = "standard"
+    exotic = "exotic"
+
+
+class CustomCampaignScopeError(ValueError):
+    """Raised when a catalog entity violates the custom/campaign invariant."""
+
+
+def validate_custom_campaign_scope(
+    *, is_custom: bool, campaign_id: uuid.UUID | None
+) -> None:
+    """Enforce ``is_custom is False <=> campaign_id is None`` for catalog entities.
+
+    SRD content is global (``is_custom=False``, ``campaign_id=None``); homebrew
+    content is always scoped to the campaign that created it
+    (``is_custom=True``, ``campaign_id`` set). Any other combination is invalid
+    and must never reach the database — reused by every catalog service that
+    creates content, mirroring the CHECK constraint enforced at the DB level
+    (see `app.catalog.mixins.CatalogEntityMixin`).
+    """
+    if is_custom and campaign_id is None:
+        raise CustomCampaignScopeError(
+            "Custom catalog content must be scoped to a campaign_id."
+        )
+    if not is_custom and campaign_id is not None:
+        raise CustomCampaignScopeError(
+            "Non-custom (SRD) catalog content must not have a campaign_id."
+        )
