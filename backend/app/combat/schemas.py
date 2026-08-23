@@ -58,6 +58,20 @@ class EncounterConditionRead(BaseModel):
     applied_at_round: int
 
 
+class MechanicalEffectRead(BaseModel):
+    """A resolved mechanical effect from one of a participant's active conditions.
+
+    Mirrors `engine.types.MechanicalEffect` — computed by
+    `engine.conditions.get_condition_effects` from `EncounterParticipant.
+    conditions`, never persisted (same "compute on read" pattern as
+    `CharacterAbilityScoreRead.modifier`).
+    """
+
+    effect_type: str
+    value: int | str | None
+    target: str | None
+
+
 class EncounterParticipantRead(BaseModel):
     """Response schema for an encounter participant."""
 
@@ -76,6 +90,7 @@ class EncounterParticipantRead(BaseModel):
     turn_order: int
     is_active: bool
     conditions: list[EncounterConditionRead]
+    effects: list[MechanicalEffectRead]
 
 
 class EncounterRead(BaseModel):

@@ -18,7 +18,7 @@
 |------|-----------------------------------|----------------------------------|----------------------|
 | 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
 | 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
-| 2    | Sessão ao Vivo (Combat, WS)        | Em andamento (histórias 1-2/4: CRUD de encounter/participantes + WebSocket em tempo real) | 2026-08-23 |
+| 2    | Sessão ao Vivo (Combat, WS)        | Em andamento (histórias 1-3/4: CRUD de encounter/participantes + WebSocket em tempo real + efeitos mecânicos de condições) | 2026-08-23 |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
 | 5    | Registro e Lore                   | Não iniciado                     | —                    |
@@ -219,10 +219,11 @@
   - [x] Teste: jogador tentando enviar comando de DM é rejeitado
   - Notas: adicionado evento `error` (servidor→cliente) fora da tabela do PRD §10.2 — necessário para dar feedback de comando inválido/rejeitado ao cliente (`event_type` desconhecido, payload malformado, ou 403/422/404 do service), nunca fecha a conexão. `advance_turn` reaproveita `app/combat/domain.py::advance_turn` (história 1). `update_participant` cobre dano/cura (`hit_point_current`/`temporary_hit_points`/`armor_class`) e condição (`add_condition`/`remove_condition`, cria/remove `EncounterCondition`) num único comando — resolução de efeitos mecânicos das condições fica para a história 3. `add_participant`/`remove_participant` via WS fazem broadcast de `state_sync` completo (o protocolo não define um evento dedicado para essas duas ações). O handler usa `Depends(get_db)` (compatível com `dependency_overrides` dos testes) em vez de abrir sessão direto de `AsyncSessionLocal`, uma sessão por conexão. Testado com `fastapi.testclient.TestClient` (síncrono — é o que de fato dirige WebSocket em teste; a suíte usa `httpx.AsyncClient` pros demais routers, mas isso não dá suporte a WS). Dependência nova: `websockets` (`uv add websockets`), necessária para o transporte WS tanto em runtime (uvicorn) quanto nos testes. 34 testes em `tests/combat/` (25 REST da história 1 + 9 WS novos).
 
-- **Como jogador, quero ver as condições ativas do meu personagem e seus efeitos mecânicos durante o combate.**
-  - [ ] Conectar `EncounterCondition` a `engine/conditions.py` (`get_condition_effects`)
-  - [ ] `schemas.py`: response de participante inclui condições + efeitos mecânicos resolvidos
-  - [ ] Teste: personagem cego (blinded) → efeito de disadvantage retornado
+- **Como jogador, quero ver as condições ativas do meu personagem e seus efeitos mecânicos durante o combate.** ✅ (2026-08-23)
+  - [x] Conectar `EncounterCondition` a `engine/conditions.py` (`get_condition_effects`)
+  - [x] `schemas.py`: response de participante inclui condições + efeitos mecânicos resolvidos
+  - [x] Teste: personagem cego (blinded) → efeito de disadvantage retornado
+  - Notas: `EncounterParticipantRead.effects: list[MechanicalEffectRead]` — resolvido a cada leitura (nunca persistido), mesmo padrão de `CharacterAbilityScoreRead.modifier`. Isso exigiu refatorar `CombatService` para retornar `EncounterRead`/`EncounterParticipantRead` diretamente (em vez de rows ORM cruas + `.model_validate()` nos routers) — agora no mesmo padrão de `CharacterService`; `router.py`/`ws_router.py` simplificados de acordo (`get_encounter_membership` continua expondo o ORM cru, único caso em que o WS handler precisa do objeto para autenticar antes de montar o read). `app.combat.domain.ConditionType`/`engine.types.ConditionType` convertidos por `.value` (mesmas strings). A engine não modela severidade de exhaustion no banco (`EncounterCondition` não tem coluna de nível — PRD §7.6 não lista uma), então exhaustion é sempre resolvida em `level=1`, documentado em `participant_to_read`. 3 novos testes em `tests/combat/test_condition_effects.py`.
 
 - **Como DM, quero um log do que aconteceu no combate para referência pós-sessão.**
   - [ ] `service.py`: toda ação relevante grava `CombatLog`

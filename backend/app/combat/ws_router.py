@@ -31,7 +31,7 @@ from app.combat.schemas import (
     WSRemoveParticipantPayload,
     WSUpdateParticipantPayload,
 )
-from app.combat.service import CombatService
+from app.combat.service import CombatService, encounter_to_read
 from app.combat.ws_manager import manager
 from app.core.security import decode_token
 from app.database import get_db
@@ -93,9 +93,7 @@ async def combat_ws(
     is_dm = member.role == CampaignRole.dm
     manager.connect(encounter_id, websocket)
     try:
-        await websocket.send_json(
-            _envelope("state_sync", EncounterRead.model_validate(encounter))
-        )
+        await websocket.send_json(_envelope("state_sync", encounter_to_read(encounter)))
         while True:
             message = await websocket.receive_json()
             await _handle_message(
@@ -172,30 +170,20 @@ async def _handle_message(
                 db=db,
             )
             await manager.broadcast(
-                encounter_id,
-                _envelope(
-                    "participant_updated",
-                    EncounterParticipantRead.model_validate(participant),
-                ),
+                encounter_id, _envelope("participant_updated", participant)
             )
         elif event_type == "add_participant":
             add_data = EncounterParticipantCreate.model_validate(payload)
             encounter = await service.add_participant(
                 encounter_id, user_id, add_data, db
             )
-            await manager.broadcast(
-                encounter_id,
-                _envelope("state_sync", EncounterRead.model_validate(encounter)),
-            )
+            await manager.broadcast(encounter_id, _envelope("state_sync", encounter))
         elif event_type == "remove_participant":
             remove_data = WSRemoveParticipantPayload.model_validate(payload)
             encounter = await service.remove_participant(
                 encounter_id, remove_data.participant_id, user_id, db
             )
-            await manager.broadcast(
-                encounter_id,
-                _envelope("state_sync", EncounterRead.model_validate(encounter)),
-            )
+            await manager.broadcast(encounter_id, _envelope("state_sync", encounter))
         elif event_type == "end_encounter":
             encounter = await service.end_encounter(encounter_id, user_id, db)
             await manager.broadcast(

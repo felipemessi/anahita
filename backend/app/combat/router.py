@@ -45,8 +45,7 @@ async def create_encounter(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> EncounterRead:
     """Create an encounter for a session; only the campaign's DM may do this."""
-    encounter = await service.create_encounter(session_id, user.id, body, db)
-    return EncounterRead.model_validate(encounter)
+    return await service.create_encounter(session_id, user.id, body, db)
 
 
 @router.get("/sessions/{session_id}/encounters", response_model=list[EncounterRead])
@@ -57,8 +56,7 @@ async def list_encounters(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> list[EncounterRead]:
     """List a session's encounters. Viewable by any campaign member."""
-    encounters = await service.list_encounters(session_id, user.id, db)
-    return [EncounterRead.model_validate(e) for e in encounters]
+    return await service.list_encounters(session_id, user.id, db)
 
 
 @router.get("/encounters/{encounter_id}", response_model=EncounterRead)
@@ -69,8 +67,7 @@ async def get_encounter(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> EncounterRead:
     """Get an encounter's detail, with its participants. Viewable by any member."""
-    encounter = await service.get_encounter(encounter_id, user.id, db)
-    return EncounterRead.model_validate(encounter)
+    return await service.get_encounter(encounter_id, user.id, db)
 
 
 @router.post("/encounters/{encounter_id}/start", response_model=EncounterRead)
@@ -81,8 +78,7 @@ async def start_encounter(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> EncounterRead:
     """Start a preparing encounter (transitions to `active`). DM only."""
-    encounter = await service.start_encounter(encounter_id, user.id, db)
-    return EncounterRead.model_validate(encounter)
+    return await service.start_encounter(encounter_id, user.id, db)
 
 
 @router.post(
@@ -96,8 +92,7 @@ async def add_participant(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> EncounterRead:
     """Add a participant (PC, NPC, or manual entry) to an encounter. DM only."""
-    encounter = await service.add_participant(encounter_id, user.id, body, db)
-    return EncounterRead.model_validate(encounter)
+    return await service.add_participant(encounter_id, user.id, body, db)
 
 
 @router.patch(
@@ -113,10 +108,9 @@ async def update_participant(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> EncounterRead:
     """Update a participant's fields outside the live turn flow. DM only."""
-    encounter = await service.update_participant(
+    return await service.update_participant(
         encounter_id, participant_id, user.id, body, db
     )
-    return EncounterRead.model_validate(encounter)
 
 
 @router.delete(
@@ -131,7 +125,6 @@ async def remove_participant(
     service: Annotated[CombatService, Depends(get_combat_service)],
 ) -> EncounterRead:
     """Remove a participant from an encounter. DM only."""
-    encounter = await service.remove_participant(
+    return await service.remove_participant(
         encounter_id, participant_id, user.id, db
     )
-    return EncounterRead.model_validate(encounter)
