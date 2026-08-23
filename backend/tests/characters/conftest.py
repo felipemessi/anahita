@@ -49,3 +49,13 @@ async def fighter_class_id(db: AsyncSession) -> str:
         select(ClassDefinition).where(ClassDefinition.index == "fighter")
     )
     return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def wizard_class_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Wizard class's id."""
+    await seed_catalog(db)
+    result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "wizard")
+    )
+    return str(result.scalar_one().id)

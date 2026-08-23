@@ -164,9 +164,9 @@
   - [x] Testes: ficha de exemplo com valores conhecidos → modificadores batem com as regras do 5e; bônus de perícia recalculado após marcar proficiência direto no banco (prova que não é confiado o valor persistido); controle de acesso (dono vê, DM vê, outro jogador não vê) — `tests/characters/test_calculated_fields.py`, `tests/characters/test_router.py`
 
 - **Como jogador multiclasse, quero adicionar uma segunda classe ao meu personagem.**
-  - [ ] `service.py`: validação de multiclass via `engine/validation.py` (prerequisitos de ability score)
-  - [ ] `router.py`: endpoint de adicionar classe
-  - [ ] Teste: multiclass válido passa, inválido (ability score insuficiente) é rejeitado
+  - [x] `service.py`: validação de multiclass via `engine/validation.py::validate_multiclass` (prerequisitos de ability score) — `CharacterService.add_class`; tabela de pré-requisitos por classe SRD em `app/characters/domain.py::MULTICLASS_ABILITY_REQUIREMENTS` (nota: `validate_multiclass` só expressa AND-de-habilidades; o pré-requisito real do Fighter é STR13 *ou* DEX13 — simplificado para STR13 só, documentado no código)
+  - [x] `router.py`: `POST /characters/{id}/classes` (só o dono da ficha; rejeita classe repetida com 409; recalcula `level`/`proficiency_bonus`)
+  - [x] Teste: multiclass válido passa (Fighter→Wizard com INT 13+), inválido (INT insuficiente) é rejeitado (422), classe repetida rejeitada (409), personagem de outro jogador rejeitado (403), fluxo HTTP completo — `tests/characters/test_multiclass.py`, `tests/characters/test_router.py`
 
 - **Como DM, quero criar uma sessão de jogo com número sequencial e notas.**
   - [ ] `app/sessions/models.py`: `Session`, `SessionNote` (seção 7.5 do PRD)

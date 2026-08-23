@@ -7,6 +7,7 @@ import uuid
 # values as the catalog's AbilityScore, so character sheets and catalog data
 # (e.g. Race.ability bonuses) speak the same vocabulary.
 from app.catalog.domain import AbilityScore as AbilityScore  # noqa: F401
+from engine.types import Ability as EngineAbility
 
 
 class Skill(enum.StrEnum):
@@ -59,6 +60,29 @@ SKILL_ABILITY: dict[Skill, AbilityScore] = {
     Skill.sleight_of_hand: AbilityScore.dex,
     Skill.stealth: AbilityScore.dex,
     Skill.survival: AbilityScore.wis,
+}
+
+
+#: Ability score prerequisites to multiclass into (or out of) each SRD class
+#: (PHB multiclassing rules, keyed by `ClassDefinition.index`).
+#:
+#: Fighter's real prerequisite is STR 13 *or* DEX 13 — `engine.validation.
+#: validate_multiclass` only expresses AND-of-abilities, so this table
+#: simplifies Fighter to STR 13. A DEX-based Fighter multiclassing check may
+#: be rejected incorrectly; every other class's prerequisite here is exact.
+MULTICLASS_ABILITY_REQUIREMENTS: dict[str, dict[EngineAbility, int]] = {
+    "barbarian": {EngineAbility.STR: 13},
+    "bard": {EngineAbility.CHA: 13},
+    "cleric": {EngineAbility.WIS: 13},
+    "druid": {EngineAbility.WIS: 13},
+    "fighter": {EngineAbility.STR: 13},
+    "monk": {EngineAbility.DEX: 13, EngineAbility.WIS: 13},
+    "paladin": {EngineAbility.STR: 13, EngineAbility.CHA: 13},
+    "ranger": {EngineAbility.DEX: 13, EngineAbility.WIS: 13},
+    "rogue": {EngineAbility.DEX: 13},
+    "sorcerer": {EngineAbility.CHA: 13},
+    "warlock": {EngineAbility.CHA: 13},
+    "wizard": {EngineAbility.INT: 13},
 }
 
 

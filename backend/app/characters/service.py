@@ -13,6 +13,7 @@ from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
 from app.catalog.domain import AbilityScore
 from app.characters.domain import (
+    MULTICLASS_ABILITY_REQUIREMENTS,
     SKILL_ABILITY,
     CrossCampaignCatalogReferenceError,
     Skill,
@@ -27,6 +28,7 @@ from app.characters.models import (
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterAbilityScoreRead,
+    CharacterClassCreate,
     CharacterClassRead,
     CharacterCreate,
     CharacterRead,
@@ -39,6 +41,8 @@ from engine.abilities import (
 )
 from engine.armor_class import calculate_ac
 from engine.hit_points import calculate_max_hp
+from engine.types import Ability as EngineAbility
+from engine.validation import validate_multiclass
 
 _CHARACTER_LOAD_OPTIONS = (
     selectinload(Character.ability_scores),
@@ -168,6 +172,94 @@ class CharacterService:
         await self._require_viewer(character, requester_id, db)
         return self._to_read(character)
 
+    async def add_class(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterClassCreate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Add a second (or further) class to a character, enabling multiclass.
+
+        Only the character's own player may do this. The character's current
+        ability scores must satisfy the PHB multiclass prerequisites for both
+        the class(es) it already has and the class being added.
+        """
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        member = await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+
+        new_class_def = await catalog_service.get_class(db, data.class_definition_id)
+        if new_class_def is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Class not found"
+            )
+        self._validate_reference(new_class_def, member.campaign_id)
+
+        existing_class_ids = {c.class_definition_id for c in character.classes}
+        if data.class_definition_id in existing_class_ids:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Character already has this class; level it up instead",
+            )
+
+        if new_class_def.index is not None:
+            current_class_indices = await self._current_class_indices(character, db)
+            ability_scores = {
+                EngineAbility(score.ability.value): (
+                    score.base_score + score.asi_bonus + score.misc_bonus
+                )
+                for score in character.ability_scores
+            }
+            validation = validate_multiclass(
+                current_class_indices,
+                new_class_def.index,
+                ability_scores,
+                MULTICLASS_ABILITY_REQUIREMENTS,
+            )
+            if not validation.is_valid:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="; ".join(validation.errors),
+                )
+
+        db.add(
+            CharacterClass(
+                character_id=character.id,
+                class_definition_id=data.class_definition_id,
+                subclass_id=data.subclass_id,
+                level=data.level,
+            )
+        )
+        character.level += data.level
+        character.proficiency_bonus = calculate_proficiency_bonus(character.level)
+
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def _current_class_indices(
+        self, character: Character, db: AsyncSession
+    ) -> list[str]:
+        """Return the SRD `index` of each class the character already has."""
+        indices = []
+        for class_entry in character.classes:
+            class_def = await catalog_service.get_class(
+                db, class_entry.class_definition_id
+            )
+            if class_def is not None and class_def.index is not None:
+                indices.append(class_def.index)
+        return indices
+
     async def _require_viewer(
         self, character: Character, requester_id: uuid.UUID, db: AsyncSession
     ) -> None:
@@ -198,11 +290,18 @@ class CharacterService:
     async def _reload_as_read(
         self, character_id: uuid.UUID, db: AsyncSession
     ) -> CharacterRead:
-        """Reload a freshly-created character with relationships, as a read schema."""
+        """Reload a character with relationships, as a read schema.
+
+        `populate_existing` forces fresh relationship collections even when
+        the `Character` (and a stale `.classes`/`.ability_scores`) is already
+        in the session's identity map from an earlier query in this request
+        (e.g. `add_class` loading it before appending a new class).
+        """
         result = await db.execute(
             select(Character)
             .where(Character.id == character_id)
             .options(*_CHARACTER_LOAD_OPTIONS)
+            .execution_options(populate_existing=True)
         )
         return self._to_read(result.scalar_one())
 
@@ -280,7 +379,7 @@ class CharacterService:
         if member.user_id != requester_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot create a character for someone else's membership",
+                detail="Cannot act on someone else's campaign membership",
             )
         return member
 

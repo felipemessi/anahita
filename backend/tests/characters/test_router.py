@@ -160,3 +160,56 @@ async def test_get_character_forbidden_for_other_player(client: AsyncClient) -> 
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert resp.status_code == 403
+
+
+async def test_multiclass_over_http(client: AsyncClient) -> None:
+    """A player can add a second class to their character over HTTP."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+    wizard_resp = await client.get("/catalog/classes", params={"search": "Wizard"})
+    wizard_class_id = wizard_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": [
+                {"ability": "str", "base_score": 15},
+                {"ability": "dex", "base_score": 14},
+                {"ability": "con", "base_score": 13},
+                {"ability": "int", "base_score": 13},
+                {"ability": "wis", "base_score": 10},
+                {"ability": "cha", "base_score": 8},
+            ],
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    resp = await client.post(
+        f"/characters/{character_id}/classes",
+        json={"class_definition_id": wizard_class_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["classes"]) == 2
+    assert body["level"] == 2
