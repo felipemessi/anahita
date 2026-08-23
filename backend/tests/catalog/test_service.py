@@ -10,13 +10,18 @@ from app.catalog.models import (
     AbilityScoreDefinition,
     Background,
     BackgroundProficiency,
+    Condition,
     Feat,
     FeatPrerequisite,
     Item,
     MagicItem,
+    Monster,
+    MonsterConditionImmunity,
+    MonsterProficiency,
     Proficiency,
     Spell,
 )
+from app.catalog.schemas import MonsterActionDamageRead, MonsterDamageModifierRead
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -677,4 +682,168 @@ async def test_list_feats_scoped_to_campaign_includes_srd_and_own_homebrew(
 async def test_get_feat_not_found_returns_none(db: AsyncSession) -> None:
     """get_feat should return None for an unknown ID."""
     result = await service.get_feat(db, uuid.uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_monsters_returns_all(db: AsyncSession) -> None:
+    """list_monsters should return every seeded monster."""
+    await seed_catalog(db)
+    monsters = await service.list_monsters(db)
+    assert len(monsters) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_monster_translated_resolves_multiple_actions_with_damage(
+    db: AsyncSession,
+) -> None:
+    """A monster with several actions resolves each action's damage rolls."""
+    await seed_catalog(db)
+    results = await service.list_monsters_translated(db, search="Goblin")
+    goblin = await service.get_monster_translated(db, results[0].id, locale="en")
+
+    assert goblin is not None
+    assert goblin.name == "Goblin"
+    assert {a.name for a in goblin.actions} == {"Scimitar", "Shortbow"}
+    scimitar = next(a for a in goblin.actions if a.name == "Scimitar")
+    assert scimitar.damages == [
+        MonsterActionDamageRead(
+            id=scimitar.damages[0].id, damage_dice="1d6+2", damage_type="slashing"
+        )
+    ]
+    assert any(a.name == "Nimble Escape" for a in goblin.special_abilities)
+
+
+@pytest.mark.asyncio
+async def test_get_monster_translated_resolves_legendary_actions(
+    db: AsyncSession,
+) -> None:
+    """A monster with legendary actions resolves them, distinct from regular actions."""
+    await seed_catalog(db)
+    results = await service.list_monsters_translated(db, search="Young Red Dragon")
+    dragon = await service.get_monster_translated(db, results[0].id, locale="en")
+
+    assert dragon is not None
+    assert len(dragon.legendary_actions) == 3
+    tail_attack = next(a for a in dragon.legendary_actions if a.name == "Tail Attack")
+    assert tail_attack.damages[0].damage_dice == "2d8+6"
+    wing_attack = next(a for a in dragon.legendary_actions if a.name == "Wing Attack")
+    assert wing_attack.usage_type == "costs_2_actions"
+    assert wing_attack.save_dc == 18
+
+
+@pytest.mark.asyncio
+async def test_get_monster_translated_resolves_damage_modifiers_and_speed(
+    db: AsyncSession,
+) -> None:
+    """A monster's damage modifiers and movement speeds resolve correctly."""
+    await seed_catalog(db)
+    results = await service.list_monsters_translated(db, search="Young Red Dragon")
+    dragon = await service.get_monster_translated(db, results[0].id, locale="en")
+
+    assert dragon is not None
+    assert dragon.damage_modifiers == [
+        MonsterDamageModifierRead(
+            id=dragon.damage_modifiers[0].id, damage_type="fire", modifier_type="immune"
+        )
+    ]
+    assert dragon.speed is not None
+    assert dragon.speed.fly == "80 ft."
+    assert dragon.senses is not None
+    assert dragon.senses.blindsight == "30 ft."
+
+
+@pytest.mark.asyncio
+async def test_get_monster_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_monster_translated falls back to `en` when locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_monsters_translated(db, search="Goblin")
+    goblin = await service.get_monster_translated(db, results[0].id, locale="pt-BR")
+
+    assert goblin is not None
+    assert goblin.name == "Goblin"
+
+
+@pytest.mark.asyncio
+async def test_get_monster_translated_resolves_proficiency_and_condition_immunity(
+    db: AsyncSession,
+) -> None:
+    """A monster's MonsterProficiency/MonsterConditionImmunity rows resolve."""
+    await seed_catalog(db)
+    results = await service.list_monsters_translated(db, search="Goblin")
+    goblin_id = results[0].id
+
+    prof = Proficiency(
+        id=uuid.uuid4(), index="save-dex", proficiency_type="other", is_custom=False
+    )
+    condition = Condition(id=uuid.uuid4(), index="frightened", is_custom=False)
+    db.add_all([prof, condition])
+    db.add(
+        MonsterProficiency(
+            id=uuid.uuid4(), monster_id=goblin_id, proficiency_id=prof.id, value=4
+        )
+    )
+    db.add(
+        MonsterConditionImmunity(
+            id=uuid.uuid4(), monster_id=goblin_id, condition_id=condition.id
+        )
+    )
+    await db.commit()
+
+    goblin = await service.get_monster_translated(db, goblin_id, locale="en")
+    assert goblin is not None
+    assert any(
+        p.proficiency_id == prof.id and p.value == 4 for p in goblin.proficiencies
+    )
+    assert any(ci.condition == "frightened" for ci in goblin.condition_immunities)
+
+
+@pytest.mark.asyncio
+async def test_list_monsters_scoped_to_campaign_includes_srd_and_own_homebrew(
+    db: AsyncSession,
+) -> None:
+    """`list_monsters(campaign_id=X)` returns SRD + own homebrew, not others'."""
+    await seed_catalog(db)
+    srd_monsters = await service.list_monsters(db)
+
+    campaign_a = uuid.uuid4()
+    campaign_b = uuid.uuid4()
+    common_fields = dict(
+        size="medium",
+        creature_type="beast",
+        alignment="unaligned",
+        hit_points=10,
+        hit_dice="2d8+2",
+        challenge_rating=0.25,
+        xp=50,
+        languages="",
+        strength=10,
+        dexterity=10,
+        constitution=10,
+        intelligence=2,
+        wisdom=10,
+        charisma=6,
+        is_custom=True,
+    )
+    homebrew_a = Monster(
+        id=uuid.uuid4(), index=None, campaign_id=campaign_a, **common_fields
+    )
+    homebrew_b = Monster(
+        id=uuid.uuid4(), index=None, campaign_id=campaign_b, **common_fields
+    )
+    db.add_all([homebrew_a, homebrew_b])
+    await db.commit()
+
+    results = await service.list_monsters(db, campaign_id=campaign_a)
+    ids = {m.id for m in results}
+
+    assert homebrew_a.id in ids
+    assert homebrew_b.id not in ids
+    assert {m.id for m in srd_monsters} <= ids
+
+
+@pytest.mark.asyncio
+async def test_get_monster_not_found_returns_none(db: AsyncSession) -> None:
+    """get_monster should return None for an unknown ID."""
+    result = await service.get_monster(db, uuid.uuid4())
     assert result is None

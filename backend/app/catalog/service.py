@@ -34,6 +34,19 @@ from app.catalog.models import (
     MagicItem,
     MagicItemI18n,
     MagicSchool,
+    Monster,
+    MonsterAction,
+    MonsterActionDamage,
+    MonsterConditionImmunity,
+    MonsterDamageModifier,
+    MonsterI18n,
+    MonsterLegendaryAction,
+    MonsterLegendaryActionDamage,
+    MonsterProficiency,
+    MonsterReaction,
+    MonsterReactionDamage,
+    MonsterSpecialAbility,
+    MonsterSpecialAbilityDamage,
     Proficiency,
     ProficiencyClass,
     ProficiencyRace,
@@ -76,6 +89,16 @@ from app.catalog.schemas import (
     ItemSummary,
     MagicItemRead,
     MagicItemSummary,
+    MonsterActionDamageRead,
+    MonsterActionRead,
+    MonsterArmorClassRead,
+    MonsterConditionImmunityRead,
+    MonsterDamageModifierRead,
+    MonsterProficiencyRead,
+    MonsterRead,
+    MonsterSenseRead,
+    MonsterSpeedRead,
+    MonsterSummary,
     ProficiencyRead,
     RaceAbilityBonusRead,
     RaceRead,
@@ -1347,6 +1370,207 @@ async def list_feats_translated(
                 index=feat.index,
                 name=t.name if t else "",
                 is_custom=feat.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
+
+
+# --- Monsters / stat blocks (SRD 2014 §7.4.8) -------------------------------
+
+#: Eager-load options shared by `list_monsters`/`get_monster`.
+_MONSTER_LOAD_OPTIONS = (
+    selectinload(Monster.speed),
+    selectinload(Monster.senses),
+    selectinload(Monster.armor_classes),
+    selectinload(Monster.proficiencies).selectinload(MonsterProficiency.proficiency),
+    selectinload(Monster.damage_modifiers).selectinload(MonsterDamageModifier.damage_type),
+    selectinload(Monster.condition_immunities).selectinload(
+        MonsterConditionImmunity.condition
+    ),
+    selectinload(Monster.actions)
+    .selectinload(MonsterAction.damages)
+    .selectinload(MonsterActionDamage.damage_type),
+    selectinload(Monster.legendary_actions)
+    .selectinload(MonsterLegendaryAction.damages)
+    .selectinload(MonsterLegendaryActionDamage.damage_type),
+    selectinload(Monster.reactions)
+    .selectinload(MonsterReaction.damages)
+    .selectinload(MonsterReactionDamage.damage_type),
+    selectinload(Monster.special_abilities)
+    .selectinload(MonsterSpecialAbility.damages)
+    .selectinload(MonsterSpecialAbilityDamage.damage_type),
+)
+
+
+async def list_monsters(
+    session: AsyncSession,
+    *,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+) -> list[Monster]:
+    """Return all monsters (base rows, eager-loaded stat block, untranslated).
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
+    stmt = select(Monster).options(*_MONSTER_LOAD_OPTIONS)
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Monster.campaign_id.is_(None), Monster.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(Monster.is_custom.is_(False))
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_monster(session: AsyncSession, monster_id: uuid.UUID) -> Monster | None:
+    """Return a single monster by ID (untranslated), or None if not found."""
+    stmt = (
+        select(Monster).where(Monster.id == monster_id).options(*_MONSTER_LOAD_OPTIONS)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+def _to_monster_action_read(
+    action: MonsterAction
+    | MonsterLegendaryAction
+    | MonsterReaction
+    | MonsterSpecialAbility,
+) -> MonsterActionRead:
+    """Convert any of the four action-shaped models into the shared read schema.
+
+    Unlike most catalog text, action `name`/`description` live directly on the
+    row (PRD §7.4.8 has no `_i18n` sibling for these four tables) — no
+    translation lookup needed here.
+    """
+    return MonsterActionRead(
+        id=action.id,
+        name=action.name,
+        description=action.description,
+        attack_bonus=action.attack_bonus,
+        save_ability_score_id=action.save_ability_score_id,
+        save_dc=action.save_dc,
+        usage_type=action.usage_type,
+        usage_times=action.usage_times,
+        damages=[
+            MonsterActionDamageRead(
+                id=d.id,
+                damage_dice=d.damage_dice,
+                damage_type=d.damage_type.index or "",
+            )
+            for d in action.damages
+        ],
+    )
+
+
+async def get_monster_translated(
+    session: AsyncSession, monster_id: uuid.UUID, *, locale: str = "en"
+) -> MonsterRead | None:
+    """Return a monster by ID with every translatable field resolved for `locale`."""
+    monster = await get_monster(session, monster_id)
+    if monster is None:
+        return None
+    t = await get_translated(
+        session, MonsterI18n, MonsterI18n.entity_id, entity_id=monster.id, locale=locale
+    )
+    return MonsterRead(
+        id=monster.id,
+        index=monster.index,
+        name=t.name if t else "",
+        description=t.description if t else "",
+        size=monster.size,
+        creature_type=monster.creature_type,
+        creature_subtype=monster.creature_subtype,
+        alignment=monster.alignment,
+        hit_points=monster.hit_points,
+        hit_dice=monster.hit_dice,
+        challenge_rating=monster.challenge_rating,
+        xp=monster.xp,
+        proficiency_bonus=monster.proficiency_bonus,
+        languages=monster.languages,
+        strength=monster.strength,
+        dexterity=monster.dexterity,
+        constitution=monster.constitution,
+        intelligence=monster.intelligence,
+        wisdom=monster.wisdom,
+        charisma=monster.charisma,
+        is_custom=monster.is_custom,
+        speed=MonsterSpeedRead.model_validate(monster.speed) if monster.speed else None,
+        senses=(
+            MonsterSenseRead.model_validate(monster.senses) if monster.senses else None
+        ),
+        armor_classes=[
+            MonsterArmorClassRead.model_validate(ac) for ac in monster.armor_classes
+        ],
+        proficiencies=[
+            MonsterProficiencyRead(
+                id=p.id, proficiency_id=p.proficiency_id, value=p.value
+            )
+            for p in monster.proficiencies
+        ],
+        damage_modifiers=[
+            MonsterDamageModifierRead(
+                id=dm.id,
+                damage_type=dm.damage_type.index or "",
+                modifier_type=dm.modifier_type,
+            )
+            for dm in monster.damage_modifiers
+        ],
+        condition_immunities=[
+            MonsterConditionImmunityRead(id=ci.id, condition=ci.condition.index or "")
+            for ci in monster.condition_immunities
+        ],
+        actions=[_to_monster_action_read(a) for a in monster.actions],
+        legendary_actions=[
+            _to_monster_action_read(a) for a in monster.legendary_actions
+        ],
+        reactions=[_to_monster_action_read(a) for a in monster.reactions],
+        special_abilities=[
+            _to_monster_action_read(a) for a in monster.special_abilities
+        ],
+    )
+
+
+async def list_monsters_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[MonsterSummary]:
+    """Return monsters with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: monster counts are small enough (this
+    story's seed) that resolving translations per-row here is simpler than a
+    fallback-aware SQL join.
+    """
+    monsters = await list_monsters(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
+    summaries = []
+    for monster in monsters:
+        t = await get_translated(
+            session,
+            MonsterI18n,
+            MonsterI18n.entity_id,
+            entity_id=monster.id,
+            locale=locale,
+        )
+        summaries.append(
+            MonsterSummary(
+                id=monster.id,
+                index=monster.index,
+                name=t.name if t else "",
+                size=monster.size,
+                creature_type=monster.creature_type,
+                challenge_rating=monster.challenge_rating,
+                is_custom=monster.is_custom,
             )
         )
     if search:

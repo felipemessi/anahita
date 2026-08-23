@@ -1,0 +1,142 @@
+[
+  {
+    "index": "goblin",
+    "size": "small",
+    "creature_type": "humanoid",
+    "creature_subtype": "goblinoid",
+    "alignment": "neutral evil",
+    "hit_points": 7,
+    "hit_dice": "2d6",
+    "challenge_rating": 0.25,
+    "xp": 50,
+    "proficiency_bonus": 2,
+    "languages": "Common, Goblin",
+    "strength": 8,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 8,
+    "charisma": 8,
+    "i18n": {
+      "en": {
+        "name": "Goblin",
+        "description": "Goblins are small, black-hearted humanoids that lair in caves, abandoned mines, despoiled dungeons, and other dismal settings."
+      }
+    },
+    "speed": {"walk": "30 ft."},
+    "senses": {"passive_perception": 9, "darkvision": "60 ft."},
+    "armor_classes": [
+      {"ac_type": "armor", "value": 15, "description": "leather armor, shield"}
+    ],
+    "damage_modifiers": [],
+    "condition_immunities": [],
+    "actions": [
+      {
+        "name": "Scimitar",
+        "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage.",
+        "attack_bonus": 4,
+        "damages": [{"damage_dice": "1d6+2", "damage_type_index": "slashing"}]
+      },
+      {
+        "name": "Shortbow",
+        "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+        "attack_bonus": 4,
+        "damages": [{"damage_dice": "1d6+2", "damage_type_index": "piercing"}]
+      }
+    ],
+    "legendary_actions": [],
+    "reactions": [],
+    "special_abilities": [
+      {
+        "name": "Nimble Escape",
+        "description": "The goblin can take the Disengage or Hide action as a bonus action on each of its turns.",
+        "damages": []
+      }
+    ]
+  },
+  {
+    "index": "young-red-dragon",
+    "size": "large",
+    "creature_type": "dragon",
+    "creature_subtype": null,
+    "alignment": "chaotic evil",
+    "hit_points": 178,
+    "hit_dice": "17d10+85",
+    "challenge_rating": 10,
+    "xp": 5900,
+    "proficiency_bonus": 4,
+    "languages": "Common, Draconic",
+    "strength": 23,
+    "dexterity": 10,
+    "constitution": 21,
+    "intelligence": 14,
+    "wisdom": 11,
+    "charisma": 19,
+    "i18n": {
+      "en": {
+        "name": "Young Red Dragon",
+        "description": "Young red dragons aggressively claim territory. Their fiery breath and fierce claws make them formidable foes."
+      }
+    },
+    "speed": {"walk": "40 ft.", "climb": "40 ft.", "fly": "80 ft."},
+    "senses": {
+      "passive_perception": 18,
+      "blindsight": "30 ft.",
+      "darkvision": "120 ft."
+    },
+    "armor_classes": [
+      {"ac_type": "natural", "value": 18, "description": "natural armor"}
+    ],
+    "damage_modifiers": [
+      {"damage_type_index": "fire", "modifier_type": "immune"}
+    ],
+    "condition_immunities": [],
+    "actions": [
+      {
+        "name": "Bite",
+        "description": "Melee Weapon Attack: +10 to hit, reach 10 ft., one target. Hit: 17 (2d10 + 6) piercing damage plus 3 (1d6) fire damage.",
+        "attack_bonus": 10,
+        "damages": [
+          {"damage_dice": "2d10+6", "damage_type_index": "piercing"},
+          {"damage_dice": "1d6", "damage_type_index": "fire"}
+        ]
+      },
+      {
+        "name": "Claw",
+        "description": "Melee Weapon Attack: +10 to hit, reach 5 ft., one target. Hit: 13 (2d6 + 6) slashing damage.",
+        "attack_bonus": 10,
+        "damages": [{"damage_dice": "2d6+6", "damage_type_index": "slashing"}]
+      },
+      {
+        "name": "Fire Breath",
+        "description": "The dragon exhales fire in a 30-foot cone. Each creature in that area must make a DC 17 Dexterity saving throw, taking 56 (16d6) fire damage on a failed save, or half as much damage on a successful one.",
+        "save_ability_score_index": "dex",
+        "save_dc": 17,
+        "usage_type": "recharge_5_6",
+        "damages": [{"damage_dice": "16d6", "damage_type_index": "fire"}]
+      }
+    ],
+    "legendary_actions": [
+      {
+        "name": "Detect",
+        "description": "The dragon makes a Wisdom (Perception) check.",
+        "damages": []
+      },
+      {
+        "name": "Tail Attack",
+        "description": "The dragon makes a tail attack.",
+        "damages": [{"damage_dice": "2d8+6", "damage_type_index": "bludgeoning"}]
+      },
+      {
+        "name": "Wing Attack",
+        "description": "The dragon beats its wings. Each creature within 10 feet of the dragon must succeed on a DC 18 Dexterity saving throw or take 13 (2d6 + 6) bludgeoning damage and be knocked prone.",
+        "usage_type": "costs_2_actions",
+        "save_ability_score_index": "dex",
+        "save_dc": 18,
+        "damages": [{"damage_dice": "2d6+6", "damage_type_index": "bludgeoning"}]
+      }
+    ],
+    "reactions": [],
+    "special_abilities": []
+  }
+]

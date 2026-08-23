@@ -5,10 +5,18 @@ import uuid
 
 
 class CreatureSize(enum.StrEnum):
-    """Creature size categories from D&D 5e SRD."""
+    """Creature size categories from D&D 5e SRD.
 
+    `Race.size` only ever uses `small`/`medium` (PC races); `Monster.size`
+    (PRD §7.4.8) uses the full range.
+    """
+
+    tiny = "tiny"
     small = "small"
     medium = "medium"
+    large = "large"
+    huge = "huge"
+    gargantuan = "gargantuan"
 
 
 class AbilityScore(enum.StrEnum):
@@ -91,6 +99,14 @@ class FeaturePrerequisiteType(enum.StrEnum):
     level = "level"
     feature = "feature"
     spell = "spell"
+
+
+class DamageModifierType(enum.StrEnum):
+    """How strongly a Monster is affected by a damage type (PRD §7.4.8)."""
+
+    vulnerable = "vulnerable"
+    resistant = "resistant"
+    immune = "immune"
 
 
 class ProficiencyType(enum.StrEnum):

@@ -527,3 +527,153 @@ class FeatSummary(BaseModel):
     index: str | None
     name: str
     is_custom: bool
+
+
+# --- Monsters / stat blocks (SRD 2014 §7.4.8) -------------------------------
+
+
+class MonsterSpeedRead(BaseModel):
+    """Read schema for a monster's movement speeds."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    walk: str | None
+    burrow: str | None
+    climb: str | None
+    fly: str | None
+    swim: str | None
+    hover: bool
+
+
+class MonsterSenseRead(BaseModel):
+    """Read schema for a monster's senses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    passive_perception: int
+    blindsight: str | None
+    darkvision: str | None
+    tremorsense: str | None
+    truesight: str | None
+
+
+class MonsterArmorClassRead(BaseModel):
+    """Read schema for one AC entry of a monster."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    ac_type: str
+    value: int
+    condition_id: uuid.UUID | None
+    description: str | None
+
+
+class MonsterProficiencyRead(BaseModel):
+    """Read schema for a monster's proficiency bonus on a skill/save."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    proficiency_id: uuid.UUID
+    value: int
+
+
+class MonsterDamageModifierRead(BaseModel):
+    """Read schema for a monster's vulnerability/resistance/immunity.
+
+    `damage_type` is resolved to its index (e.g. `fire`).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    damage_type: str
+    modifier_type: str
+
+
+class MonsterConditionImmunityRead(BaseModel):
+    """Read schema for a monster's condition immunity, with `condition` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    condition: str
+
+
+class MonsterActionDamageRead(BaseModel):
+    """Read schema for a monster action's damage roll (`damage_type` resolved)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    damage_dice: str
+    damage_type: str
+
+
+class MonsterActionRead(BaseModel):
+    """Shared read schema: action, legendary action, reaction, special ability."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    description: str
+    attack_bonus: int | None
+    save_ability_score_id: uuid.UUID | None
+    save_dc: int | None
+    usage_type: str | None
+    usage_times: int | None
+    damages: list[MonsterActionDamageRead]
+
+
+class MonsterRead(BaseModel):
+    """Read schema for a monster stat block, with translated text fields resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    description: str
+    size: str
+    creature_type: str
+    creature_subtype: str | None
+    alignment: str
+    hit_points: int
+    hit_dice: str
+    challenge_rating: float
+    xp: int
+    proficiency_bonus: int | None
+    languages: str
+    strength: int
+    dexterity: int
+    constitution: int
+    intelligence: int
+    wisdom: int
+    charisma: int
+    is_custom: bool
+    speed: MonsterSpeedRead | None
+    senses: MonsterSenseRead | None
+    armor_classes: list[MonsterArmorClassRead]
+    proficiencies: list[MonsterProficiencyRead]
+    damage_modifiers: list[MonsterDamageModifierRead]
+    condition_immunities: list[MonsterConditionImmunityRead]
+    actions: list[MonsterActionRead]
+    legendary_actions: list[MonsterActionRead]
+    reactions: list[MonsterActionRead]
+    special_abilities: list[MonsterActionRead]
+
+
+class MonsterSummary(BaseModel):
+    """Lightweight monster listing schema, with translated `name` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    size: str
+    creature_type: str
+    challenge_rating: float
+    is_custom: bool

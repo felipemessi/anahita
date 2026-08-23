@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.catalog.domain import (
     CreatureSize,
+    DamageModifierType,
     FeaturePrerequisiteType,
     ItemType,
     LanguageType,
@@ -1498,3 +1499,475 @@ class FeatPrerequisite(Base):
     minimum_score: Mapped[int] = mapped_column(Integer, nullable=False)
 
     feat: Mapped[Feat] = relationship("Feat", back_populates="prerequisites")
+
+
+# --- Monsters / stat blocks (SRD 2014 §7.4.8) -------------------------------
+#
+# Replaces the loose `stat_block_id` on `NPC` (PRD §7.7, not yet modeled):
+# once world-building lands, `NPC.stat_block_id` will point here. Same
+# is_custom/campaign_id pattern as the rest of the catalog — a DM can create
+# a homebrew monster, scoped to their campaign.
+
+
+class Monster(CatalogEntityMixin, Base):
+    """A monster stat block from the SRD or a campaign homebrew.
+
+    Translatable text (`name`, `description`) lives in `MonsterI18n`.
+    """
+
+    __tablename__ = "catalog_monsters"
+
+    size: Mapped[str] = mapped_column(
+        SAEnum(CreatureSize, name="creaturesize"), nullable=False
+    )
+    creature_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    creature_subtype: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    alignment: Mapped[str] = mapped_column(String(100), nullable=False)
+    hit_points: Mapped[int] = mapped_column(Integer, nullable=False)
+    hit_dice: Mapped[str] = mapped_column(String(50), nullable=False)
+    challenge_rating: Mapped[float] = mapped_column(Float, nullable=False)
+    xp: Mapped[int] = mapped_column(Integer, nullable=False)
+    proficiency_bonus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    languages: Mapped[str] = mapped_column(String(300), nullable=False, default="")
+    strength: Mapped[int] = mapped_column(Integer, nullable=False)
+    dexterity: Mapped[int] = mapped_column(Integer, nullable=False)
+    constitution: Mapped[int] = mapped_column(Integer, nullable=False)
+    intelligence: Mapped[int] = mapped_column(Integer, nullable=False)
+    wisdom: Mapped[int] = mapped_column(Integer, nullable=False)
+    charisma: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    speed: Mapped[MonsterSpeed | None] = relationship(
+        "MonsterSpeed",
+        back_populates="monster",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    senses: Mapped[MonsterSense | None] = relationship(
+        "MonsterSense",
+        back_populates="monster",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    armor_classes: Mapped[list[MonsterArmorClass]] = relationship(
+        "MonsterArmorClass", back_populates="monster", cascade="all, delete-orphan"
+    )
+    proficiencies: Mapped[list[MonsterProficiency]] = relationship(
+        "MonsterProficiency", back_populates="monster", cascade="all, delete-orphan"
+    )
+    damage_modifiers: Mapped[list[MonsterDamageModifier]] = relationship(
+        "MonsterDamageModifier", back_populates="monster", cascade="all, delete-orphan"
+    )
+    condition_immunities: Mapped[list[MonsterConditionImmunity]] = relationship(
+        "MonsterConditionImmunity",
+        back_populates="monster",
+        cascade="all, delete-orphan",
+    )
+    actions: Mapped[list[MonsterAction]] = relationship(
+        "MonsterAction", back_populates="monster", cascade="all, delete-orphan"
+    )
+    legendary_actions: Mapped[list[MonsterLegendaryAction]] = relationship(
+        "MonsterLegendaryAction", back_populates="monster", cascade="all, delete-orphan"
+    )
+    reactions: Mapped[list[MonsterReaction]] = relationship(
+        "MonsterReaction", back_populates="monster", cascade="all, delete-orphan"
+    )
+    special_abilities: Mapped[list[MonsterSpecialAbility]] = relationship(
+        "MonsterSpecialAbility", back_populates="monster", cascade="all, delete-orphan"
+    )
+
+
+class MonsterI18n(CatalogI18nMixin, Base):
+    """Translated text for a Monster."""
+
+    __tablename__ = "catalog_monsters_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_monsters_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class MonsterSpeed(Base):
+    """A Monster's movement speeds (1:1)."""
+
+    __tablename__ = "catalog_monster_speeds"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    walk: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    burrow: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    climb: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    fly: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    swim: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    hover: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    monster: Mapped[Monster] = relationship("Monster", back_populates="speed")
+
+
+class MonsterSense(Base):
+    """A Monster's senses (1:1)."""
+
+    __tablename__ = "catalog_monster_senses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    passive_perception: Mapped[int] = mapped_column(Integer, nullable=False)
+    blindsight: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    darkvision: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    tremorsense: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    truesight: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    monster: Mapped[Monster] = relationship("Monster", back_populates="senses")
+
+
+class MonsterArmorClass(Base):
+    """One AC entry for a Monster (it can have several, e.g. natural + shield)."""
+
+    __tablename__ = "catalog_monster_armor_classes"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    ac_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    value: Mapped[int] = mapped_column(Integer, nullable=False)
+    condition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_conditions.id"), nullable=True
+    )
+    description: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    monster: Mapped[Monster] = relationship("Monster", back_populates="armor_classes")
+
+
+class MonsterProficiency(Base):
+    """A Monster's proficiency bonus applied to a specific Proficiency (skill/save)."""
+
+    __tablename__ = "catalog_monster_proficiencies"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    proficiency_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiencies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    value: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    monster: Mapped[Monster] = relationship("Monster", back_populates="proficiencies")
+    proficiency: Mapped[Proficiency] = relationship("Proficiency")
+
+
+class MonsterDamageModifier(Base):
+    """A Monster's vulnerability, resistance, or immunity to a DamageType."""
+
+    __tablename__ = "catalog_monster_damage_modifiers"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_damage_types.id"),
+        nullable=False,
+    )
+    modifier_type: Mapped[str] = mapped_column(
+        SAEnum(DamageModifierType, name="damagemodifiertype"), nullable=False
+    )
+
+    monster: Mapped[Monster] = relationship(
+        "Monster", back_populates="damage_modifiers"
+    )
+    damage_type: Mapped[DamageType] = relationship("DamageType")
+
+
+class MonsterConditionImmunity(Base):
+    """Junction: a Monster is immune to a Condition."""
+
+    __tablename__ = "catalog_monster_condition_immunities"
+    __table_args__ = (
+        UniqueConstraint(
+            "monster_id", "condition_id", name="uq_catalog_monster_condition_immunities"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    condition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_conditions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    monster: Mapped[Monster] = relationship(
+        "Monster", back_populates="condition_immunities"
+    )
+    condition: Mapped[Condition] = relationship("Condition")
+
+
+class MonsterAction(Base):
+    """One action from a Monster's stat block (attacks, multiattack, etc.)."""
+
+    __tablename__ = "catalog_monster_actions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    attack_bonus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    save_ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=True,
+    )
+    save_dc: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    usage_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    usage_times: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    monster: Mapped[Monster] = relationship("Monster", back_populates="actions")
+    damages: Mapped[list[MonsterActionDamage]] = relationship(
+        "MonsterActionDamage", back_populates="action", cascade="all, delete-orphan"
+    )
+
+
+class MonsterActionDamage(Base):
+    """A damage roll dealt by a MonsterAction."""
+
+    __tablename__ = "catalog_monster_action_damages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    action_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monster_actions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    damage_dice: Mapped[str] = mapped_column(String(20), nullable=False)
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_damage_types.id"), nullable=False
+    )
+
+    action: Mapped[MonsterAction] = relationship(
+        "MonsterAction", back_populates="damages"
+    )
+    damage_type: Mapped[DamageType] = relationship("DamageType")
+
+
+class MonsterLegendaryAction(Base):
+    """One legendary action from a Monster's stat block."""
+
+    __tablename__ = "catalog_monster_legendary_actions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    attack_bonus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    save_ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=True,
+    )
+    save_dc: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    usage_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    usage_times: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    monster: Mapped[Monster] = relationship(
+        "Monster", back_populates="legendary_actions"
+    )
+    damages: Mapped[list[MonsterLegendaryActionDamage]] = relationship(
+        "MonsterLegendaryActionDamage",
+        back_populates="action",
+        cascade="all, delete-orphan",
+    )
+
+
+class MonsterLegendaryActionDamage(Base):
+    """A damage roll dealt by a MonsterLegendaryAction."""
+
+    __tablename__ = "catalog_monster_legendary_action_damages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    action_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monster_legendary_actions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    damage_dice: Mapped[str] = mapped_column(String(20), nullable=False)
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_damage_types.id"), nullable=False
+    )
+
+    action: Mapped[MonsterLegendaryAction] = relationship(
+        "MonsterLegendaryAction", back_populates="damages"
+    )
+    damage_type: Mapped[DamageType] = relationship("DamageType")
+
+
+class MonsterReaction(Base):
+    """One reaction from a Monster's stat block."""
+
+    __tablename__ = "catalog_monster_reactions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    attack_bonus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    save_ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=True,
+    )
+    save_dc: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    usage_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    usage_times: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    monster: Mapped[Monster] = relationship("Monster", back_populates="reactions")
+    damages: Mapped[list[MonsterReactionDamage]] = relationship(
+        "MonsterReactionDamage", back_populates="action", cascade="all, delete-orphan"
+    )
+
+
+class MonsterReactionDamage(Base):
+    """A damage roll dealt by a MonsterReaction."""
+
+    __tablename__ = "catalog_monster_reaction_damages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    action_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monster_reactions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    damage_dice: Mapped[str] = mapped_column(String(20), nullable=False)
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_damage_types.id"), nullable=False
+    )
+
+    action: Mapped[MonsterReaction] = relationship(
+        "MonsterReaction", back_populates="damages"
+    )
+    damage_type: Mapped[DamageType] = relationship("DamageType")
+
+
+class MonsterSpecialAbility(Base):
+    """One special ability (a passive trait) from a Monster's stat block."""
+
+    __tablename__ = "catalog_monster_special_abilities"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    monster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monsters.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    attack_bonus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    save_ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=True,
+    )
+    save_dc: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    usage_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    usage_times: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    monster: Mapped[Monster] = relationship(
+        "Monster", back_populates="special_abilities"
+    )
+    damages: Mapped[list[MonsterSpecialAbilityDamage]] = relationship(
+        "MonsterSpecialAbilityDamage",
+        back_populates="action",
+        cascade="all, delete-orphan",
+    )
+
+
+class MonsterSpecialAbilityDamage(Base):
+    """A damage roll dealt by a MonsterSpecialAbility."""
+
+    __tablename__ = "catalog_monster_special_ability_damages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    action_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_monster_special_abilities.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    damage_dice: Mapped[str] = mapped_column(String(20), nullable=False)
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_damage_types.id"), nullable=False
+    )
+
+    action: Mapped[MonsterSpecialAbility] = relationship(
+        "MonsterSpecialAbility", back_populates="damages"
+    )
+    damage_type: Mapped[DamageType] = relationship("DamageType")

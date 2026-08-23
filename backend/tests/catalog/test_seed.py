@@ -5,7 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
-from app.catalog.models import Background, ClassDefinition, Feat, Item, Race, Spell
+from app.catalog.models import (
+    Background,
+    ClassDefinition,
+    Feat,
+    Item,
+    Monster,
+    Race,
+    Spell,
+)
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -85,6 +93,22 @@ async def test_seed_creates_feats(db: AsyncSession) -> None:
     feats = (await db.execute(select(Feat).order_by(Feat.index))).scalars().all()
     indexes = {f.index for f in feats}
     assert indexes == {"alert", "grappler", "tough"}
+
+
+@pytest.mark.asyncio
+async def test_seed_creates_monsters(db: AsyncSession) -> None:
+    """seed_catalog should insert the two SRD monsters."""
+    await seed_catalog(db)
+
+    monsters = (
+        (await db.execute(select(Monster).order_by(Monster.index))).scalars().all()
+    )
+    indexes = {m.index for m in monsters}
+    assert indexes == {"goblin", "young-red-dragon"}
+
+    summaries = await service.list_monsters_translated(db)
+    names = {m.name for m in summaries}
+    assert names == {"Goblin", "Young Red Dragon"}
 
 
 @pytest.mark.asyncio

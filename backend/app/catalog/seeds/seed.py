@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import (
+    AbilityScoreDefinition,
+    AbilityScoreDefinitionI18n,
     ArmorDetail,
     Background,
     BackgroundEquipment,
@@ -38,6 +40,20 @@ from app.catalog.models import (
     MagicItemI18n,
     MagicSchool,
     MagicSchoolI18n,
+    Monster,
+    MonsterAction,
+    MonsterActionDamage,
+    MonsterArmorClass,
+    MonsterDamageModifier,
+    MonsterI18n,
+    MonsterLegendaryAction,
+    MonsterLegendaryActionDamage,
+    MonsterReaction,
+    MonsterReactionDamage,
+    MonsterSense,
+    MonsterSpecialAbility,
+    MonsterSpecialAbilityDamage,
+    MonsterSpeed,
     Race,
     RaceAbilityBonus,
     RaceI18n,
@@ -85,6 +101,7 @@ _DAMAGE_TYPE_NAMES = {
     "slashing": "Slashing",
     "piercing": "Piercing",
     "bludgeoning": "Bludgeoning",
+    "fire": "Fire",
 }
 _EQUIPMENT_CATEGORY_NAMES = {
     "simple-weapons": "Simple Weapons",
@@ -95,6 +112,35 @@ _EQUIPMENT_CATEGORY_NAMES = {
     "shields": "Shields",
     "adventuring-gear": "Adventuring Gear",
 }
+#: AbilityScoreDefinitionI18n has a required `full_name` beyond the generic
+#: `_ensure_fixed_vocab` shape, so it gets its own get-or-create helper below.
+_ABILITY_SCORE_NAMES = {
+    "str": ("STR", "Strength"),
+    "dex": ("DEX", "Dexterity"),
+    "con": ("CON", "Constitution"),
+    "int": ("INT", "Intelligence"),
+    "wis": ("WIS", "Wisdom"),
+    "cha": ("CHA", "Charisma"),
+}
+
+
+async def _ensure_ability_scores(session: AsyncSession) -> dict[str, uuid.UUID]:
+    """Get-or-create the 6 SRD ability scores, returning `index` -> id."""
+    result = await session.execute(select(AbilityScoreDefinition))
+    by_index = {a.index: a.id for a in result.scalars().all() if a.index}
+    for index, (name, full_name) in _ABILITY_SCORE_NAMES.items():
+        if index in by_index:
+            continue
+        ability = AbilityScoreDefinition(id=uuid.uuid4(), index=index, is_custom=False)
+        session.add(ability)
+        await _seed_i18n(
+            session,
+            AbilityScoreDefinitionI18n,
+            ability.id,
+            {"en": {"name": name, "full_name": full_name, "desc": ""}},
+        )
+        by_index[index] = ability.id
+    return by_index
 
 
 async def _ensure_fixed_vocab(
@@ -156,6 +202,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_magic_items(session)
     await _seed_backgrounds(session)
     await _seed_feats(session)
+    await _seed_monsters(session)
     await session.commit()
 
 
@@ -583,4 +630,149 @@ async def _seed_feats(session: AsyncSession) -> None:
                     ability_score_id=None,
                     minimum_score=prereq["minimum_score"],
                 )
+            )
+
+
+def _seed_monster_actions(
+    session: AsyncSession,
+    monster_id: uuid.UUID,
+    action_model: Any,
+    damage_model: Any,
+    entries: list[dict[str, Any]],
+    *,
+    ability_scores_by_index: dict[str, uuid.UUID],
+    damage_types_by_index: dict[str, uuid.UUID],
+) -> None:
+    """Seed one of the four action-shaped lists (actions/legendary/reactions/specials).
+
+    `action_model`/`damage_model` are the matching pair for that list (e.g.
+    `MonsterAction`/`MonsterActionDamage`) — same shape, different tables per
+    PRD §7.4.8 instead of a generic polymorphic reference.
+    """
+    for entry in entries:
+        save_index = entry.get("save_ability_score_index")
+        action = action_model(
+            id=uuid.uuid4(),
+            monster_id=monster_id,
+            name=entry["name"],
+            description=entry["description"],
+            attack_bonus=entry.get("attack_bonus"),
+            save_ability_score_id=(
+                ability_scores_by_index.get(save_index) if save_index else None
+            ),
+            save_dc=entry.get("save_dc"),
+            usage_type=entry.get("usage_type"),
+            usage_times=entry.get("usage_times"),
+        )
+        session.add(action)
+        for dmg in entry.get("damages", []):
+            session.add(
+                damage_model(
+                    id=uuid.uuid4(),
+                    action_id=action.id,
+                    damage_dice=dmg["damage_dice"],
+                    damage_type_id=damage_types_by_index[dmg["damage_type_index"]],
+                )
+            )
+
+
+async def _seed_monsters(session: AsyncSession) -> None:
+    count = await session.scalar(select(Monster).limit(1))
+    if count is not None:
+        return
+
+    ability_scores_by_index = await _ensure_ability_scores(session)
+    damage_types_by_index = await _ensure_fixed_vocab(
+        session, DamageType, DamageTypeI18n, _DAMAGE_TYPE_NAMES
+    )
+
+    data = json.loads((_DATA_DIR / "monsters.json").read_text())
+    for entry in data:
+        monster = Monster(
+            id=uuid.uuid4(),
+            index=entry["index"],
+            size=entry["size"],
+            creature_type=entry["creature_type"],
+            creature_subtype=entry.get("creature_subtype"),
+            alignment=entry["alignment"],
+            hit_points=entry["hit_points"],
+            hit_dice=entry["hit_dice"],
+            challenge_rating=entry["challenge_rating"],
+            xp=entry["xp"],
+            proficiency_bonus=entry.get("proficiency_bonus"),
+            languages=entry.get("languages", ""),
+            strength=entry["strength"],
+            dexterity=entry["dexterity"],
+            constitution=entry["constitution"],
+            intelligence=entry["intelligence"],
+            wisdom=entry["wisdom"],
+            charisma=entry["charisma"],
+            is_custom=False,
+        )
+        session.add(monster)
+        await _seed_i18n(session, MonsterI18n, monster.id, entry["i18n"])
+
+        if speed := entry.get("speed"):
+            session.add(
+                MonsterSpeed(
+                    id=uuid.uuid4(),
+                    monster_id=monster.id,
+                    walk=speed.get("walk"),
+                    burrow=speed.get("burrow"),
+                    climb=speed.get("climb"),
+                    fly=speed.get("fly"),
+                    swim=speed.get("swim"),
+                    hover=speed.get("hover", False),
+                )
+            )
+
+        if senses := entry.get("senses"):
+            session.add(
+                MonsterSense(
+                    id=uuid.uuid4(),
+                    monster_id=monster.id,
+                    passive_perception=senses["passive_perception"],
+                    blindsight=senses.get("blindsight"),
+                    darkvision=senses.get("darkvision"),
+                    tremorsense=senses.get("tremorsense"),
+                    truesight=senses.get("truesight"),
+                )
+            )
+
+        for ac in entry.get("armor_classes", []):
+            session.add(
+                MonsterArmorClass(
+                    id=uuid.uuid4(),
+                    monster_id=monster.id,
+                    ac_type=ac["ac_type"],
+                    value=ac["value"],
+                    condition_id=None,
+                    description=ac.get("description"),
+                )
+            )
+
+        for dm in entry.get("damage_modifiers", []):
+            session.add(
+                MonsterDamageModifier(
+                    id=uuid.uuid4(),
+                    monster_id=monster.id,
+                    damage_type_id=damage_types_by_index[dm["damage_type_index"]],
+                    modifier_type=dm["modifier_type"],
+                )
+            )
+
+        for list_key, action_model, damage_model in (
+            ("actions", MonsterAction, MonsterActionDamage),
+            ("legendary_actions", MonsterLegendaryAction, MonsterLegendaryActionDamage),
+            ("reactions", MonsterReaction, MonsterReactionDamage),
+            ("special_abilities", MonsterSpecialAbility, MonsterSpecialAbilityDamage),
+        ):
+            _seed_monster_actions(
+                session,
+                monster.id,
+                action_model,
+                damage_model,
+                entry.get(list_key, []),
+                ability_scores_by_index=ability_scores_by_index,
+                damage_types_by_index=damage_types_by_index,
             )

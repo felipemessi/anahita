@@ -18,6 +18,8 @@ from app.catalog.schemas import (
     ItemSummary,
     MagicItemRead,
     MagicItemSummary,
+    MonsterRead,
+    MonsterSummary,
     RaceRead,
     RaceSummary,
     SpellRead,
@@ -233,3 +235,29 @@ async def get_feat(
     if feat is None:
         raise HTTPException(status_code=404, detail="Feat not found")
     return feat
+
+
+@router.get("/monsters", response_model=list[MonsterSummary])
+async def list_monsters(
+    db: DB,
+    search: SearchQ = None,
+    include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
+) -> list[MonsterSummary]:
+    """List all monsters, optionally filtered by name."""
+    return await service.list_monsters_translated(
+        db, search=search, include_custom=include_custom, locale=locale
+    )
+
+
+@router.get("/monsters/{monster_id}", response_model=MonsterRead)
+async def get_monster(
+    monster_id: uuid.UUID,
+    db: DB,
+    locale: LocaleQ = "en",
+) -> MonsterRead:
+    """Get a monster by ID with its full stat block."""
+    monster = await service.get_monster_translated(db, monster_id, locale=locale)
+    if monster is None:
+        raise HTTPException(status_code=404, detail="Monster not found")
+    return monster
