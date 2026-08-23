@@ -9,6 +9,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Fundação do frontend (Fase 0): projeto Next.js inicializado (App Router,
+  TypeScript strict, Tailwind, shadcn-ready), providers (`QueryProvider`,
+  `ThemeProvider`) com tema deep navy + gold e DM Sans/Space Mono, landing
+  page, cliente de API client-side e server-side com refresh automático de
+  token, proteção de rotas via middleware, telas de login/registro, seletor
+  de locale do catálogo com invalidação de cache do TanStack Query, e tipos
+  TypeScript espelhando os schemas Pydantic do backend (campanhas,
+  personagens, catálogo, sessões, e provisórios para combate/world/handouts/
+  inventário, que ainda não têm domínio no backend).
 - Catálogo SRD 2014 implementado no backend: fundação i18n/custom-scope e
   vocabulário fixo, proficiências (com concessões de classe/raça), raças,
   classes com progressão/features/subclasses, magias, equipamento,
