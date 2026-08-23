@@ -123,3 +123,9 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   jogadores só recebem, comandos deles são rejeitados com um evento
   `error`. Reconexão sempre recebe um `state_sync` completo (Postgres
   como fonte de verdade, nunca o WebSocket).
+
+### Added
+- Fase 2 do backend, história 3: condições de um participante de combate
+  agora resolvem seus efeitos mecânicos (`engine/conditions.py`) a cada
+  leitura — um personagem cego, por exemplo, mostra `attack_disadvantage`,
+  `attacks_against_advantage` e `auto_fail_save` na ficha do participante.

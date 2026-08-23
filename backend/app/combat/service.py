@@ -5,6 +5,11 @@ Covers both the REST CRUD that happens outside the live turn flow
 participants) and the live actions driven by `app.combat.ws_router` over
 WebSocket (advance turn, damage/heal/condition, end encounter) — the two
 share the same permission rules and read-model, so one service backs both.
+
+Public methods return `EncounterRead`/`EncounterParticipantRead` (not raw
+ORM rows) — mirrors `CharacterService`, since a participant's `effects` are
+computed from its conditions on every read, never persisted (backlog Fase 2
+história 3).
 """
 
 import uuid
@@ -27,15 +32,74 @@ from app.combat.domain import (
 from app.combat.domain import advance_turn as compute_next_turn
 from app.combat.models import Encounter, EncounterCondition, EncounterParticipant
 from app.combat.schemas import (
+    EncounterConditionRead,
     EncounterCreate,
     EncounterParticipantCreate,
+    EncounterParticipantRead,
     EncounterParticipantUpdate,
+    EncounterRead,
+    MechanicalEffectRead,
 )
 from app.sessions.models import Session
+from engine.conditions import get_condition_effects
+from engine.types import Condition as EngineCondition
+from engine.types import ConditionType as EngineConditionType
 
 _ENCOUNTER_LOAD_OPTIONS = (
     selectinload(Encounter.participants).selectinload(EncounterParticipant.conditions),
 )
+
+
+def participant_to_read(participant: EncounterParticipant) -> EncounterParticipantRead:
+    """Build a participant's read schema, resolving its conditions' effects.
+
+    `engine.conditions.get_condition_effects` has no notion of exhaustion
+    *level* beyond what `engine.types.Condition.level` carries; the DB
+    doesn't track a severity for conditions (PRD §7.6 has no such column),
+    so exhaustion is always resolved at level 1 here.
+    """
+    engine_conditions = [
+        EngineCondition(condition_type=EngineConditionType(c.condition.value))
+        for c in participant.conditions
+    ]
+    effects = [
+        MechanicalEffectRead(
+            effect_type=e.effect_type, value=e.value, target=e.target
+        )
+        for e in get_condition_effects(engine_conditions)
+    ]
+    return EncounterParticipantRead(
+        id=participant.id,
+        encounter_id=participant.encounter_id,
+        character_id=participant.character_id,
+        npc_id=participant.npc_id,
+        name=participant.name,
+        initiative=participant.initiative,
+        hit_point_max=participant.hit_point_max,
+        hit_point_current=participant.hit_point_current,
+        temporary_hit_points=participant.temporary_hit_points,
+        armor_class=participant.armor_class,
+        turn_order=participant.turn_order,
+        is_active=participant.is_active,
+        conditions=[
+            EncounterConditionRead.model_validate(c) for c in participant.conditions
+        ],
+        effects=effects,
+    )
+
+
+def encounter_to_read(encounter: Encounter) -> EncounterRead:
+    """Build an encounter's read schema, with each participant's effects resolved."""
+    return EncounterRead(
+        id=encounter.id,
+        session_id=encounter.session_id,
+        name=encounter.name,
+        status=encounter.status,
+        current_round=encounter.current_round,
+        current_turn_order=encounter.current_turn_order,
+        created_at=encounter.created_at,
+        participants=[participant_to_read(p) for p in encounter.participants],
+    )
 
 
 class CombatService:
@@ -47,18 +111,18 @@ class CombatService:
         requester_id: uuid.UUID,
         data: EncounterCreate,
         db: AsyncSession,
-    ) -> Encounter:
+    ) -> EncounterRead:
         """Create an encounter for a session; only the campaign's DM may do this."""
         session = await self._require_dm_for_session(session_id, requester_id, db)
 
         encounter = Encounter(session_id=session.id, name=data.name)
         db.add(encounter)
         await db.commit()
-        return await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
     async def start_encounter(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
-    ) -> Encounter:
+    ) -> EncounterRead:
         """Transition an encounter from `preparing` to `active`. DM only."""
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
@@ -71,11 +135,11 @@ class CombatService:
         encounter.status = EncounterStatus.active
         encounter.current_round = 1
         await db.commit()
-        return await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
     async def list_encounters(
         self, session_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
-    ) -> list[Encounter]:
+    ) -> list[EncounterRead]:
         """List a session's encounters. Viewable by any campaign member."""
         session = await self._require_session(session_id, db)
         await self._require_membership(session.campaign_id, requester_id, db)
@@ -86,24 +150,26 @@ class CombatService:
             .options(*_ENCOUNTER_LOAD_OPTIONS)
             .order_by(Encounter.created_at)
         )
-        return list(result.scalars().all())
+        return [encounter_to_read(e) for e in result.scalars().all()]
 
     async def get_encounter(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
-    ) -> Encounter:
+    ) -> EncounterRead:
         """Get an encounter's detail. Viewable by any campaign member."""
         encounter, _member = await self.get_encounter_membership(
             encounter_id, requester_id, db
         )
-        return encounter
+        return encounter_to_read(encounter)
 
     async def get_encounter_membership(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
     ) -> tuple[Encounter, CampaignMember]:
-        """Load an encounter plus the requester's membership in its campaign.
+        """Load an encounter (ORM row) plus the requester's campaign membership.
 
         Reused by the WebSocket handler to authenticate a connection and
-        learn the requester's role (DM vs. player) in one call.
+        learn the requester's role (DM vs. player) in one call. Returns the
+        raw ORM `Encounter` (not `EncounterRead`) — callers that need the
+        read schema should use `get_encounter` instead.
         """
         encounter = await self._load_encounter_or_404(encounter_id, db)
         session = await self._require_session(encounter.session_id, db)
@@ -116,7 +182,7 @@ class CombatService:
         requester_id: uuid.UUID,
         data: EncounterParticipantCreate,
         db: AsyncSession,
-    ) -> Encounter:
+    ) -> EncounterRead:
         """Add a participant (PC, NPC, or manual entry) to an encounter. DM only."""
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
@@ -149,7 +215,7 @@ class CombatService:
             )
         )
         await db.commit()
-        return await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
     async def update_participant(
         self,
@@ -158,7 +224,7 @@ class CombatService:
         requester_id: uuid.UUID,
         data: EncounterParticipantUpdate,
         db: AsyncSession,
-    ) -> Encounter:
+    ) -> EncounterRead:
         """Update a participant's fields outside the live turn flow. DM only."""
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
@@ -183,7 +249,7 @@ class CombatService:
             participant.is_active = data.is_active
 
         await db.commit()
-        return await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
     async def remove_participant(
         self,
@@ -191,7 +257,7 @@ class CombatService:
         participant_id: uuid.UUID,
         requester_id: uuid.UUID,
         db: AsyncSession,
-    ) -> Encounter:
+    ) -> EncounterRead:
         """Remove a participant from an encounter. DM only."""
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
@@ -199,19 +265,17 @@ class CombatService:
 
         await db.delete(participant)
         await db.commit()
-        return await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
     async def advance_turn(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
-    ) -> tuple[Encounter, TurnAdvanceResult]:
+    ) -> tuple[EncounterRead, TurnAdvanceResult]:
         """Advance to the next active participant's turn (live, WS-driven). DM only."""
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
 
         turn_participants = [
-            TurnParticipant(
-                id=p.id, turn_order=p.turn_order, is_active=p.is_active
-            )
+            TurnParticipant(id=p.id, turn_order=p.turn_order, is_active=p.is_active)
             for p in encounter.participants
         ]
         result = compute_next_turn(
@@ -222,18 +286,19 @@ class CombatService:
         encounter.current_round = result.round
         encounter.current_turn_order = result.turn_order
         await db.commit()
-        return await self._reload_encounter(encounter.id, db), result
+        reloaded = await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(reloaded), result
 
     async def end_encounter(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
-    ) -> Encounter:
+    ) -> EncounterRead:
         """End an encounter (live, WS-driven): sets it to `completed`. DM only."""
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
 
         encounter.status = EncounterStatus.completed
         await db.commit()
-        return await self._reload_encounter(encounter.id, db)
+        return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
     async def live_update_participant(
         self,
@@ -247,7 +312,7 @@ class CombatService:
         add_condition: ConditionType | None,
         remove_condition: ConditionType | None,
         db: AsyncSession,
-    ) -> EncounterParticipant:
+    ) -> EncounterParticipantRead:
         """Apply damage/heal/AC/condition changes to a participant (WS-driven). DM only.
 
         Returns just the updated participant (not the whole encounter) — the
@@ -287,14 +352,13 @@ class CombatService:
                     await db.delete(condition)
 
         await db.commit()
-        await self._reload_encounter(encounter.id, db)
         result = await db.execute(
             select(EncounterParticipant)
             .where(EncounterParticipant.id == participant.id)
             .options(selectinload(EncounterParticipant.conditions))
             .execution_options(populate_existing=True)
         )
-        return result.scalar_one()
+        return participant_to_read(result.scalar_one())
 
     def _find_participant_or_404(
         self, encounter: Encounter, participant_id: uuid.UUID
