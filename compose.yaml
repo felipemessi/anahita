@@ -24,6 +24,8 @@ services:
   backend:
     build:
       context: ./backend
+    ports:
+      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/anahita
       - STORAGE_TYPE=local
