@@ -8,7 +8,12 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.models import Monster
-from app.world.schemas import FactionCreate, LocationCreate, NPCCreate
+from app.world.schemas import (
+    FactionCreate,
+    LocationCreate,
+    LocationParentUpdate,
+    NPCCreate,
+)
 from app.world.service import WorldService
 
 
@@ -173,3 +178,86 @@ async def test_dm_can_create_location_and_faction(db: AsyncSession) -> None:
     factions = await service.list_factions(campaign.id, dm.id, db)
     assert [loc.id for loc in locations] == [location.id]
     assert [f.id for f in factions] == [faction.id]
+
+
+async def test_location_tree_resolves_three_levels(db: AsyncSession) -> None:
+    """A region → city → tavern chain resolves as a nested tree."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+
+    region = await service.create_location(
+        campaign.id,
+        dm.id,
+        LocationCreate(name="Sword Coast", location_type="region"),
+        db,
+    )
+    city = await service.create_location(
+        campaign.id,
+        dm.id,
+        LocationCreate(
+            name="Waterdeep", location_type="city", parent_location_id=region.id
+        ),
+        db,
+    )
+    tavern = await service.create_location(
+        campaign.id,
+        dm.id,
+        LocationCreate(
+            name="Yawning Portal", location_type="building", parent_location_id=city.id
+        ),
+        db,
+    )
+
+    tree = await service.get_location_tree(campaign.id, dm.id, db)
+
+    assert [node.id for node in tree] == [region.id]
+    assert [node.id for node in tree[0].children] == [city.id]
+    assert [node.id for node in tree[0].children[0].children] == [tavern.id]
+
+
+async def test_reparenting_location_into_its_own_descendant_is_rejected(
+    db: AsyncSession,
+) -> None:
+    """Setting a location's parent to one of its own descendants is a cycle."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+
+    region = await service.create_location(
+        campaign.id,
+        dm.id,
+        LocationCreate(name="Sword Coast", location_type="region"),
+        db,
+    )
+    city = await service.create_location(
+        campaign.id,
+        dm.id,
+        LocationCreate(
+            name="Waterdeep", location_type="city", parent_location_id=region.id
+        ),
+        db,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_location_parent(
+            region.id, dm.id, LocationParentUpdate(parent_location_id=city.id), db
+        )
+    assert exc.value.status_code == 400
+
+
+async def test_reparenting_location_to_itself_is_rejected(db: AsyncSession) -> None:
+    """A location cannot be set as its own parent."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+
+    region = await service.create_location(
+        campaign.id,
+        dm.id,
+        LocationCreate(name="Sword Coast", location_type="region"),
+        db,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_location_parent(
+            region.id, dm.id, LocationParentUpdate(parent_location_id=region.id), db
+        )
+    assert exc.value.status_code == 400
