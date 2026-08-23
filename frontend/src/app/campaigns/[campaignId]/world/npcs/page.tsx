@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 
 import { NpcCard } from "@/components/world/npc-card";
 import { useMyMembership } from "@/hooks/use-campaign";
+import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
 import { useCreateNpc, useNpcs } from "@/hooks/use-world";
 
 export default function NpcsPage() {
@@ -15,17 +16,32 @@ export default function NpcsPage() {
 
   const [name, setName] = useState("");
   const [race, setRace] = useState("");
+  const [statBlockSearch, setStatBlockSearch] = useState("");
+  const [statBlockId, setStatBlockId] = useState<string | null>(null);
   const createNpc = useCreateNpc(campaignId);
+
+  const { data: monsterMatches } = useCatalogList("monsters", {
+    search: statBlockSearch,
+    campaign_id: campaignId,
+  });
+  const { data: selectedMonster } = useCatalogEntry("monsters", statBlockId ?? "");
 
   function handleCreate(event: React.FormEvent) {
     event.preventDefault();
     if (!name.trim() || !race.trim()) return;
     createNpc.mutate(
-      { name: name.trim(), race: race.trim(), description: "" },
+      {
+        name: name.trim(),
+        race: race.trim(),
+        description: "",
+        stat_block_id: statBlockId,
+      },
       {
         onSuccess: () => {
           setName("");
           setRace("");
+          setStatBlockSearch("");
+          setStatBlockId(null);
         },
       },
     );
@@ -49,6 +65,45 @@ export default function NpcsPage() {
             placeholder="Raça"
             className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm"
           />
+          <div className="w-full">
+            {selectedMonster ? (
+              <p className="text-xs text-muted-foreground">
+                Stat block: {selectedMonster.name}{" "}
+                <button
+                  type="button"
+                  onClick={() => setStatBlockId(null)}
+                  className="underline hover:no-underline"
+                >
+                  remover
+                </button>
+              </p>
+            ) : (
+              <input
+                value={statBlockSearch}
+                onChange={(event) => setStatBlockSearch(event.target.value)}
+                placeholder="Buscar stat block no catálogo de monstros (opcional)"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            )}
+            {!selectedMonster && statBlockSearch && monsterMatches && monsterMatches.length > 0 ? (
+              <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto rounded-md border border-border">
+                {monsterMatches.map((monster) => (
+                  <li key={monster.id}>
+                    <button
+                      type="button"
+                      onClick={() => setStatBlockId(monster.id)}
+                      className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-secondary"
+                    >
+                      <span>{monster.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        CR {monster.challenge_rating}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <button
             type="submit"
             disabled={!name.trim() || !race.trim() || createNpc.isPending}
