@@ -16,7 +16,7 @@
 
 | Fase | Domínio                          | Status                          | Última atualização |
 |------|-----------------------------------|----------------------------------|----------------------|
-| 0    | Catálogo SRD                      | Parcial (fundação i18n/custom-scope + vocabulário fixo prontos) | 2026-08-22    |
+| 0    | Catálogo SRD                      | Parcial (fundação i18n/custom-scope + vocabulário fixo + raças + classes prontos) | 2026-08-22    |
 | 1    | Fundação (Auth, Campaigns, Characters) | Parcial (Auth + Storage prontos) | 2026-08-22    |
 | 2    | Sessão ao Vivo (Combat, WS)        | Não iniciado                     | —                    |
 | 3    | World-building                    | Não iniciado                     | —                    |
@@ -59,12 +59,12 @@
   - [x] Atualizar/estender `backend/tests/catalog/test_service.py` e `test_seed.py`
 
 - **Como jogador, quero o catálogo de Classes completo (progressão por nível, features, subclasses, spellcasting) em vez do MVP mínimo atual.**
-  - [ ] Generalizar `ClassLevelFeature` → `Feature` (suporta subclass, `parent_feature_id`, `FeaturePrerequisite`) — seção 7.4.4
-  - [ ] Criar `ClassLevel`, `ClassLevelFeature` (junção), `ClassLevelSpellSlot`, `ClassLevelResource`
-  - [ ] Extrair textos para `ClassDefinitionI18n`, `SubclassDefinitionI18n`, `FeatureI18n`
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py` atualizados
-  - [ ] Testes cobrindo: leitura de progressão completa de uma classe (todos os 20 níveis), leitura de recursos por nível (ex. rage_count do Barbarian)
+  - [x] Generalizar `ClassLevelFeature` → `Feature` (suporta subclass, `parent_feature_id`, `FeaturePrerequisite`) — seção 7.4.4
+  - [x] Criar `ClassLevel`, `ClassLevelFeature` (junção), `ClassLevelSpellSlot`, `ClassLevelResource`
+  - [x] Extrair textos para `ClassDefinitionI18n`, `SubclassDefinitionI18n`, `FeatureI18n`
+  - [x] Migração Alembic — `alembic/versions/550deb637bf1_*.py` (upgrade/downgrade testados contra Postgres; limpa os dados antigos de `catalog_class_level_features`/`catalog_class_definitions`, reseedados do zero conforme permitido pela história)
+  - [x] `schemas.py`/`service.py`/`router.py` atualizados — `list_classes_translated`/`get_class_translated` resolvem progressão completa (níveis, features, pré-requisitos, spell slots, resources, subclasses) com fallback `en`
+  - [x] Testes cobrindo: leitura de progressão completa de uma classe (todos os 20 níveis, Fighter), leitura de recursos por nível (rage_count/rage_damage do Barbarian) — `tests/catalog/test_service.py`, `tests/catalog/test_seed.py`
 
 - **Como jogador, quero o catálogo de Magias completo (319 spells do SRD) com escola, classes que conjuram e dano estruturado.**
   - [ ] Adicionar `is_custom`/`campaign_id`/`index`/`magic_school_id` a `Spell` (hoje `school` é string solta — trocar por FK)
