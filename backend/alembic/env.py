@@ -29,6 +29,7 @@ from app.characters import models as _characters_models  # noqa: F401, E402
 from app.combat import models as _combat_models  # noqa: F401, E402
 from app.database import Base  # noqa: E402
 from app.sessions import models as _sessions_models  # noqa: F401, E402
+from app.world import models as _world_models  # noqa: F401, E402
 
 target_metadata = Base.metadata
 
