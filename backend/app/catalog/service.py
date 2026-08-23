@@ -1,11 +1,13 @@
-"""Catalog service — read-only queries for SRD reference data."""
+"""Catalog service — read-only queries plus homebrew creation for the SRD catalog."""
 
 import uuid
 
+from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute, selectinload
 
+from app.catalog.domain import validate_custom_campaign_scope
 from app.catalog.mixins import CatalogI18nMixin
 from app.catalog.models import (
     AbilityScoreDefinition,
@@ -22,6 +24,7 @@ from app.catalog.models import (
     ClassLevelFeature,
     Condition,
     DamageType,
+    EquipmentCategory,
     EquipmentCategoryI18n,
     Feat,
     FeatI18n,
@@ -79,6 +82,7 @@ from app.catalog.schemas import (
     BackgroundFeatureRead,
     BackgroundRead,
     BackgroundSummary,
+    ClassDefinitionCreate,
     ClassDefinitionRead,
     ClassLevelRead,
     ClassLevelResourceRead,
@@ -89,6 +93,7 @@ from app.catalog.schemas import (
     FeatSummary,
     FeaturePrerequisiteRead,
     FeatureRead,
+    ItemCreate,
     ItemPropertyRead,
     ItemRead,
     ItemSummary,
@@ -98,6 +103,7 @@ from app.catalog.schemas import (
     MonsterActionRead,
     MonsterArmorClassRead,
     MonsterConditionImmunityRead,
+    MonsterCreate,
     MonsterDamageModifierRead,
     MonsterProficiencyRead,
     MonsterRead,
@@ -106,6 +112,7 @@ from app.catalog.schemas import (
     MonsterSummary,
     ProficiencyRead,
     RaceAbilityBonusRead,
+    RaceCreate,
     RaceRead,
     RaceSummary,
     RaceTraitRead,
@@ -113,6 +120,7 @@ from app.catalog.schemas import (
     RuleSectionRead,
     RuleSummary,
     SpellClassRead,
+    SpellCreate,
     SpellRead,
     SpellSummary,
     SubclassRead,
@@ -1685,3 +1693,195 @@ async def list_rules_translated(
         summaries = [s for s in summaries if needle in s.name.lower()]
     summaries.sort(key=lambda s: s.name)
     return summaries
+
+
+# --- Homebrew creation (v1: races, classes, spells, items, monsters) ---------
+#
+# Always scoped to a campaign (`is_custom=True` + `campaign_id`, PRD §7.4) —
+# caller (router) is responsible for verifying the requester is the DM of
+# `data.campaign_id` before calling any of these.
+
+_ITEM_TYPE_TO_EQUIPMENT_CATEGORY_INDEX = {
+    "weapon": "weapon",
+    "armor": "armor",
+    "gear": "adventuring-gear",
+    "tool": "tools",
+    "consumable": "adventuring-gear",
+}
+
+
+async def create_custom_race(session: AsyncSession, data: RaceCreate) -> RaceRead:
+    """Create a homebrew race and return it translated (locale `en`)."""
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    race = Race(
+        speed=data.speed,
+        size=data.size,
+        darkvision_range=data.darkvision_range,
+        is_custom=True,
+        campaign_id=data.campaign_id,
+    )
+    session.add(race)
+    await session.flush()
+    session.add(
+        RaceI18n(
+            entity_id=race.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+        )
+    )
+    await session.commit()
+    result = await get_race_translated(session, race.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_class(
+    session: AsyncSession, data: ClassDefinitionCreate
+) -> ClassDefinitionRead:
+    """Create a homebrew class and return it translated (locale `en`)."""
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    class_definition = ClassDefinition(
+        hit_die=data.hit_die,
+        primary_ability=data.primary_ability,
+        saving_throw_proficiencies=data.saving_throw_proficiencies,
+        is_custom=True,
+        campaign_id=data.campaign_id,
+    )
+    session.add(class_definition)
+    await session.flush()
+    session.add(
+        ClassDefinitionI18n(entity_id=class_definition.id, locale="en", name=data.name)
+    )
+    await session.commit()
+    result = await get_class_translated(session, class_definition.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_spell(session: AsyncSession, data: SpellCreate) -> SpellRead:
+    """Create a homebrew spell and return it translated (locale `en`).
+
+    Raises 422 if `data.school` doesn't match a seeded `MagicSchool.index`.
+    """
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    school_result = await session.execute(
+        select(MagicSchool).where(MagicSchool.index == data.school)
+    )
+    magic_school = school_result.scalar_one_or_none()
+    if magic_school is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Unknown magic school '{data.school}'",
+        )
+
+    spell = Spell(
+        level=data.level,
+        magic_school_id=magic_school.id,
+        casting_time=data.casting_time,
+        range=data.range,
+        duration=data.duration,
+        components=data.components,
+        ritual=data.ritual,
+        concentration=data.concentration,
+        is_custom=True,
+        campaign_id=data.campaign_id,
+    )
+    session.add(spell)
+    await session.flush()
+    session.add(
+        SpellI18n(
+            entity_id=spell.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+            higher_levels=data.higher_levels,
+        )
+    )
+    await session.commit()
+    result = await get_spell_translated(session, spell.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_item(session: AsyncSession, data: ItemCreate) -> ItemRead:
+    """Create a homebrew item and return it translated (locale `en`).
+
+    The equipment category is derived from `item_type` (v1 simplification —
+    homebrew items reuse an existing SRD category rather than picking a
+    fine-grained one). Raises 422 if that category isn't seeded.
+    """
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    category_index = _ITEM_TYPE_TO_EQUIPMENT_CATEGORY_INDEX[data.item_type.value]
+    category_result = await session.execute(
+        select(EquipmentCategory).where(EquipmentCategory.index == category_index)
+    )
+    equipment_category = category_result.scalar_one_or_none()
+    if equipment_category is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Catalog isn't seeded with equipment categories yet",
+        )
+
+    item = Item(
+        item_type=data.item_type,
+        equipment_category_id=equipment_category.id,
+        rarity=data.rarity,
+        weight=data.weight,
+        cost=data.cost,
+        is_custom=True,
+        campaign_id=data.campaign_id,
+    )
+    session.add(item)
+    await session.flush()
+    session.add(
+        ItemI18n(
+            entity_id=item.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+        )
+    )
+    await session.commit()
+    result = await get_item_translated(session, item.id, locale="en")
+    assert result is not None  # just created it
+    return result
+
+
+async def create_custom_monster(
+    session: AsyncSession, data: MonsterCreate
+) -> MonsterRead:
+    """Create a homebrew monster and return it translated (locale `en`)."""
+    validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+    monster = Monster(
+        size=data.size,
+        creature_type=data.creature_type,
+        alignment=data.alignment,
+        hit_points=data.hit_points,
+        hit_dice=data.hit_dice,
+        challenge_rating=data.challenge_rating,
+        xp=data.xp,
+        languages=data.languages,
+        strength=data.strength,
+        dexterity=data.dexterity,
+        constitution=data.constitution,
+        intelligence=data.intelligence,
+        wisdom=data.wisdom,
+        charisma=data.charisma,
+        is_custom=True,
+        campaign_id=data.campaign_id,
+    )
+    session.add(monster)
+    await session.flush()
+    session.add(
+        MonsterI18n(
+            entity_id=monster.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+        )
+    )
+    await session.commit()
+    result = await get_monster_translated(session, monster.id, locale="en")
+    assert result is not None  # just created it
+    return result

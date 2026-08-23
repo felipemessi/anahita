@@ -2,7 +2,9 @@
 
 import uuid
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.catalog.domain import ItemType
 
 
 class RaceTraitRead(BaseModel):
@@ -716,3 +718,97 @@ class RuleSummary(BaseModel):
     index: str | None
     name: str
     is_custom: bool
+
+
+# --- Homebrew creation (v1: races, classes, spells, items, monsters) ---------
+#
+# Every create schema is always scoped to a campaign — homebrew is never
+# global (PRD §7.4, `app.catalog.domain.validate_custom_campaign_scope`).
+# `campaign_id` and `is_custom=True` are never accepted from the client on
+# these routes beyond `campaign_id` itself; the service always forces
+# `is_custom=True`.
+
+
+class RaceCreate(BaseModel):
+    """Request body to create a homebrew race, always scoped to a campaign."""
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=100)
+    description: str = ""
+    speed: int = Field(default=30, ge=0)
+    size: str = "medium"
+    darkvision_range: int = Field(default=0, ge=0)
+
+
+class ClassDefinitionCreate(BaseModel):
+    """Request body to create a homebrew class, always scoped to a campaign."""
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=100)
+    hit_die: int = Field(ge=4, le=12)
+    primary_ability: str = Field(min_length=1, max_length=100)
+    saving_throw_proficiencies: str = ""
+
+
+class SpellCreate(BaseModel):
+    """Request body to create a homebrew spell, always scoped to a campaign.
+
+    `school` must match an existing `MagicSchool.index` (e.g. `evocation`) —
+    the fixed SRD vocabulary (PRD §7.4.1), not free text.
+    """
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    level: int = Field(ge=0, le=9)
+    school: str
+    casting_time: str = ""
+    range: str = ""
+    duration: str = ""
+    components: str = ""
+    ritual: bool = False
+    concentration: bool = False
+    description: str = ""
+    higher_levels: str | None = None
+
+
+class ItemCreate(BaseModel):
+    """Request body to create a homebrew item, always scoped to a campaign.
+
+    Equipment category is derived from `item_type` (v1 simplification) —
+    homebrew items don't pick a fine-grained SRD equipment category yet.
+    """
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    item_type: ItemType
+    rarity: str | None = None
+    weight: float = Field(default=0.0, ge=0)
+    cost: int = Field(default=0, ge=0)
+    description: str = ""
+
+
+class MonsterCreate(BaseModel):
+    """Request body to create a homebrew monster, always scoped to a campaign.
+
+    Fields beyond the v1 custom-entry form get sensible defaults
+    (`hit_dice="1d8"`, ability scores 10) — full stat-block authoring is a
+    future iteration.
+    """
+
+    campaign_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+    size: str
+    creature_type: str = Field(min_length=1, max_length=100)
+    alignment: str = "unaligned"
+    hit_points: int = Field(ge=1)
+    hit_dice: str = "1d8"
+    challenge_rating: float = Field(ge=0)
+    xp: int = Field(default=0, ge=0)
+    languages: str = ""
+    strength: int = Field(default=10, ge=1, le=30)
+    dexterity: int = Field(default=10, ge=1, le=30)
+    constitution: int = Field(default=10, ge=1, le=30)
+    intelligence: int = Field(default=10, ge=1, le=30)
+    wisdom: int = Field(default=10, ge=1, le=30)
+    charisma: int = Field(default=10, ge=1, le=30)

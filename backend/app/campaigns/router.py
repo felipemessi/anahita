@@ -67,6 +67,30 @@ async def create_invite(
     return CampaignInviteRead.model_validate(invite)
 
 
+@router.get("/{campaign_id}", response_model=CampaignRead)
+async def get_campaign(
+    campaign_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CampaignService, Depends(get_campaign_service)],
+) -> CampaignRead:
+    """Get a campaign's detail. Viewable by any of its members."""
+    campaign = await service.get_campaign(campaign_id, user.id, db)
+    return CampaignRead.model_validate(campaign)
+
+
+@router.get("/{campaign_id}/members", response_model=list[CampaignMemberRead])
+async def list_members(
+    campaign_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CampaignService, Depends(get_campaign_service)],
+) -> list[CampaignMemberRead]:
+    """List every member of a campaign. Viewable by any of its members."""
+    members = await service.list_members(campaign_id, user.id, db)
+    return [CampaignMemberRead.model_validate(m) for m in members]
+
+
 @router.get("/{campaign_id}/members/me", response_model=CampaignMemberRead)
 async def get_my_membership(
     campaign_id: uuid.UUID,

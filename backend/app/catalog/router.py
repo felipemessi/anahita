@@ -1,40 +1,64 @@
-"""HTTP router for the catalog domain — read-only SRD reference endpoints."""
+"""HTTP router for the catalog domain — SRD reference endpoints + homebrew creation."""
 
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.models import User
+from app.campaigns.domain import CampaignRole
 from app.catalog import service
 from app.catalog.schemas import (
     BackgroundRead,
     BackgroundSummary,
+    ClassDefinitionCreate,
     ClassDefinitionRead,
     ClassSummary,
     FeatRead,
     FeatSummary,
+    ItemCreate,
     ItemRead,
     ItemSummary,
     MagicItemRead,
     MagicItemSummary,
+    MonsterCreate,
     MonsterRead,
     MonsterSummary,
+    RaceCreate,
     RaceRead,
     RaceSummary,
     RuleRead,
     RuleSummary,
+    SpellCreate,
     SpellRead,
     SpellSummary,
 )
+from app.core.dependencies import get_current_user
 from app.database import get_db
+from app.queries.campaign_queries import get_membership_for_user
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
 DB = Annotated[AsyncSession, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 SearchQ = Annotated[str | None, Query(description="Filter by name substring")]
 IncludeCustomQ = Annotated[bool, Query()]
+CampaignIdQ = Annotated[
+    uuid.UUID | None,
+    Query(description="Scope homebrew to this campaign (SRD is always included)"),
+]
 LocaleQ = Annotated[str, Query(description="Locale for translated text (en, pt-BR)")]
+
+
+async def _require_dm(campaign_id: uuid.UUID, user: User, db: AsyncSession) -> None:
+    """Raise 403 unless `user` is the DM of `campaign_id`."""
+    member = await get_membership_for_user(campaign_id, user.id, db)
+    if member is None or member.role != CampaignRole.dm:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the campaign's DM can create homebrew content",
+        )
 
 
 @router.get("/races", response_model=list[RaceSummary])
@@ -42,11 +66,16 @@ async def list_races(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[RaceSummary]:
     """List all races, optionally filtered by name."""
     return await service.list_races_translated(
-        db, search=search, include_custom=include_custom, locale=locale
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
     )
 
 
@@ -63,16 +92,28 @@ async def get_race(
     return race
 
 
+@router.post("/races", response_model=RaceRead, status_code=status.HTTP_201_CREATED)
+async def create_race(body: RaceCreate, user: CurrentUser, db: DB) -> RaceRead:
+    """Create a homebrew race, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_race(db, body)
+
+
 @router.get("/classes", response_model=list[ClassSummary])
 async def list_classes(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[ClassSummary]:
     """List all class definitions, optionally filtered by name."""
     return await service.list_classes_translated(
-        db, search=search, include_custom=include_custom, locale=locale
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
     )
 
 
@@ -89,6 +130,17 @@ async def get_class(
     return cls
 
 
+@router.post(
+    "/classes", response_model=ClassDefinitionRead, status_code=status.HTTP_201_CREATED
+)
+async def create_class(
+    body: ClassDefinitionCreate, user: CurrentUser, db: DB
+) -> ClassDefinitionRead:
+    """Create a homebrew class, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_class(db, body)
+
+
 @router.get("/spells", response_model=list[SpellSummary])
 async def list_spells(
     db: DB,
@@ -100,6 +152,7 @@ async def list_spells(
         str | None, Query(description="Filter by school of magic (index slug)")
     ] = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[SpellSummary]:
     """List all spells, optionally filtered by name, level, or school."""
@@ -109,6 +162,7 @@ async def list_spells(
         level=level,
         school=school,
         include_custom=include_custom,
+        campaign_id=campaign_id,
         locale=locale,
     )
 
@@ -126,12 +180,20 @@ async def get_spell(
     return spell
 
 
+@router.post("/spells", response_model=SpellRead, status_code=status.HTTP_201_CREATED)
+async def create_spell(body: SpellCreate, user: CurrentUser, db: DB) -> SpellRead:
+    """Create a homebrew spell, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_spell(db, body)
+
+
 @router.get("/items", response_model=list[ItemSummary])
 async def list_items(
     db: DB,
     search: SearchQ = None,
     item_type: Annotated[str | None, Query(description="Filter by item type")] = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[ItemSummary]:
     """List all items, optionally filtered by name or type."""
@@ -140,6 +202,7 @@ async def list_items(
         search=search,
         item_type=item_type,
         include_custom=include_custom,
+        campaign_id=campaign_id,
         locale=locale,
     )
 
@@ -157,16 +220,28 @@ async def get_item(
     return item
 
 
+@router.post("/items", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
+async def create_item(body: ItemCreate, user: CurrentUser, db: DB) -> ItemRead:
+    """Create a homebrew item, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_item(db, body)
+
+
 @router.get("/magic-items", response_model=list[MagicItemSummary])
 async def list_magic_items(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[MagicItemSummary]:
     """List all magic items, optionally filtered by name."""
     return await service.list_magic_items_translated(
-        db, search=search, include_custom=include_custom, locale=locale
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
     )
 
 
@@ -190,11 +265,16 @@ async def list_backgrounds(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[BackgroundSummary]:
     """List all backgrounds, optionally filtered by name."""
     return await service.list_backgrounds_translated(
-        db, search=search, include_custom=include_custom, locale=locale
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
     )
 
 
@@ -218,11 +298,16 @@ async def list_feats(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[FeatSummary]:
     """List all feats, optionally filtered by name."""
     return await service.list_feats_translated(
-        db, search=search, include_custom=include_custom, locale=locale
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
     )
 
 
@@ -244,11 +329,16 @@ async def list_monsters(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[MonsterSummary]:
     """List all monsters, optionally filtered by name."""
     return await service.list_monsters_translated(
-        db, search=search, include_custom=include_custom, locale=locale
+        db,
+        search=search,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+        locale=locale,
     )
 
 
@@ -263,6 +353,15 @@ async def get_monster(
     if monster is None:
         raise HTTPException(status_code=404, detail="Monster not found")
     return monster
+
+
+@router.post(
+    "/monsters", response_model=MonsterRead, status_code=status.HTTP_201_CREATED
+)
+async def create_monster(body: MonsterCreate, user: CurrentUser, db: DB) -> MonsterRead:
+    """Create a homebrew monster, scoped to `body.campaign_id`. DM only."""
+    await _require_dm(body.campaign_id, user, db)
+    return await service.create_custom_monster(db, body)
 
 
 @router.get("/rules", response_model=list[RuleSummary])
