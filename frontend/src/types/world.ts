@@ -1,8 +1,6 @@
 /**
- * PROVISIONAL — the backend `world` domain (Fase 3) does not exist yet, so
- * there is no schemas.py to mirror. Shapes here follow
- * docs/anahita-backend-prd.md §7.7. Re-verify against the real Pydantic
- * schemas once the backend domain ships.
+ * Mirrors backend/app/world/schemas.py (Fase 3 do backend — World-building,
+ * PRD §7.7). Conferido linha a linha contra os schemas Pydantic reais.
  */
 
 export interface Npc {
@@ -17,6 +15,16 @@ export interface Npc {
   /** SRD or campaign-homebrew Monster (catalog §7.4.8) this NPC uses as a stat block. */
   stat_block_id: string | null;
   created_at: string;
+}
+
+export interface NpcCreate {
+  name: string;
+  race: string;
+  occupation?: string | null;
+  description?: string;
+  personality?: string | null;
+  is_alive?: boolean;
+  stat_block_id?: string | null;
 }
 
 export type LocationType =
@@ -38,6 +46,21 @@ export interface Location {
   parent_location_id: string | null;
 }
 
+export interface LocationCreate {
+  name: string;
+  location_type: LocationType;
+  description?: string;
+  parent_location_id?: string | null;
+}
+
+/** A location and its descendants, as returned by GET .../locations/tree. */
+export interface LocationTreeNode {
+  id: string;
+  name: string;
+  location_type: LocationType;
+  children: LocationTreeNode[];
+}
+
 export interface Faction {
   id: string;
   campaign_id: string;
@@ -47,30 +70,61 @@ export interface Faction {
   influence_level: string | null;
 }
 
+export interface FactionCreate {
+  name: string;
+  description?: string;
+  alignment?: string | null;
+  influence_level?: string | null;
+}
+
 export interface NpcFaction {
+  id: string;
   npc_id: string;
   faction_id: string;
   role_in_faction: string | null;
 }
 
+export interface NpcFactionCreate {
+  faction_id: string;
+  role_in_faction?: string | null;
+}
+
 export type NpcLocationPresenceType = "resides" | "frequents" | "controls";
 
 export interface NpcLocation {
+  id: string;
   npc_id: string;
   location_id: string;
   presence_type: NpcLocationPresenceType;
 }
 
+export interface NpcLocationCreate {
+  location_id: string;
+  presence_type: NpcLocationPresenceType;
+}
+
 export interface NpcSession {
+  id: string;
   npc_id: string;
   session_id: string;
   appearance_note: string | null;
 }
 
+export interface NpcSessionCreate {
+  session_id: string;
+  appearance_note?: string | null;
+}
+
 export interface LocationSession {
+  id: string;
   location_id: string;
   session_id: string;
   visit_note: string | null;
+}
+
+export interface LocationSessionCreate {
+  session_id: string;
+  visit_note?: string | null;
 }
 
 export type FactionRelationshipType =
@@ -81,7 +135,21 @@ export type FactionRelationshipType =
   | "trade_partner";
 
 export interface FactionRelationship {
+  id: string;
   faction_a_id: string;
   faction_b_id: string;
   relationship_type: FactionRelationshipType;
+}
+
+export interface FactionRelationshipCreate {
+  faction_b_id: string;
+  relationship_type: FactionRelationshipType;
+}
+
+/** One cross-entity search hit (GET /campaigns/{id}/world/search?q=). */
+export interface WorldSearchResult {
+  entity_type: "npc" | "location" | "faction";
+  id: string;
+  name: string;
+  snippet: string;
 }

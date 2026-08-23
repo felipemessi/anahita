@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: "World",
     href: (id) => `/campaigns/${id}/world`,
-    implemented: false,
+    implemented: true,
   },
   {
     label: "Inventário",

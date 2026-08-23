@@ -160,14 +160,15 @@
 
 > Depende do backend Fase 3.
 
-- **Como DM, quero cadastrar e organizar NPCs, locais e facções.**
-  - [ ] `lib/api/world.ts`, `hooks/use-world.ts`
-  - [ ] `app/campaigns/[campaignId]/world/page.tsx`: hub com três seções
-  - [ ] `app/campaigns/[campaignId]/world/npcs/page.tsx` + `components/world/npc-card.tsx` (nome, raça, ocupação, facções; botão "ver stat block" quando `stat_block_id` existe, reaproveitando `monster-stat-block.tsx`)
-  - [ ] `app/campaigns/[campaignId]/world/locations/page.tsx` + `components/world/location-tree.tsx` (árvore expansível região→cidade→taverna)
-  - [ ] `app/campaigns/[campaignId]/world/factions/page.tsx` + `components/world/faction-graph.tsx` (lista de relações ou grafo simples)
-  - [ ] `components/world/entity-link-badge.tsx`: badges de vínculo (sessões, facções, locais)
-  - [ ] Testes: árvore de locations renderiza hierarquia correta; NPC card mostra stat block quando aplicável
+- **Como DM, quero cadastrar e organizar NPCs, locais e facções.** ✅ (2026-08-23)
+  - [x] `lib/api/world.ts`, `hooks/use-world.ts`
+  - [x] `app/campaigns/[campaignId]/world/page.tsx`: hub com três seções
+  - [x] `app/campaigns/[campaignId]/world/npcs/page.tsx` + `components/world/npc-card.tsx` (nome, raça, ocupação, facções; botão "ver stat block" quando `stat_block_id` existe, reaproveitando `monster-stat-block.tsx`)
+  - [x] `app/campaigns/[campaignId]/world/locations/page.tsx` + `components/world/location-tree.tsx` (árvore expansível região→cidade→taverna)
+  - [x] `app/campaigns/[campaignId]/world/factions/page.tsx` + `components/world/faction-graph.tsx` (lista de relações ou grafo simples)
+  - [x] `components/world/entity-link-badge.tsx`: badges de vínculo (sessões, facções, locais)
+  - [x] Testes: árvore de locations renderiza hierarquia correta; NPC card mostra stat block quando aplicável
+  - **Nota:** `types/world.ts` era provisório (Fase 0) e ficou desatualizado em relação ao backend real da Fase 3 — corrigido inline: adicionado `id` às interfaces de junção (`NpcFaction`, `NpcLocation`, `NpcSession`, `LocationSession`, `FactionRelationship`, que o backend sempre retorna), acrescentado `LocationTreeNode` e os tipos `*Create`. `components/layout/campaign-sidebar.tsx` teve o item "World" marcado `implemented: true` (lacuna mecânica — senão a navegação continuaria desabilitada mesmo com as telas prontas). `FactionGraph` é uma lista de relações por facção (não um grafo visual) e `entity-link-badge` são badges de contagem simples — dentro do que o backlog permite ("lista de relações ou grafo simples"). Criação de NPC com stat block (busca no catálogo de monstros) e vínculos NPC↔sessão/local↔sessão via UI ficaram fora do escopo desta história (endpoints já existem no backend, prontos para uma UI dedicada numa iteração futura); o card já sabe renderizar o stat block quando o campo existir via API.
 
 - **Como DM, quero buscar por nome/descrição em NPCs, locais e facções.**
   - [ ] Campo de busca no hub de world, chamando o endpoint de full-text search do backend
