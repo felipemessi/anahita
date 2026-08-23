@@ -248,11 +248,12 @@
   - [x] Teste: ciclo é rejeitado (auto-referência e referência a descendente); árvore de 3 níveis resolve corretamente — `tests/world/test_service.py`
   - **Nota:** lacuna mecânica preenchida inline — `create_location` também passou a validar que `parent_location_id` pertence à mesma campanha (mesma regra já aplicada em `update_location_parent`), já que a história anterior não tinha essa checagem ainda.
 
-- **Como DM, quero relacionar NPCs a facções, locais e sessões para montar o histórico da campanha.**
-  - [ ] `app/world/models.py`: `NPCFaction`, `NPCLocation`, `NPCSession`, `LocationSession`, `FactionRelationship` (tabelas de junção da seção 7.7)
-  - [ ] Migração Alembic
-  - [ ] `service.py`/`router.py` para cada junção
-  - [ ] Testes de cada relação
+- **Como DM, quero relacionar NPCs a facções, locais e sessões para montar o histórico da campanha.** ✅ (2026-08-23)
+  - [x] `app/world/models.py`: `NPCFaction`, `NPCLocation`, `NPCSession`, `LocationSession`, `FactionRelationship` (tabelas de junção da seção 7.7)
+  - [x] Migração Alembic — `alembic/versions/14ecbccdaf78_*.py` (upgrade/downgrade testados contra Postgres, duas vezes)
+  - [x] `service.py`/`router.py` para cada junção — `POST/GET /npcs/{id}/factions`, `/npcs/{id}/locations`, `/npcs/{id}/sessions`, `/locations/{id}/sessions`, `/factions/{id}/relationships`
+  - [x] Testes de cada relação — `tests/world/test_service.py`
+  - **Nota:** todas as junções são DM-only para criar, exigem que as duas pontas pertençam à mesma campanha (404 se não), e `FactionRelationship` rejeita uma facção relacionada consigo mesma (400). `list_faction_relationships` retorna o vínculo tanto pelo lado `faction_a` quanto `faction_b`.
 
 - **Como DM, quero buscar por nome/descrição em NPCs, locais e facções da minha campanha.**
   - [ ] `tsvector` do Postgres em `app/queries/world_queries.py`

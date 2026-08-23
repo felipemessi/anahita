@@ -8,11 +8,17 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.models import Monster
+from app.sessions.models import Session
 from app.world.schemas import (
     FactionCreate,
+    FactionRelationshipCreate,
     LocationCreate,
     LocationParentUpdate,
+    LocationSessionCreate,
     NPCCreate,
+    NPCFactionCreate,
+    NPCLocationCreate,
+    NPCSessionCreate,
 )
 from app.world.service import WorldService
 
@@ -259,5 +265,164 @@ async def test_reparenting_location_to_itself_is_rejected(db: AsyncSession) -> N
     with pytest.raises(HTTPException) as exc:
         await service.update_location_parent(
             region.id, dm.id, LocationParentUpdate(parent_location_id=region.id), db
+        )
+    assert exc.value.status_code == 400
+
+
+async def test_dm_can_link_npc_to_faction_with_role(db: AsyncSession) -> None:
+    """An NPC-faction link records the NPC's role in the faction."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Volo", race="Human"), db
+    )
+    faction = await service.create_faction(
+        campaign.id, dm.id, FactionCreate(name="Harpers"), db
+    )
+
+    link = await service.link_npc_faction(
+        npc.id,
+        dm.id,
+        NPCFactionCreate(faction_id=faction.id, role_in_faction="Spymaster"),
+        db,
+    )
+
+    links = await service.list_npc_factions(npc.id, dm.id, db)
+    assert [link_.id for link_ in links] == [link.id]
+    assert link.role_in_faction == "Spymaster"
+
+
+async def test_dm_cannot_link_npc_to_faction_from_another_campaign(
+    db: AsyncSession,
+) -> None:
+    """An NPC cannot be linked to a faction from a different campaign."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    other_dm = await _make_user(db, email="other-dm@example.com")
+    other_campaign = Campaign(name="Other Table", owner_id=other_dm.id)
+    db.add(other_campaign)
+    await db.flush()
+    db.add(
+        CampaignMember(
+            campaign_id=other_campaign.id, user_id=other_dm.id, role=CampaignRole.dm
+        )
+    )
+    await db.commit()
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Volo", race="Human"), db
+    )
+    other_faction = await service.create_faction(
+        other_campaign.id, other_dm.id, FactionCreate(name="Zhentarim"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.link_npc_faction(
+            npc.id, dm.id, NPCFactionCreate(faction_id=other_faction.id), db
+        )
+    assert exc.value.status_code == 404
+
+
+async def test_dm_can_link_npc_to_location_with_presence_type(
+    db: AsyncSession,
+) -> None:
+    """An NPC-location link records how the NPC is present there."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Innkeeper Tom", race="Human"), db
+    )
+    location = await service.create_location(
+        campaign.id, dm.id, LocationCreate(name="The Inn", location_type="building"), db
+    )
+
+    link = await service.link_npc_location(
+        npc.id,
+        dm.id,
+        NPCLocationCreate(location_id=location.id, presence_type="resides"),
+        db,
+    )
+
+    links = await service.list_npc_locations(npc.id, dm.id, db)
+    assert [link_.id for link_ in links] == [link.id]
+    assert link.presence_type == "resides"
+
+
+async def test_dm_can_link_npc_and_location_to_a_session(db: AsyncSession) -> None:
+    """An NPC's appearance and a location's visit can be recorded for a session."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Innkeeper Tom", race="Human"), db
+    )
+    location = await service.create_location(
+        campaign.id, dm.id, LocationCreate(name="The Inn", location_type="building"), db
+    )
+    game_session = Session(campaign_id=campaign.id, session_number=1, title="Session 1")
+    db.add(game_session)
+    await db.commit()
+
+    npc_link = await service.link_npc_session(
+        npc.id,
+        dm.id,
+        NPCSessionCreate(session_id=game_session.id, appearance_note="Gave a quest"),
+        db,
+    )
+    location_link = await service.link_location_session(
+        location.id,
+        dm.id,
+        LocationSessionCreate(session_id=game_session.id, visit_note="First stop"),
+        db,
+    )
+
+    npc_sessions = await service.list_npc_sessions(npc.id, dm.id, db)
+    location_sessions = await service.list_location_sessions(location.id, dm.id, db)
+    assert [s.id for s in npc_sessions] == [npc_link.id]
+    assert [s.id for s in location_sessions] == [location_link.id]
+
+
+async def test_dm_can_set_faction_relationship(db: AsyncSession) -> None:
+    """A relationship can be set between two factions in the same campaign."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    harpers = await service.create_faction(
+        campaign.id, dm.id, FactionCreate(name="Harpers"), db
+    )
+    zhentarim = await service.create_faction(
+        campaign.id, dm.id, FactionCreate(name="Zhentarim"), db
+    )
+
+    relationship = await service.link_faction_relationship(
+        harpers.id,
+        dm.id,
+        FactionRelationshipCreate(
+            faction_b_id=zhentarim.id, relationship_type="hostile"
+        ),
+        db,
+    )
+
+    from_a = await service.list_faction_relationships(harpers.id, dm.id, db)
+    from_b = await service.list_faction_relationships(zhentarim.id, dm.id, db)
+    assert [r.id for r in from_a] == [relationship.id]
+    assert [r.id for r in from_b] == [relationship.id]
+
+
+async def test_faction_cannot_have_relationship_with_itself(
+    db: AsyncSession,
+) -> None:
+    """A faction cannot be related to itself."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    harpers = await service.create_faction(
+        campaign.id, dm.id, FactionCreate(name="Harpers"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.link_faction_relationship(
+            harpers.id,
+            dm.id,
+            FactionRelationshipCreate(
+                faction_b_id=harpers.id, relationship_type="allied"
+            ),
+            db,
         )
     assert exc.value.status_code == 400

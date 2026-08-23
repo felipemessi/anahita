@@ -16,6 +16,24 @@ class LocationType(StrEnum):
     plane = "plane"
 
 
+class NPCLocationPresenceType(StrEnum):
+    """How an NPC relates to a Location they're linked to."""
+
+    resides = "resides"
+    frequents = "frequents"
+    controls = "controls"
+
+
+class FactionRelationshipType(StrEnum):
+    """How two Factions relate to each other."""
+
+    allied = "allied"
+    hostile = "hostile"
+    neutral = "neutral"
+    vassal = "vassal"
+    trade_partner = "trade_partner"
+
+
 class LocationCycleError(ValueError):
     """Raised when reparenting a Location would create a cycle in the hierarchy."""
 

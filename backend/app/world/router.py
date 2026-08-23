@@ -12,12 +12,22 @@ from app.database import get_db
 from app.world.schemas import (
     FactionCreate,
     FactionRead,
+    FactionRelationshipCreate,
+    FactionRelationshipRead,
     LocationCreate,
     LocationParentUpdate,
     LocationRead,
+    LocationSessionCreate,
+    LocationSessionRead,
     LocationTreeNode,
     NPCCreate,
+    NPCFactionCreate,
+    NPCFactionRead,
+    NPCLocationCreate,
+    NPCLocationRead,
     NPCRead,
+    NPCSessionCreate,
+    NPCSessionRead,
 )
 from app.world.service import WorldService
 
@@ -134,3 +144,137 @@ async def list_factions(
     """List a campaign's factions."""
     factions = await service.list_factions(campaign_id, user.id, db)
     return [FactionRead.model_validate(f) for f in factions]
+
+
+@router.post(
+    "/npcs/{npc_id}/factions",
+    response_model=NPCFactionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def link_npc_faction(
+    npc_id: uuid.UUID,
+    body: NPCFactionCreate,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> NPCFactionRead:
+    """Link an NPC to a faction from their own campaign; DM-only."""
+    link = await service.link_npc_faction(npc_id, user.id, body, db)
+    return NPCFactionRead.model_validate(link)
+
+
+@router.get("/npcs/{npc_id}/factions", response_model=list[NPCFactionRead])
+async def list_npc_factions(
+    npc_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> list[NPCFactionRead]:
+    """List an NPC's faction links."""
+    links = await service.list_npc_factions(npc_id, user.id, db)
+    return [NPCFactionRead.model_validate(link) for link in links]
+
+
+@router.post(
+    "/npcs/{npc_id}/locations",
+    response_model=NPCLocationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def link_npc_location(
+    npc_id: uuid.UUID,
+    body: NPCLocationCreate,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> NPCLocationRead:
+    """Link an NPC to a location from their own campaign; DM-only."""
+    link = await service.link_npc_location(npc_id, user.id, body, db)
+    return NPCLocationRead.model_validate(link)
+
+
+@router.get("/npcs/{npc_id}/locations", response_model=list[NPCLocationRead])
+async def list_npc_locations(
+    npc_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> list[NPCLocationRead]:
+    """List an NPC's location links."""
+    links = await service.list_npc_locations(npc_id, user.id, db)
+    return [NPCLocationRead.model_validate(link) for link in links]
+
+
+@router.post(
+    "/npcs/{npc_id}/sessions",
+    response_model=NPCSessionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def link_npc_session(
+    npc_id: uuid.UUID,
+    body: NPCSessionCreate,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> NPCSessionRead:
+    """Link an NPC to a session appearance from their own campaign; DM-only."""
+    link = await service.link_npc_session(npc_id, user.id, body, db)
+    return NPCSessionRead.model_validate(link)
+
+
+@router.get("/npcs/{npc_id}/sessions", response_model=list[NPCSessionRead])
+async def list_npc_sessions(
+    npc_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> list[NPCSessionRead]:
+    """List an NPC's session appearances."""
+    links = await service.list_npc_sessions(npc_id, user.id, db)
+    return [NPCSessionRead.model_validate(link) for link in links]
+
+
+@router.post(
+    "/locations/{location_id}/sessions",
+    response_model=LocationSessionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def link_location_session(
+    location_id: uuid.UUID,
+    body: LocationSessionCreate,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> LocationSessionRead:
+    """Link a location to a session visit from their own campaign; DM-only."""
+    link = await service.link_location_session(location_id, user.id, body, db)
+    return LocationSessionRead.model_validate(link)
+
+
+@router.get(
+    "/locations/{location_id}/sessions", response_model=list[LocationSessionRead]
+)
+async def list_location_sessions(
+    location_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> list[LocationSessionRead]:
+    """List a location's session visits."""
+    links = await service.list_location_sessions(location_id, user.id, db)
+    return [LocationSessionRead.model_validate(link) for link in links]
+
+
+@router.post(
+    "/factions/{faction_id}/relationships",
+    response_model=FactionRelationshipRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def link_faction_relationship(
+    faction_id: uuid.UUID,
+    body: FactionRelationshipCreate,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> FactionRelationshipRead:
+    """Set a relationship between two factions from the same campaign; DM-only."""
+    link = await service.link_faction_relationship(faction_id, user.id, body, db)
+    return FactionRelationshipRead.model_validate(link)
+
+
+@router.get(
+    "/factions/{faction_id}/relationships", response_model=list[FactionRelationshipRead]
+)
+async def list_faction_relationships(
+    faction_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> list[FactionRelationshipRead]:
+    """List a faction's relationships (as either side)."""
+    links = await service.list_faction_relationships(faction_id, user.id, db)
+    return [FactionRelationshipRead.model_validate(link) for link in links]
