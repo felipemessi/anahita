@@ -18,7 +18,7 @@
 |------|-----------------------------------|----------------------------------|----------------------|
 | 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
 | 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
-| 2    | Sessão ao Vivo (Combat, WS)        | Não iniciado                     | —                    |
+| 2    | Sessão ao Vivo (Combat, WS)        | Em andamento (história 1/4: CRUD de encounter/participantes) | 2026-08-23 |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
 | 5    | Registro e Lore                   | Não iniciado                     | —                    |
@@ -202,12 +202,13 @@
 
 ## Fase 2 — Sessão ao Vivo
 
-- **Como DM, quero iniciar um encontro de combate e adicionar participantes (PCs e monstros).**
-  - [ ] `app/combat/models.py`: `Encounter`, `EncounterParticipant`, `EncounterCondition`, `CombatLog` (seção 7.6 do PRD)
-  - [ ] Migração Alembic
-  - [ ] Regra: um `EncounterParticipant` é PC **ou** NPC/monstro, nunca ambos (validação em `domain.py`)
-  - [ ] `schemas.py`/`service.py`/`router.py` REST (CRUD de encounter/participantes fora do fluxo de turno)
-  - [ ] Testes de domain (`CombatState`) + service
+- **Como DM, quero iniciar um encontro de combate e adicionar participantes (PCs e monstros).** ✅ (2026-08-23)
+  - [x] `app/combat/models.py`: `Encounter`, `EncounterParticipant`, `EncounterCondition`, `CombatLog` (seção 7.6 do PRD)
+  - [x] Migração Alembic — `alembic/versions/84a905f1c458_add_combat_domain.py` (upgrade/downgrade/upgrade testados contra Postgres; downgrade dropa explicitamente os enums `encounterstatus`/`combatactiontype`/`combatconditiontype`)
+  - [x] Regra: um `EncounterParticipant` é PC **ou** NPC/monstro, nunca ambos (validação em `domain.py`)
+  - [x] `schemas.py`/`service.py`/`router.py` REST (CRUD de encounter/participantes fora do fluxo de turno)
+  - [x] Testes de domain (`CombatState`) + service
+  - Notas: `EncounterParticipant.npc_id` não tem FK real (NPC é Fase 3, ainda não implementado) — mesmo padrão de `Race.campaign_id` no catálogo. "CombatState" do backlog virou `app/combat/domain.py::advance_turn` (função pura, não classe) + `TurnParticipant`/`TurnAdvanceResult`, testado isoladamente sem DB; será reaproveitado pelo comando `advance_turn` do WebSocket (história 2). Rotas REST: `POST`/`GET /sessions/{session_id}/encounters`, `GET /encounters/{id}`, `POST /encounters/{id}/start` (preparing→active), `POST /encounters/{id}/participants`, `PATCH`/`DELETE /encounters/{id}/participants/{participant_id}` — todas as de escrita são DM-only, leitura é para qualquer membro da campanha. `PATCH` de participante fora do fluxo de turno reaproveita a mesma regra de `CharacterUpdate` (HP acima do máximo rejeitado com 422). Testes: `tests/combat/test_domain.py`, `tests/combat/test_service.py`, `tests/combat/test_router.py` (25 testes).
 
 - **Como DM, quero avançar turnos e aplicar dano/cura/condições em tempo real para todos os jogadores verem.**
   - [ ] `app/combat/ws_manager.py`: `WSConnectionManager` (dict `encounter_id → list[WebSocket]`)

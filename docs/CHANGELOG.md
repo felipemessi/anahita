@@ -105,3 +105,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   magias conhecidas/preparadas, itens do inventário pessoal e
   características de classe/talento na ficha; a ficha de personagem no
   frontend ganhou as seções correspondentes (antes "em breve").
+
+### Added
+- Fase 2 do backend (Sessão ao Vivo), história 1: domínio de combate —
+  `Encounter`, `EncounterParticipant`, `EncounterCondition`, `CombatLog`
+  (PRD §7.6). CRUD REST fora do fluxo de turno: criar/listar encontros de
+  uma sessão, iniciar um encontro (`preparing` → `active`), adicionar/
+  atualizar/remover participantes — tudo restrito ao mestre da campanha,
+  leitura liberada para qualquer membro. Um participante é PC **ou** NPC,
+  nunca ambos, validado em `app/combat/domain.py`.
