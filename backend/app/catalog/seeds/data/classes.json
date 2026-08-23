@@ -1,80 +1,1612 @@
 [
   {
-    "name": "Fighter",
+    "index": "fighter",
     "hit_die": 10,
     "primary_ability": "Strength or Dexterity",
     "saving_throw_proficiencies": "Strength, Constitution",
-    "level_features": [
-      {"level": 1, "feature_name": "Fighting Style", "description": "You adopt a particular style of fighting as your specialty. Choose one of the following options. You can't take a Fighting Style option more than once, even if you later get to choose again.", "mechanical_effect": null},
-      {"level": 1, "feature_name": "Second Wind", "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level.", "mechanical_effect": "second_wind:1d10"},
-      {"level": 2, "feature_name": "Action Surge", "description": "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action.", "mechanical_effect": "action_surge:1"},
-      {"level": 3, "feature_name": "Martial Archetype", "description": "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques.", "mechanical_effect": null},
-      {"level": 5, "feature_name": "Extra Attack", "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn.", "mechanical_effect": "extra_attack:1"},
-      {"level": 11, "feature_name": "Extra Attack (2)", "description": "At 11th level, you can attack three times whenever you take the Attack action on your turn.", "mechanical_effect": "extra_attack:2"},
-      {"level": 20, "feature_name": "Extra Attack (3)", "description": "At 20th level, you can attack four times whenever you take the Attack action on your turn.", "mechanical_effect": "extra_attack:3"}
+    "i18n": {
+      "en": {
+        "name": "Fighter"
+      }
+    },
+    "class_levels": [
+      {
+        "level": 1,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 2,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 3,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 4,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 5,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 6,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 7,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 8,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 9,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 10,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 11,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 12,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 13,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 14,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 15,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 16,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 17,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 18,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 19,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 20,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      }
+    ],
+    "features": [
+      {
+        "index": "fighting-style",
+        "level": 1,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Fighting Style",
+            "description": "You adopt a particular style of fighting as your specialty. Choose one of the following options. You can't take a Fighting Style option more than once, even if you later get to choose again."
+          }
+        }
+      },
+      {
+        "index": "second-wind",
+        "level": 1,
+        "mechanical_effect": "second_wind:1d10",
+        "i18n": {
+          "en": {
+            "feature_name": "Second Wind",
+            "description": "You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level."
+          }
+        }
+      },
+      {
+        "index": "action-surge-1",
+        "level": 2,
+        "mechanical_effect": "action_surge:1",
+        "i18n": {
+          "en": {
+            "feature_name": "Action Surge",
+            "description": "Starting at 2nd level, you can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action."
+          }
+        }
+      },
+      {
+        "index": "martial-archetype",
+        "level": 3,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Martial Archetype",
+            "description": "At 3rd level, you choose an archetype that you strive to emulate in your combat styles and techniques."
+          }
+        }
+      },
+      {
+        "index": "extra-attack-1",
+        "level": 5,
+        "mechanical_effect": "extra_attack:1",
+        "i18n": {
+          "en": {
+            "feature_name": "Extra Attack",
+            "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+          }
+        }
+      },
+      {
+        "index": "extra-attack-2",
+        "level": 11,
+        "mechanical_effect": "extra_attack:2",
+        "i18n": {
+          "en": {
+            "feature_name": "Extra Attack (2)",
+            "description": "At 11th level, you can attack three times whenever you take the Attack action on your turn."
+          }
+        },
+        "prerequisites": [
+          {
+            "prerequisite_type": "feature",
+            "required_feature_index": "extra-attack-1"
+          }
+        ]
+      },
+      {
+        "index": "extra-attack-3",
+        "level": 20,
+        "mechanical_effect": "extra_attack:3",
+        "i18n": {
+          "en": {
+            "feature_name": "Extra Attack (3)",
+            "description": "At 20th level, you can attack four times whenever you take the Attack action on your turn."
+          }
+        },
+        "prerequisites": [
+          {
+            "prerequisite_type": "feature",
+            "required_feature_index": "extra-attack-2"
+          }
+        ]
+      }
     ],
     "subclasses": [
-      {"name": "Champion", "description": "The archetypal Champion focuses on the development of raw physical power honed to deadly perfection. Those who model themselves on this archetype combine rigorous training with physical excellence to deal devastating blows."},
-      {"name": "Battle Master", "description": "Those who emulate the archetypal Battle Master employ martial techniques passed down through generations. A Battle Master might be a skilled duelist, a general, or an instructor."},
-      {"name": "Eldritch Knight", "description": "The archetypal Eldritch Knight combines the martial mastery common to all fighters with a careful study of magic."}
+      {
+        "index": "champion",
+        "i18n": {
+          "en": {
+            "name": "Champion",
+            "description": "The archetypal Champion focuses on the development of raw physical power honed to deadly perfection. Those who model themselves on this archetype combine rigorous training with physical excellence to deal devastating blows.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "improved-critical",
+            "level": 3,
+            "mechanical_effect": "critical_range:19-20",
+            "i18n": {
+              "en": {
+                "feature_name": "Improved Critical",
+                "description": "Beginning when you choose this archetype at 3rd level, your weapon attacks score a critical hit on a roll of 19 or 20."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "battle-master",
+        "i18n": {
+          "en": {
+            "name": "Battle Master",
+            "description": "Those who emulate the archetypal Battle Master employ martial techniques passed down through generations. A Battle Master might be a skilled duelist, a general, or an instructor.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "combat-superiority",
+            "level": 3,
+            "mechanical_effect": "superiority_dice:4d8",
+            "i18n": {
+              "en": {
+                "feature_name": "Combat Superiority",
+                "description": "When you choose this archetype at 3rd level, you learn maneuvers that are fueled by special dice called superiority dice."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "eldritch-knight",
+        "i18n": {
+          "en": {
+            "name": "Eldritch Knight",
+            "description": "The archetypal Eldritch Knight combines the martial mastery common to all fighters with a careful study of magic.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "ek-spellcasting",
+            "level": 3,
+            "mechanical_effect": "spellcasting:intelligence",
+            "i18n": {
+              "en": {
+                "feature_name": "Spellcasting",
+                "description": "When you reach 3rd level, you augment your martial prowess with the ability to cast spells."
+              }
+            }
+          }
+        ]
+      }
     ]
   },
   {
-    "name": "Wizard",
+    "index": "wizard",
     "hit_die": 6,
     "primary_ability": "Intelligence",
     "saving_throw_proficiencies": "Intelligence, Wisdom",
-    "level_features": [
-      {"level": 1, "feature_name": "Spellcasting", "description": "As a student of arcane magic, you have a spellbook containing spells that show the first glimmerings of your true power.", "mechanical_effect": "spellcasting:intelligence"},
-      {"level": 1, "feature_name": "Arcane Recovery", "description": "You have learned to regain some of your magical energy by studying your spellbook. Once per day when you finish a short rest, you can choose expended spell slots to recover.", "mechanical_effect": null},
-      {"level": 2, "feature_name": "Arcane Tradition", "description": "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools.", "mechanical_effect": null},
-      {"level": 18, "feature_name": "Spell Mastery", "description": "At 18th level, you have achieved such mastery over certain spells that you can cast them at will.", "mechanical_effect": null},
-      {"level": 20, "feature_name": "Signature Spells", "description": "When you reach 20th level, you gain mastery over two powerful spells and can cast them with little effort.", "mechanical_effect": null}
+    "i18n": {
+      "en": {
+        "name": "Wizard"
+      }
+    },
+    "class_levels": [
+      {
+        "level": 1,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null,
+        "spell_slots": [
+          {
+            "spell_level": 0,
+            "slot_count": 3
+          },
+          {
+            "spell_level": 1,
+            "slot_count": 2
+          }
+        ]
+      },
+      {
+        "level": 2,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null,
+        "spell_slots": [
+          {
+            "spell_level": 0,
+            "slot_count": 3
+          },
+          {
+            "spell_level": 1,
+            "slot_count": 3
+          }
+        ]
+      },
+      {
+        "level": 3,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null,
+        "spell_slots": [
+          {
+            "spell_level": 0,
+            "slot_count": 3
+          },
+          {
+            "spell_level": 1,
+            "slot_count": 4
+          },
+          {
+            "spell_level": 2,
+            "slot_count": 2
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 5,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 6,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 7,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 8,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 9,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 10,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 11,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 12,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 13,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 14,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 15,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 16,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 17,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 18,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 19,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 20,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      }
+    ],
+    "features": [
+      {
+        "index": "spellcasting",
+        "level": 1,
+        "mechanical_effect": "spellcasting:intelligence",
+        "i18n": {
+          "en": {
+            "feature_name": "Spellcasting",
+            "description": "As a student of arcane magic, you have a spellbook containing spells that show the first glimmerings of your true power."
+          }
+        }
+      },
+      {
+        "index": "arcane-recovery",
+        "level": 1,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Arcane Recovery",
+            "description": "You have learned to regain some of your magical energy by studying your spellbook. Once per day when you finish a short rest, you can choose expended spell slots to recover."
+          }
+        }
+      },
+      {
+        "index": "arcane-tradition",
+        "level": 2,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Arcane Tradition",
+            "description": "When you reach 2nd level, you choose an arcane tradition, shaping your practice of magic through one of eight schools."
+          }
+        }
+      },
+      {
+        "index": "spell-mastery",
+        "level": 18,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Spell Mastery",
+            "description": "At 18th level, you have achieved such mastery over certain spells that you can cast them at will."
+          }
+        }
+      },
+      {
+        "index": "signature-spells",
+        "level": 20,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Signature Spells",
+            "description": "When you reach 20th level, you gain mastery over two powerful spells and can cast them with little effort."
+          }
+        }
+      }
     ],
     "subclasses": [
-      {"name": "School of Evocation", "description": "You focus your studies on magic that creates powerful elemental effects such as bitter cold, searing flame, rolling thunder, crackling lightning, and burning acid."},
-      {"name": "School of Abjuration", "description": "The School of Abjuration emphasizes magic that blocks, banishes, or protects."},
-      {"name": "School of Divination", "description": "The counsel of a diviner is sought by royalty and commoners alike, for all seek a clearer understanding of the past, present, and future."},
-      {"name": "School of Illusion", "description": "You focus your studies on magic that dazzles the senses, befuddles the mind, and tricks even the wisest folk."}
+      {
+        "index": "school-of-evocation",
+        "i18n": {
+          "en": {
+            "name": "School of Evocation",
+            "description": "You focus your studies on magic that creates powerful elemental effects such as bitter cold, searing flame, rolling thunder, crackling lightning, and burning acid.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "evocation-savant",
+            "level": 2,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Evocation Savant",
+                "description": "Beginning when you select this school at 2nd level, the gold and time you must spend to copy an evocation spell into your spellbook is halved."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "school-of-abjuration",
+        "i18n": {
+          "en": {
+            "name": "School of Abjuration",
+            "description": "The School of Abjuration emphasizes magic that blocks, banishes, or protects.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "abjuration-savant",
+            "level": 2,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Abjuration Savant",
+                "description": "Beginning when you select this school at 2nd level, the gold and time you must spend to copy an abjuration spell into your spellbook is halved."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "school-of-divination",
+        "i18n": {
+          "en": {
+            "name": "School of Divination",
+            "description": "The counsel of a diviner is sought by royalty and commoners alike, for all seek a clearer understanding of the past, present, and future.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "portent",
+            "level": 2,
+            "mechanical_effect": "portent_dice:2d20",
+            "i18n": {
+              "en": {
+                "feature_name": "Portent",
+                "description": "When you choose this school at 2nd level, glimpses of the future begin to press in on your awareness."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "school-of-illusion",
+        "i18n": {
+          "en": {
+            "name": "School of Illusion",
+            "description": "You focus your studies on magic that dazzles the senses, befuddles the mind, and tricks even the wisest folk.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "improved-minor-illusion",
+            "level": 2,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Improved Minor Illusion",
+                "description": "When you choose this school at 2nd level, you learn the minor illusion cantrip."
+              }
+            }
+          }
+        ]
+      }
     ]
   },
   {
-    "name": "Rogue",
+    "index": "rogue",
     "hit_die": 8,
     "primary_ability": "Dexterity",
     "saving_throw_proficiencies": "Dexterity, Intelligence",
-    "level_features": [
-      {"level": 1, "feature_name": "Expertise", "description": "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies.", "mechanical_effect": "expertise:2_skills"},
-      {"level": 1, "feature_name": "Sneak Attack", "description": "Beginning at 1st level, you know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll.", "mechanical_effect": "sneak_attack:1d6"},
-      {"level": 1, "feature_name": "Thieves' Cant", "description": "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code.", "mechanical_effect": null},
-      {"level": 2, "feature_name": "Cunning Action", "description": "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action.", "mechanical_effect": "bonus_action:dash,disengage,hide"},
-      {"level": 3, "feature_name": "Roguish Archetype", "description": "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities.", "mechanical_effect": null},
-      {"level": 5, "feature_name": "Uncanny Dodge", "description": "Starting at 5th level, when an attacker that you can see hits you with an attack, you can use your reaction to halve the attack's damage against you.", "mechanical_effect": "uncanny_dodge"},
-      {"level": 7, "feature_name": "Evasion", "description": "Beginning at 7th level, you can nimbly dodge out of the way of certain area effects, such as a red dragon's fiery breath or an ice storm spell.", "mechanical_effect": "evasion"}
+    "i18n": {
+      "en": {
+        "name": "Rogue"
+      }
+    },
+    "class_levels": [
+      {
+        "level": 1,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 2,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 3,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 4,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 5,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 6,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 7,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 8,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 9,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 10,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 11,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 12,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 13,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 14,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 15,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 16,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 17,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 18,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 19,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 20,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      }
+    ],
+    "features": [
+      {
+        "index": "expertise-1",
+        "level": 1,
+        "mechanical_effect": "expertise:2_skills",
+        "i18n": {
+          "en": {
+            "feature_name": "Expertise",
+            "description": "At 1st level, choose two of your skill proficiencies, or one of your skill proficiencies and your proficiency with thieves' tools. Your proficiency bonus is doubled for any ability check you make that uses either of the chosen proficiencies."
+          }
+        }
+      },
+      {
+        "index": "sneak-attack",
+        "level": 1,
+        "mechanical_effect": "sneak_attack:1d6",
+        "i18n": {
+          "en": {
+            "feature_name": "Sneak Attack",
+            "description": "Beginning at 1st level, you know how to strike subtly and exploit a foe's distraction. Once per turn, you can deal an extra 1d6 damage to one creature you hit with an attack if you have advantage on the attack roll."
+          }
+        }
+      },
+      {
+        "index": "thieves-cant",
+        "level": 1,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Thieves' Cant",
+            "description": "During your rogue training you learned thieves' cant, a secret mix of dialect, jargon, and code."
+          }
+        }
+      },
+      {
+        "index": "cunning-action",
+        "level": 2,
+        "mechanical_effect": "bonus_action:dash,disengage,hide",
+        "i18n": {
+          "en": {
+            "feature_name": "Cunning Action",
+            "description": "Starting at 2nd level, your quick thinking and agility allow you to move and act quickly. You can take a bonus action on each of your turns in combat. This action can be used only to take the Dash, Disengage, or Hide action."
+          }
+        }
+      },
+      {
+        "index": "roguish-archetype",
+        "level": 3,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Roguish Archetype",
+            "description": "At 3rd level, you choose an archetype that you emulate in the exercise of your rogue abilities."
+          }
+        }
+      },
+      {
+        "index": "uncanny-dodge",
+        "level": 5,
+        "mechanical_effect": "uncanny_dodge",
+        "i18n": {
+          "en": {
+            "feature_name": "Uncanny Dodge",
+            "description": "Starting at 5th level, when an attacker that you can see hits you with an attack, you can use your reaction to halve the attack's damage against you."
+          }
+        }
+      },
+      {
+        "index": "evasion",
+        "level": 7,
+        "mechanical_effect": "evasion",
+        "i18n": {
+          "en": {
+            "feature_name": "Evasion",
+            "description": "Beginning at 7th level, you can nimbly dodge out of the way of certain area effects, such as a red dragon's fiery breath or an ice storm spell."
+          }
+        }
+      }
     ],
     "subclasses": [
-      {"name": "Thief", "description": "You hone your skills in the larcenous arts. Burglars, bandits, cutpurses, and other criminals typically follow this archetype, but so do rogues who prefer to think of themselves as professional treasure seekers."},
-      {"name": "Assassin", "description": "You focus your training on the grim art of death. Those who adhere to this archetype are diverse: hired killers, spies, bounty hunters, and even specially anointed priests trained to exterminate the enemies of their deity."},
-      {"name": "Arcane Trickster", "description": "Some rogues enhance their fine-honed skills of stealth and agility with magic, learning tricks of enchantment and illusion."}
+      {
+        "index": "thief",
+        "i18n": {
+          "en": {
+            "name": "Thief",
+            "description": "You hone your skills in the larcenous arts. Burglars, bandits, cutpurses, and other criminals typically follow this archetype, but so do rogues who prefer to think of themselves as professional treasure seekers.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "fast-hands",
+            "level": 3,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Fast Hands",
+                "description": "Starting at 3rd level, you can use the bonus action granted by your Cunning Action to make a Dexterity (Sleight of Hand) check, use your thieves' tools to disarm a trap or open a lock, or take the Use an Object action."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "assassin",
+        "i18n": {
+          "en": {
+            "name": "Assassin",
+            "description": "You focus your training on the grim art of death. Those who adhere to this archetype are diverse: hired killers, spies, bounty hunters, and even specially anointed priests trained to exterminate the enemies of their deity.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "assassinate",
+            "level": 3,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Assassinate",
+                "description": "Starting at 3rd level, you are at your deadliest when you get the drop on your enemies. You have advantage on attack rolls against any creature that hasn't taken a turn in the combat yet."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "arcane-trickster",
+        "i18n": {
+          "en": {
+            "name": "Arcane Trickster",
+            "description": "Some rogues enhance their fine-honed skills of stealth and agility with magic, learning tricks of enchantment and illusion.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "at-spellcasting",
+            "level": 3,
+            "mechanical_effect": "spellcasting:intelligence",
+            "i18n": {
+              "en": {
+                "feature_name": "Spellcasting",
+                "description": "When you reach 3rd level, you gain the ability to cast spells."
+              }
+            }
+          }
+        ]
+      }
     ]
   },
   {
-    "name": "Cleric",
+    "index": "cleric",
     "hit_die": 8,
     "primary_ability": "Wisdom",
     "saving_throw_proficiencies": "Wisdom, Charisma",
-    "level_features": [
-      {"level": 1, "feature_name": "Spellcasting", "description": "As a conduit for divine power, you can cast cleric spells.", "mechanical_effect": "spellcasting:wisdom"},
-      {"level": 1, "feature_name": "Divine Domain", "description": "Choose one domain related to your deity. Your choice grants you domain spells and other features when you choose it at 1st level.", "mechanical_effect": null},
-      {"level": 2, "feature_name": "Channel Divinity", "description": "At 2nd level, you gain the ability to channel divine energy directly from your deity, using that energy to fuel magical effects.", "mechanical_effect": "channel_divinity:1"},
-      {"level": 2, "feature_name": "Turn Undead", "description": "As an action, you present your holy symbol and speak a prayer censuring the undead. Each undead that can see or hear you within 30 feet of you must make a Wisdom saving throw.", "mechanical_effect": "turn_undead"},
-      {"level": 5, "feature_name": "Destroy Undead", "description": "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold.", "mechanical_effect": "destroy_undead:cr_1/2"},
-      {"level": 10, "feature_name": "Divine Intervention", "description": "Beginning at 10th level, you can call on your deity to intervene on your behalf when your need is great.", "mechanical_effect": "divine_intervention"}
+    "i18n": {
+      "en": {
+        "name": "Cleric"
+      }
+    },
+    "class_levels": [
+      {
+        "level": 1,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 2,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 3,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 4,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 5,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 6,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 7,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 8,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 9,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 10,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 11,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 12,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 13,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 14,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 15,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 16,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 17,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 18,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      },
+      {
+        "level": 19,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": 1
+      },
+      {
+        "level": 20,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null
+      }
+    ],
+    "features": [
+      {
+        "index": "cleric-spellcasting",
+        "level": 1,
+        "mechanical_effect": "spellcasting:wisdom",
+        "i18n": {
+          "en": {
+            "feature_name": "Spellcasting",
+            "description": "As a conduit for divine power, you can cast cleric spells."
+          }
+        }
+      },
+      {
+        "index": "divine-domain",
+        "level": 1,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Divine Domain",
+            "description": "Choose one domain related to your deity. Your choice grants you domain spells and other features when you choose it at 1st level."
+          }
+        }
+      },
+      {
+        "index": "channel-divinity-1",
+        "level": 2,
+        "mechanical_effect": "channel_divinity:1",
+        "i18n": {
+          "en": {
+            "feature_name": "Channel Divinity",
+            "description": "At 2nd level, you gain the ability to channel divine energy directly from your deity, using that energy to fuel magical effects."
+          }
+        }
+      },
+      {
+        "index": "turn-undead",
+        "level": 2,
+        "mechanical_effect": "turn_undead",
+        "i18n": {
+          "en": {
+            "feature_name": "Turn Undead",
+            "description": "As an action, you present your holy symbol and speak a prayer censuring the undead. Each undead that can see or hear you within 30 feet of you must make a Wisdom saving throw."
+          }
+        }
+      },
+      {
+        "index": "destroy-undead",
+        "level": 5,
+        "mechanical_effect": "destroy_undead:cr_1/2",
+        "i18n": {
+          "en": {
+            "feature_name": "Destroy Undead",
+            "description": "Starting at 5th level, when an undead fails its saving throw against your Turn Undead feature, the creature is instantly destroyed if its challenge rating is at or below a certain threshold."
+          }
+        }
+      },
+      {
+        "index": "divine-intervention",
+        "level": 10,
+        "mechanical_effect": "divine_intervention",
+        "i18n": {
+          "en": {
+            "feature_name": "Divine Intervention",
+            "description": "Beginning at 10th level, you can call on your deity to intervene on your behalf when your need is great."
+          }
+        }
+      }
     ],
     "subclasses": [
-      {"name": "Life Domain", "description": "The Life domain focuses on the vibrant positive energy — one of the fundamental forces of the universe — that sustains all life. The gods of life promote vitality and health through healing the sick and wounded, caring for those in need, and driving away the forces of death and undeath."},
-      {"name": "Light Domain", "description": "Gods of light — including Helm, Lathander, Pholtus, Branchala, the Silver Flame, Belenus, Apollo, and Re-Horakhty — promote the ideals of rebirth and renewal, truth, vigilance, and beauty, often using the symbol of the sun."},
-      {"name": "War Domain", "description": "War has many manifestations. It can make heroes of ordinary people. It can be desperate and horrific, with acts of cruelty and cowardice eclipsing instances of excellence and courage."}
+      {
+        "index": "life-domain",
+        "i18n": {
+          "en": {
+            "name": "Life Domain",
+            "description": "The Life domain focuses on the vibrant positive energy \u2014 one of the fundamental forces of the universe \u2014 that sustains all life. The gods of life promote vitality and health through healing the sick and wounded, caring for those in need, and driving away the forces of death and undeath.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "disciple-of-life",
+            "level": 1,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Disciple of Life",
+                "description": "Your healing spells are more effective. Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "light-domain",
+        "i18n": {
+          "en": {
+            "name": "Light Domain",
+            "description": "Gods of light \u2014 including Helm, Lathander, Pholtus, Branchala, the Silver Flame, Belenus, Apollo, and Re-Horakhty \u2014 promote the ideals of rebirth and renewal, truth, vigilance, and beauty, often using the symbol of the sun.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "warding-flare",
+            "level": 1,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "Warding Flare",
+                "description": "You can interpose divine light between yourself and an attacking enemy. When you are attacked by a creature you can see within 30 feet of you, you can use your reaction to impose disadvantage on the attack roll."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "index": "war-domain",
+        "i18n": {
+          "en": {
+            "name": "War Domain",
+            "description": "War has many manifestations. It can make heroes of ordinary people. It can be desperate and horrific, with acts of cruelty and cowardice eclipsing instances of excellence and courage.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "war-priest",
+            "level": 1,
+            "mechanical_effect": null,
+            "i18n": {
+              "en": {
+                "feature_name": "War Priest",
+                "description": "Your god delivers bonus attacks through you when you smite your foes. When you use the Attack action, you can make one weapon attack as a bonus action."
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "index": "barbarian",
+    "hit_die": 12,
+    "primary_ability": "Strength",
+    "saving_throw_proficiencies": "Strength, Constitution",
+    "i18n": {
+      "en": {
+        "name": "Barbarian"
+      }
+    },
+    "class_levels": [
+      {
+        "level": 1,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "2"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 2,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "2"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 3,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "3"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "proficiency_bonus": 2,
+        "ability_score_bonuses": 1,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "3"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 5,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "3"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 6,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "4"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 7,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "4"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 8,
+        "proficiency_bonus": 3,
+        "ability_score_bonuses": 1,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "4"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+2"
+          }
+        ]
+      },
+      {
+        "level": 9,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "4"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 10,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "4"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 11,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "4"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 12,
+        "proficiency_bonus": 4,
+        "ability_score_bonuses": 1,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "5"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 13,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "5"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 14,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "5"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 15,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "5"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 16,
+        "proficiency_bonus": 5,
+        "ability_score_bonuses": 1,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "5"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 17,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "6"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+3"
+          }
+        ]
+      },
+      {
+        "level": 18,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "6"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+4"
+          }
+        ]
+      },
+      {
+        "level": 19,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": 1,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "6"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+4"
+          }
+        ]
+      },
+      {
+        "level": 20,
+        "proficiency_bonus": 6,
+        "ability_score_bonuses": null,
+        "resources": [
+          {
+            "resource_key": "rage_count",
+            "value": "unlimited"
+          },
+          {
+            "resource_key": "rage_damage",
+            "value": "+4"
+          }
+        ]
+      }
+    ],
+    "features": [
+      {
+        "index": "rage",
+        "level": 1,
+        "mechanical_effect": "rage_count:see_resources",
+        "i18n": {
+          "en": {
+            "feature_name": "Rage",
+            "description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action."
+          }
+        }
+      },
+      {
+        "index": "unarmored-defense-barbarian",
+        "level": 1,
+        "mechanical_effect": "ac:10+dex+con",
+        "i18n": {
+          "en": {
+            "feature_name": "Unarmored Defense",
+            "description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier."
+          }
+        }
+      },
+      {
+        "index": "reckless-attack",
+        "level": 2,
+        "mechanical_effect": "advantage:melee_str_attacks",
+        "i18n": {
+          "en": {
+            "feature_name": "Reckless Attack",
+            "description": "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation."
+          }
+        }
+      },
+      {
+        "index": "danger-sense",
+        "level": 2,
+        "mechanical_effect": "advantage:dex_saves_seen",
+        "i18n": {
+          "en": {
+            "feature_name": "Danger Sense",
+            "description": "At 2nd level, you gain an uncanny sense of when things nearby aren't as they should be, giving you an edge when you dodge away from danger."
+          }
+        }
+      },
+      {
+        "index": "primal-path",
+        "level": 3,
+        "mechanical_effect": null,
+        "i18n": {
+          "en": {
+            "feature_name": "Primal Path",
+            "description": "At 3rd level, you choose a path that shapes the nature of your rage."
+          }
+        }
+      },
+      {
+        "index": "extra-attack-barbarian",
+        "level": 5,
+        "mechanical_effect": "extra_attack:1",
+        "i18n": {
+          "en": {
+            "feature_name": "Extra Attack",
+            "description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+          }
+        },
+        "prerequisites": [
+          {
+            "prerequisite_type": "feature",
+            "required_feature_index": "rage"
+          }
+        ]
+      },
+      {
+        "index": "fast-movement",
+        "level": 5,
+        "mechanical_effect": "speed:+10",
+        "i18n": {
+          "en": {
+            "feature_name": "Fast Movement",
+            "description": "Starting at 5th level, your speed increases by 10 feet while you aren't wearing heavy armor."
+          }
+        }
+      },
+      {
+        "index": "feral-instinct",
+        "level": 7,
+        "mechanical_effect": "advantage:initiative",
+        "i18n": {
+          "en": {
+            "feature_name": "Feral Instinct",
+            "description": "By 7th level, your instincts are so honed that you have advantage on initiative rolls."
+          }
+        }
+      },
+      {
+        "index": "brutal-critical",
+        "level": 9,
+        "mechanical_effect": "brutal_critical:1d",
+        "i18n": {
+          "en": {
+            "feature_name": "Brutal Critical",
+            "description": "Beginning at 9th level, you can roll one additional weapon damage die when determining the extra damage for a critical hit with a melee attack."
+          }
+        }
+      },
+      {
+        "index": "relentless-rage",
+        "level": 11,
+        "mechanical_effect": "relentless_rage",
+        "i18n": {
+          "en": {
+            "feature_name": "Relentless Rage",
+            "description": "Starting at 11th level, your rage can keep you fighting despite grievous wounds."
+          }
+        }
+      },
+      {
+        "index": "persistent-rage",
+        "level": 15,
+        "mechanical_effect": "persistent_rage",
+        "i18n": {
+          "en": {
+            "feature_name": "Persistent Rage",
+            "description": "Beginning at 15th level, your rage is so fierce that it ends early only if you fall unconscious or if you choose to end it."
+          }
+        }
+      },
+      {
+        "index": "indomitable-might",
+        "level": 18,
+        "mechanical_effect": "indomitable_might",
+        "i18n": {
+          "en": {
+            "feature_name": "Indomitable Might",
+            "description": "Beginning at 18th level, if your total for a Strength check is less than your Strength score, you can use that score in place of the total."
+          }
+        }
+      },
+      {
+        "index": "primal-champion",
+        "level": 20,
+        "mechanical_effect": "ability_bonus:str+4,con+4",
+        "i18n": {
+          "en": {
+            "feature_name": "Primal Champion",
+            "description": "At 20th level, you embody the power of the wilds. Your Strength and Constitution scores increase by 4."
+          }
+        }
+      }
+    ],
+    "subclasses": [
+      {
+        "index": "path-of-the-berserker",
+        "i18n": {
+          "en": {
+            "name": "Path of the Berserker",
+            "description": "For some barbarians, rage is a means to an end \u2014 that end being violence. The Path of the Berserker is a path of untrammeled fury, slick with blood.",
+            "flavor": ""
+          }
+        },
+        "features": [
+          {
+            "index": "frenzy",
+            "level": 3,
+            "mechanical_effect": "frenzy",
+            "i18n": {
+              "en": {
+                "feature_name": "Frenzy",
+                "description": "Starting when you choose this path at 3rd level, you can go into a frenzy when you rage."
+              }
+            }
+          },
+          {
+            "index": "mindless-rage",
+            "level": 6,
+            "mechanical_effect": "immune:charmed,frightened_while_raging",
+            "i18n": {
+              "en": {
+                "feature_name": "Mindless Rage",
+                "description": "Beginning at 6th level, you can't be charmed or frightened while raging."
+              }
+            }
+          },
+          {
+            "index": "intimidating-presence",
+            "level": 10,
+            "mechanical_effect": "frighten:wis_save",
+            "i18n": {
+              "en": {
+                "feature_name": "Intimidating Presence",
+                "description": "Beginning at 10th level, you can use your action to frighten someone with your menacing presence."
+              }
+            }
+          },
+          {
+            "index": "retaliation",
+            "level": 14,
+            "mechanical_effect": "reaction:retaliation",
+            "i18n": {
+              "en": {
+                "feature_name": "Retaliation",
+                "description": "Starting at 14th level, when you take damage from a creature that is within 5 feet of you, you can use your reaction to make a melee weapon attack against that creature."
+              }
+            }
+          }
+        ]
+      }
     ]
   }
 ]

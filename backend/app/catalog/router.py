@@ -58,24 +58,25 @@ async def list_classes(
     db: DB,
     search: SearchQ = None,
     include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
 ) -> list[ClassSummary]:
     """List all class definitions, optionally filtered by name."""
-    classes = await service.list_classes(
-        db, search=search, include_custom=include_custom
+    return await service.list_classes_translated(
+        db, search=search, include_custom=include_custom, locale=locale
     )
-    return [ClassSummary.model_validate(c) for c in classes]
 
 
 @router.get("/classes/{class_id}", response_model=ClassDefinitionRead)
 async def get_class(
     class_id: uuid.UUID,
     db: DB,
+    locale: LocaleQ = "en",
 ) -> ClassDefinitionRead:
-    """Get a class definition by ID with full details (level features, subclasses)."""
-    cls = await service.get_class(db, class_id)
+    """Get a class definition by ID with full progression (levels, features, subclasses)."""  # noqa: E501
+    cls = await service.get_class_translated(db, class_id, locale=locale)
     if cls is None:
         raise HTTPException(status_code=404, detail="Class not found")
-    return ClassDefinitionRead.model_validate(cls)
+    return cls
 
 
 @router.get("/spells", response_model=list[SpellSummary])

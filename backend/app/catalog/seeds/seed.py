@@ -11,7 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.catalog.models import (
     ArmorDetail,
     ClassDefinition,
+    ClassDefinitionI18n,
+    ClassLevel,
     ClassLevelFeature,
+    ClassLevelResource,
+    ClassLevelSpellSlot,
+    Feature,
+    FeatureI18n,
+    FeaturePrerequisite,
     Item,
     Race,
     RaceAbilityBonus,
@@ -20,6 +27,7 @@ from app.catalog.models import (
     RaceTraitI18n,
     Spell,
     SubclassDefinition,
+    SubclassDefinitionI18n,
     Subrace,
     SubraceI18n,
     SubraceTrait,
@@ -129,6 +137,55 @@ async def _seed_races(session: AsyncSession) -> None:
                 await _seed_i18n(session, SubraceTraitI18n, subrace_trait.id, t["i18n"])
 
 
+async def _seed_class_feature(
+    session: AsyncSession,
+    feat: dict[str, Any],
+    *,
+    owning_class_definition_id: uuid.UUID,
+    feature_class_definition_id: uuid.UUID | None,
+    feature_subclass_definition_id: uuid.UUID | None,
+    class_level_by_level: dict[int, ClassLevel],
+) -> Feature:
+    """Create a Feature row and attach it to the matching ClassLevel via the junction.
+
+    `owning_class_definition_id` is always the parent ClassDefinition (required
+    on every `ClassLevel` row, even a subclass-specific one); the two
+    `feature_*_definition_id` params set `Feature`'s own mutually-exclusive
+    owner FKs.
+    """
+    feature = Feature(
+        id=uuid.uuid4(),
+        index=feat["index"],
+        class_definition_id=feature_class_definition_id,
+        subclass_definition_id=feature_subclass_definition_id,
+        level=feat["level"],
+        mechanical_effect=feat.get("mechanical_effect"),
+        is_custom=False,
+    )
+    session.add(feature)
+    await _seed_i18n(session, FeatureI18n, feature.id, feat["i18n"])
+
+    class_level = class_level_by_level.get(feat["level"])
+    if class_level is None:
+        # Subclass feature at a level with no ClassLevel row yet — create the
+        # subclass-specific progression row on demand (see PRD §7.4.4:
+        # `ClassLevel.subclass_definition_id` tracks a subclass's own grants).
+        class_level = ClassLevel(
+            id=uuid.uuid4(),
+            class_definition_id=owning_class_definition_id,
+            subclass_definition_id=feature_subclass_definition_id,
+            level=feat["level"],
+        )
+        session.add(class_level)
+        class_level_by_level[feat["level"]] = class_level
+    session.add(
+        ClassLevelFeature(
+            id=uuid.uuid4(), class_level_id=class_level.id, feature_id=feature.id
+        )
+    )
+    return feature
+
+
 async def _seed_classes(session: AsyncSession) -> None:
     count = await session.scalar(select(ClassDefinition).limit(1))
     if count is not None:
@@ -138,36 +195,95 @@ async def _seed_classes(session: AsyncSession) -> None:
     for entry in data:
         cls = ClassDefinition(
             id=uuid.uuid4(),
-            name=entry["name"],
+            index=entry["index"],
             hit_die=entry["hit_die"],
             primary_ability=entry["primary_ability"],
             saving_throw_proficiencies=entry["saving_throw_proficiencies"],
             is_custom=False,
         )
         session.add(cls)
+        await _seed_i18n(session, ClassDefinitionI18n, cls.id, entry["i18n"])
 
-        for feat in entry.get("level_features", []):
+        base_levels: dict[int, ClassLevel] = {}
+        for lvl in entry["class_levels"]:
+            class_level = ClassLevel(
+                id=uuid.uuid4(),
+                class_definition_id=cls.id,
+                subclass_definition_id=None,
+                level=lvl["level"],
+                proficiency_bonus=lvl["proficiency_bonus"],
+                ability_score_bonuses=lvl["ability_score_bonuses"],
+            )
+            session.add(class_level)
+            base_levels[lvl["level"]] = class_level
+
+            for slot in lvl.get("spell_slots", []):
+                session.add(
+                    ClassLevelSpellSlot(
+                        id=uuid.uuid4(),
+                        class_level_id=class_level.id,
+                        spell_level=slot["spell_level"],
+                        slot_count=slot["slot_count"],
+                    )
+                )
+            for res in lvl.get("resources", []):
+                session.add(
+                    ClassLevelResource(
+                        id=uuid.uuid4(),
+                        class_level_id=class_level.id,
+                        resource_key=res["resource_key"],
+                        value=res["value"],
+                    )
+                )
+
+        features_by_index: dict[str, Feature] = {}
+        pending_prerequisites: list[tuple[Feature, dict[str, Any]]] = []
+        for feat in entry.get("features", []):
+            feature = await _seed_class_feature(
+                session,
+                feat,
+                owning_class_definition_id=cls.id,
+                feature_class_definition_id=cls.id,
+                feature_subclass_definition_id=None,
+                class_level_by_level=base_levels,
+            )
+            features_by_index[feat["index"]] = feature
+            for prereq in feat.get("prerequisites", []):
+                pending_prerequisites.append((feature, prereq))
+
+        for feature, prereq in pending_prerequisites:
+            required = features_by_index.get(prereq.get("required_feature_index", ""))
             session.add(
-                ClassLevelFeature(
+                FeaturePrerequisite(
                     id=uuid.uuid4(),
-                    class_definition_id=cls.id,
-                    level=feat["level"],
-                    feature_name=feat["feature_name"],
-                    description=feat["description"],
-                    mechanical_effect=feat.get("mechanical_effect"),
+                    feature_id=feature.id,
+                    prerequisite_type=prereq["prerequisite_type"],
+                    level=prereq.get("level"),
+                    required_feature_id=required.id if required else None,
+                    spell_id=None,
                 )
             )
 
         for sc in entry.get("subclasses", []):
-            session.add(
-                SubclassDefinition(
-                    id=uuid.uuid4(),
-                    class_definition_id=cls.id,
-                    name=sc["name"],
-                    description=sc["description"],
-                    is_custom=False,
-                )
+            subclass = SubclassDefinition(
+                id=uuid.uuid4(),
+                class_definition_id=cls.id,
+                index=sc["index"],
+                is_custom=False,
             )
+            session.add(subclass)
+            await _seed_i18n(session, SubclassDefinitionI18n, subclass.id, sc["i18n"])
+
+            subclass_levels: dict[int, ClassLevel] = {}
+            for feat in sc.get("features", []):
+                await _seed_class_feature(
+                    session,
+                    feat,
+                    owning_class_definition_id=cls.id,
+                    feature_class_definition_id=None,
+                    feature_subclass_definition_id=subclass.id,
+                    class_level_by_level=subclass_levels,
+                )
 
 
 async def _seed_spells(session: AsyncSession) -> None:

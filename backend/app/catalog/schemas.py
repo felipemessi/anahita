@@ -86,50 +86,104 @@ class RaceSummary(BaseModel):
     is_custom: bool
 
 
-class ClassLevelFeatureRead(BaseModel):
-    """Read schema for a class level feature."""
+class FeaturePrerequisiteRead(BaseModel):
+    """Read schema for a feature prerequisite."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    prerequisite_type: str
+    level: int | None
+    required_feature_id: uuid.UUID | None
+    spell_id: uuid.UUID | None
+
+
+class FeatureRead(BaseModel):
+    """Read schema for a class/subclass feature, with translated text resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    level: int
+    feature_name: str
+    description: str
+    mechanical_effect: str | None
+    parent_feature_id: uuid.UUID | None
+    prerequisites: list[FeaturePrerequisiteRead]
+
+
+class ClassLevelSpellSlotRead(BaseModel):
+    """Read schema for a spell slot count at a class level."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    spell_level: int
+    slot_count: int
+
+
+class ClassLevelResourceRead(BaseModel):
+    """Read schema for a structured class resource at a class level."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    resource_key: str
+    value: str
+
+
+class ClassLevelRead(BaseModel):
+    """Read schema for one row of a class's level-by-level progression."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     level: int
-    feature_name: str
-    description: str
-    mechanical_effect: str | None
+    proficiency_bonus: int | None
+    ability_score_bonuses: int | None
+    features: list[FeatureRead]
+    spell_slots: list[ClassLevelSpellSlotRead]
+    resources: list[ClassLevelResourceRead]
 
 
 class SubclassRead(BaseModel):
-    """Read schema for a subclass."""
+    """Read schema for a subclass, with translated text resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     description: str
+    flavor: str
     is_custom: bool
+    features: list[FeatureRead]
 
 
 class ClassDefinitionRead(BaseModel):
-    """Read schema for a class definition."""
+    """Read schema for a class definition, with translated text resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     hit_die: int
     primary_ability: str
     saving_throw_proficiencies: str
     is_custom: bool
-    level_features: list[ClassLevelFeatureRead]
+    levels: list[ClassLevelRead]
     subclasses: list[SubclassRead]
 
 
 class ClassSummary(BaseModel):
-    """Lightweight class listing schema."""
+    """Lightweight class listing schema, with translated `name` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     hit_die: int
     primary_ability: str

@@ -25,16 +25,20 @@ async def test_seed_creates_races(db: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_seed_creates_classes(db: AsyncSession) -> None:
-    """seed_catalog should insert the four SRD classes."""
+    """seed_catalog should insert the five SRD classes."""
     await seed_catalog(db)
 
     classes = (
-        (await db.execute(select(ClassDefinition).order_by(ClassDefinition.name)))
+        (await db.execute(select(ClassDefinition).order_by(ClassDefinition.index)))
         .scalars()
         .all()
     )
-    names = {c.name for c in classes}
-    assert names == {"Cleric", "Fighter", "Rogue", "Wizard"}
+    indexes = {c.index for c in classes}
+    assert indexes == {"barbarian", "cleric", "fighter", "rogue", "wizard"}
+
+    summaries = await service.list_classes_translated(db)
+    names = {c.name for c in summaries}
+    assert names == {"Barbarian", "Cleric", "Fighter", "Rogue", "Wizard"}
 
 
 @pytest.mark.asyncio

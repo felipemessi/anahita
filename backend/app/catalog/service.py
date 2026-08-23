@@ -11,8 +11,13 @@ from app.catalog.models import (
     AbilityScoreDefinition,
     Alignment,
     ClassDefinition,
+    ClassDefinitionI18n,
+    ClassLevel,
+    ClassLevelFeature,
     Condition,
     DamageType,
+    Feature,
+    FeatureI18n,
     Item,
     Language,
     MagicSchool,
@@ -25,6 +30,8 @@ from app.catalog.models import (
     RaceTraitI18n,
     SkillDefinition,
     Spell,
+    SubclassDefinition,
+    SubclassDefinitionI18n,
     Subrace,
     SubraceI18n,
     SubraceTrait,
@@ -32,10 +39,18 @@ from app.catalog.models import (
     WeaponProperty,
 )
 from app.catalog.schemas import (
+    ClassDefinitionRead,
+    ClassLevelRead,
+    ClassLevelResourceRead,
+    ClassLevelSpellSlotRead,
+    ClassSummary,
+    FeaturePrerequisiteRead,
+    FeatureRead,
     RaceAbilityBonusRead,
     RaceRead,
     RaceSummary,
     RaceTraitRead,
+    SubclassRead,
     SubraceRead,
     SubraceTraitRead,
 )
@@ -249,27 +264,33 @@ async def list_races_translated(
     return summaries
 
 
+#: Eager-load options shared by `list_classes`/`get_class`: full progression
+#: (base + subclass `ClassLevel` rows with their features/slots/resources) and
+#: subclass-direct features, plus every `Feature`'s prerequisites.
+_CLASS_LOAD_OPTIONS = (
+    selectinload(ClassDefinition.class_levels)
+    .selectinload(ClassLevel.level_features)
+    .selectinload(ClassLevelFeature.feature)
+    .selectinload(Feature.prerequisites),
+    selectinload(ClassDefinition.class_levels).selectinload(ClassLevel.spell_slots),
+    selectinload(ClassDefinition.class_levels).selectinload(ClassLevel.resources),
+    selectinload(ClassDefinition.subclasses)
+    .selectinload(SubclassDefinition.features)
+    .selectinload(Feature.prerequisites),
+)
+
+
 async def list_classes(
     session: AsyncSession,
     *,
-    search: str | None = None,
     include_custom: bool = True,
     campaign_id: uuid.UUID | None = None,
 ) -> list[ClassDefinition]:
-    """Return all class definitions, optionally filtered by name substring.
+    """Return all class definitions (base rows, eager-loaded progression, untranslated).
 
     See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
     """
-    stmt = (
-        select(ClassDefinition)
-        .options(
-            selectinload(ClassDefinition.level_features),
-            selectinload(ClassDefinition.subclasses),
-        )
-        .order_by(ClassDefinition.name)
-    )
-    if search:
-        stmt = stmt.where(ClassDefinition.name.ilike(f"%{search}%"))
+    stmt = select(ClassDefinition).options(*_CLASS_LOAD_OPTIONS)
     if campaign_id is not None:
         stmt = stmt.where(
             or_(
@@ -286,17 +307,161 @@ async def list_classes(
 async def get_class(
     session: AsyncSession, class_id: uuid.UUID
 ) -> ClassDefinition | None:
-    """Return a single class definition by ID, or None if not found."""
+    """Return a single class definition by ID (untranslated), or None if not found."""
     stmt = (
         select(ClassDefinition)
         .where(ClassDefinition.id == class_id)
-        .options(
-            selectinload(ClassDefinition.level_features),
-            selectinload(ClassDefinition.subclasses),
-        )
+        .options(*_CLASS_LOAD_OPTIONS)
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def _translate_feature(
+    session: AsyncSession, feature: Feature, locale: str
+) -> FeatureRead:
+    t = await get_translated(
+        session, FeatureI18n, FeatureI18n.entity_id, entity_id=feature.id, locale=locale
+    )
+    return FeatureRead(
+        id=feature.id,
+        index=feature.index,
+        level=feature.level,
+        feature_name=t.feature_name if t else "",
+        description=t.description if t else "",
+        mechanical_effect=feature.mechanical_effect,
+        parent_feature_id=feature.parent_feature_id,
+        prerequisites=[
+            FeaturePrerequisiteRead.model_validate(p) for p in feature.prerequisites
+        ],
+    )
+
+
+async def _translate_class_level(
+    session: AsyncSession, class_level: ClassLevel, locale: str
+) -> ClassLevelRead:
+    features = [
+        await _translate_feature(session, clf.feature, locale)
+        for clf in class_level.level_features
+    ]
+    return ClassLevelRead(
+        id=class_level.id,
+        level=class_level.level,
+        proficiency_bonus=class_level.proficiency_bonus,
+        ability_score_bonuses=class_level.ability_score_bonuses,
+        features=features,
+        spell_slots=[
+            ClassLevelSpellSlotRead.model_validate(s) for s in class_level.spell_slots
+        ],
+        resources=[
+            ClassLevelResourceRead.model_validate(r) for r in class_level.resources
+        ],
+    )
+
+
+async def _translate_subclass(
+    session: AsyncSession, subclass: SubclassDefinition, locale: str
+) -> SubclassRead:
+    t = await get_translated(
+        session,
+        SubclassDefinitionI18n,
+        SubclassDefinitionI18n.entity_id,
+        entity_id=subclass.id,
+        locale=locale,
+    )
+    features = [
+        await _translate_feature(session, feature, locale)
+        for feature in subclass.features
+    ]
+    return SubclassRead(
+        id=subclass.id,
+        index=subclass.index,
+        name=t.name if t else "",
+        description=t.description if t else "",
+        flavor=t.flavor if t else "",
+        is_custom=subclass.is_custom,
+        features=features,
+    )
+
+
+async def get_class_translated(
+    session: AsyncSession, class_id: uuid.UUID, *, locale: str = "en"
+) -> ClassDefinitionRead | None:
+    """Return a class by ID with every translatable field resolved for `locale`."""
+    cls = await get_class(session, class_id)
+    if cls is None:
+        return None
+    t = await get_translated(
+        session,
+        ClassDefinitionI18n,
+        ClassDefinitionI18n.entity_id,
+        entity_id=cls.id,
+        locale=locale,
+    )
+    base_levels = sorted(
+        (cl for cl in cls.class_levels if cl.subclass_definition_id is None),
+        key=lambda cl: cl.level,
+    )
+    levels = [
+        await _translate_class_level(session, cl, locale) for cl in base_levels
+    ]
+    subclasses = [
+        await _translate_subclass(session, sc, locale) for sc in cls.subclasses
+    ]
+    return ClassDefinitionRead(
+        id=cls.id,
+        index=cls.index,
+        name=t.name if t else "",
+        hit_die=cls.hit_die,
+        primary_ability=cls.primary_ability,
+        saving_throw_proficiencies=cls.saving_throw_proficiencies,
+        is_custom=cls.is_custom,
+        levels=levels,
+        subclasses=subclasses,
+    )
+
+
+async def list_classes_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[ClassSummary]:
+    """Return all classes with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: class counts are small enough that
+    resolving translations per-row here is simpler than a fallback-aware SQL
+    join.
+    """
+    classes = await list_classes(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
+    summaries = []
+    for cls in classes:
+        t = await get_translated(
+            session,
+            ClassDefinitionI18n,
+            ClassDefinitionI18n.entity_id,
+            entity_id=cls.id,
+            locale=locale,
+        )
+        summaries.append(
+            ClassSummary(
+                id=cls.id,
+                index=cls.index,
+                name=t.name if t else "",
+                hit_die=cls.hit_die,
+                primary_ability=cls.primary_ability,
+                is_custom=cls.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
 
 
 async def list_spells(

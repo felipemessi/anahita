@@ -171,7 +171,7 @@ async def test_list_proficiencies_for_class_and_race(db: AsyncSession) -> None:
     db.add(prof)
     cls = ClassDefinition(
         id=uuid.uuid4(),
-        name="Rogue",
+        index="rogue",
         hit_die=8,
         primary_ability="dex",
         saving_throw_proficiencies="dex,int",

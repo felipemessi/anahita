@@ -17,7 +17,12 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.catalog.domain import CreatureSize, LanguageType, ProficiencyType
+from app.catalog.domain import (
+    CreatureSize,
+    FeaturePrerequisiteType,
+    LanguageType,
+    ProficiencyType,
+)
 from app.catalog.mixins import CatalogEntityMixin, CatalogI18nMixin
 from app.database import Base
 
@@ -255,7 +260,11 @@ class RaceAbilityBonus(Base):
 
 
 class ClassDefinition(Base):
-    """A character class definition from the SRD or a campaign homebrew."""
+    """A character class definition from the SRD or a campaign homebrew.
+
+    Translatable text (`name`) lives in `ClassDefinitionI18n` — see
+    `app.catalog.mixins` for the `_i18n` convention.
+    """
 
     __tablename__ = "catalog_class_definitions"
     __table_args__ = (
@@ -268,7 +277,7 @@ class ClassDefinition(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     hit_die: Mapped[int] = mapped_column(Integer, nullable=False)
     primary_ability: Mapped[str] = mapped_column(String(100), nullable=False)
     saving_throw_proficiencies: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -281,8 +290,14 @@ class ClassDefinition(Base):
         UUID(as_uuid=True), nullable=True
     )
 
-    level_features: Mapped[list[ClassLevelFeature]] = relationship(
-        "ClassLevelFeature",
+    features: Mapped[list[Feature]] = relationship(
+        "Feature",
+        primaryjoin="Feature.class_definition_id == ClassDefinition.id",
+        back_populates="class_definition",
+        cascade="all, delete-orphan",
+    )
+    class_levels: Mapped[list[ClassLevel]] = relationship(
+        "ClassLevel",
         back_populates="class_definition",
         cascade="all, delete-orphan",
     )
@@ -293,31 +308,30 @@ class ClassDefinition(Base):
     )
 
 
-class ClassLevelFeature(Base):
-    """A feature granted to a class at a specific level."""
+class ClassDefinitionI18n(CatalogI18nMixin, Base):
+    """Translated text for a ClassDefinition."""
 
-    __tablename__ = "catalog_class_level_features"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    __tablename__ = "catalog_class_definitions_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_class_definitions_i18n"
+        ),
     )
-    class_definition_id: Mapped[uuid.UUID] = mapped_column(
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    level: Mapped[int] = mapped_column(Integer, nullable=False)
-    feature_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    mechanical_effect: Mapped[str | None] = mapped_column(String(500), nullable=True)
-
-    class_definition: Mapped[ClassDefinition] = relationship(
-        "ClassDefinition", back_populates="level_features"
-    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
 
 
 class SubclassDefinition(Base):
-    """A subclass (archetype) for a ClassDefinition."""
+    """A subclass (archetype) for a ClassDefinition.
+
+    Translatable text (`name`, `description`, `flavor`) lives in
+    `SubclassDefinitionI18n`.
+    """
 
     __tablename__ = "catalog_subclass_definitions"
     __table_args__ = (
@@ -335,8 +349,7 @@ class SubclassDefinition(Base):
         ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # FK to users.id / campaigns.id — enforced at DB level in migration.
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -348,6 +361,286 @@ class SubclassDefinition(Base):
 
     class_definition: Mapped[ClassDefinition] = relationship(
         "ClassDefinition", back_populates="subclasses"
+    )
+    features: Mapped[list[Feature]] = relationship(
+        "Feature",
+        primaryjoin="Feature.subclass_definition_id == SubclassDefinition.id",
+        back_populates="subclass_definition",
+        cascade="all, delete-orphan",
+    )
+
+
+class SubclassDefinitionI18n(CatalogI18nMixin, Base):
+    """Translated text for a SubclassDefinition."""
+
+    __tablename__ = "catalog_subclass_definitions_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_subclass_definitions_i18n"
+        ),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_subclass_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    flavor: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class Feature(Base):
+    """A feature granted by a class or subclass at a given level.
+
+    Generalizes the old `ClassLevelFeature` model: covers class *and*
+    subclass features, including sub-features (e.g. a Fighting Style choice
+    nested under a broader feature) via `parent_feature_id`. Exactly one of
+    `class_definition_id`/`subclass_definition_id` is set. Translatable text
+    (`feature_name`, `description`) lives in `FeatureI18n`.
+    """
+
+    __tablename__ = "catalog_features"
+    __table_args__ = (
+        CheckConstraint(
+            _CUSTOM_CAMPAIGN_SCOPE_SQL,
+            name="ck_catalog_features_custom_campaign_scope",
+        ),
+        CheckConstraint(
+            "(class_definition_id IS NOT NULL AND subclass_definition_id IS NULL)"
+            " OR (class_definition_id IS NULL AND subclass_definition_id IS NOT NULL)",
+            name="ck_catalog_features_owner_scope",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    class_definition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    subclass_definition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_subclass_definitions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    level: Mapped[int] = mapped_column(Integer, nullable=False)
+    parent_feature_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_features.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    mechanical_effect: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # FK to users.id / campaigns.id — enforced at DB level in migration.
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    class_definition: Mapped[ClassDefinition | None] = relationship(
+        "ClassDefinition",
+        primaryjoin="Feature.class_definition_id == ClassDefinition.id",
+        back_populates="features",
+    )
+    subclass_definition: Mapped[SubclassDefinition | None] = relationship(
+        "SubclassDefinition",
+        primaryjoin="Feature.subclass_definition_id == SubclassDefinition.id",
+        back_populates="features",
+    )
+    prerequisites: Mapped[list[FeaturePrerequisite]] = relationship(
+        "FeaturePrerequisite",
+        primaryjoin="FeaturePrerequisite.feature_id == Feature.id",
+        back_populates="feature",
+        cascade="all, delete-orphan",
+    )
+
+
+class FeatureI18n(CatalogI18nMixin, Base):
+    """Translated text for a Feature."""
+
+    __tablename__ = "catalog_features_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_features_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_features.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    feature_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class FeaturePrerequisite(Base):
+    """A prerequisite (level, another feature, or a spell) gating a Feature."""
+
+    __tablename__ = "catalog_feature_prerequisites"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_features.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    prerequisite_type: Mapped[str] = mapped_column(
+        SAEnum(FeaturePrerequisiteType, name="featureprerequisitetype"),
+        nullable=False,
+    )
+    level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    required_feature_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_features.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    spell_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_spells.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    feature: Mapped[Feature] = relationship(
+        "Feature",
+        primaryjoin="FeaturePrerequisite.feature_id == Feature.id",
+        back_populates="prerequisites",
+    )
+
+
+class ClassLevel(Base):
+    """One row of a class's (or subclass's) level-by-level progression table.
+
+    `subclass_definition_id` is nullable: `NULL` rows are the base class
+    progression (proficiency bonus, ability score improvements); rows with it
+    set track a subclass's own per-level grants. Unique on
+    `(class_definition_id, subclass_definition_id, level)`.
+    """
+
+    __tablename__ = "catalog_class_levels"
+    __table_args__ = (
+        UniqueConstraint(
+            "class_definition_id",
+            "subclass_definition_id",
+            "level",
+            name="uq_catalog_class_levels",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    class_definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    subclass_definition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_subclass_definitions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    level: Mapped[int] = mapped_column(Integer, nullable=False)
+    proficiency_bonus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ability_score_bonuses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    class_definition: Mapped[ClassDefinition] = relationship(
+        "ClassDefinition", back_populates="class_levels"
+    )
+    level_features: Mapped[list[ClassLevelFeature]] = relationship(
+        "ClassLevelFeature", back_populates="class_level", cascade="all, delete-orphan"
+    )
+    spell_slots: Mapped[list[ClassLevelSpellSlot]] = relationship(
+        "ClassLevelSpellSlot",
+        back_populates="class_level",
+        cascade="all, delete-orphan",
+    )
+    resources: Mapped[list[ClassLevelResource]] = relationship(
+        "ClassLevelResource", back_populates="class_level", cascade="all, delete-orphan"
+    )
+
+
+class ClassLevelFeature(Base):
+    """Junction: a Feature is granted at a specific ClassLevel row."""
+
+    __tablename__ = "catalog_class_level_features"
+    __table_args__ = (
+        UniqueConstraint(
+            "class_level_id", "feature_id", name="uq_catalog_class_level_features"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    class_level_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_levels.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_features.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    class_level: Mapped[ClassLevel] = relationship(
+        "ClassLevel", back_populates="level_features"
+    )
+    feature: Mapped[Feature] = relationship("Feature")
+
+
+class ClassLevelSpellSlot(Base):
+    """Number of spell slots (or cantrips known, `spell_level=0`) at a ClassLevel."""
+
+    __tablename__ = "catalog_class_level_spell_slots"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    class_level_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_levels.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    spell_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    slot_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    class_level: Mapped[ClassLevel] = relationship(
+        "ClassLevel", back_populates="spell_slots"
+    )
+
+
+class ClassLevelResource(Base):
+    """A class-specific mechanical resource at a ClassLevel (e.g. rage_count).
+
+    Reuses the structured-vocabulary pattern already used for
+    `mechanical_effect` elsewhere in the catalog (PRD §8.3): `resource_key`
+    identifies the mechanic (`rage_count`, `ki_points`, `sneak_attack_dice`,
+    ...) and `value` carries its value as a string (`"3"`, `"2d6"`).
+    """
+
+    __tablename__ = "catalog_class_level_resources"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    class_level_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_levels.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    resource_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    value: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    class_level: Mapped[ClassLevel] = relationship(
+        "ClassLevel", back_populates="resources"
     )
 
 

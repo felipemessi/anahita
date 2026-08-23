@@ -81,6 +81,14 @@ class LanguageType(enum.StrEnum):
     exotic = "exotic"
 
 
+class FeaturePrerequisiteType(enum.StrEnum):
+    """Category of a FeaturePrerequisite, determining which field is checked."""
+
+    level = "level"
+    feature = "feature"
+    spell = "spell"
+
+
 class ProficiencyType(enum.StrEnum):
     """Category of a Proficiency, determining which FK on it is populated."""
 
