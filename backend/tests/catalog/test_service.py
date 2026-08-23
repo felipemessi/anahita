@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
-from app.catalog.models import Spell
+from app.catalog.models import Item, Spell
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -286,27 +286,98 @@ async def test_list_items_filter_by_type(db: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_item_loads_weapon_detail(db: AsyncSession) -> None:
-    """get_item should load weapon_detail for weapon items."""
+async def test_list_items_translated_search(db: AsyncSession) -> None:
+    """list_items_translated with search should match translated name substring."""
     await seed_catalog(db)
-    items = await service.list_items(db, search="Longsword")
-    longsword = await service.get_item(db, items[0].id)
-
-    assert longsword is not None
-    assert longsword.weapon_detail is not None
-    assert longsword.weapon_detail.damage_dice == "1d8"
+    results = await service.list_items_translated(db, search="Longsword")
+    assert all("longsword" in i.name.lower() for i in results)
+    assert len(results) > 0
 
 
 @pytest.mark.asyncio
-async def test_get_item_loads_armor_detail(db: AsyncSession) -> None:
-    """get_item should load armor_detail for armor items."""
+async def test_get_item_translated_resolves_weapon_detail_and_properties(
+    db: AsyncSession,
+) -> None:
+    """get_item_translated resolves weapon_detail (damage_type) and properties."""
     await seed_catalog(db)
-    items = await service.list_items(db, search="Leather Armor")
-    armor = await service.get_item(db, items[0].id)
+    results = await service.list_items_translated(db, search="Longsword")
+    longsword = await service.get_item_translated(db, results[0].id, locale="en")
+
+    assert longsword is not None
+    assert longsword.name == "Longsword"
+    assert longsword.weapon_detail is not None
+    assert longsword.weapon_detail.damage_dice == "1d8"
+    assert longsword.weapon_detail.damage_type == "slashing"
+    assert any(p.name == "Versatile" for p in longsword.properties)
+
+
+@pytest.mark.asyncio
+async def test_get_item_translated_resolves_multiple_properties(
+    db: AsyncSession,
+) -> None:
+    """An item with several weapon properties resolves every ItemProperty row."""
+    await seed_catalog(db)
+    results = await service.list_items_translated(db, search="Dagger")
+    dagger = await service.get_item_translated(db, results[0].id, locale="en")
+
+    assert dagger is not None
+    names = {p.name for p in dagger.properties}
+    assert names == {"Finesse", "Light", "Thrown"}
+
+
+@pytest.mark.asyncio
+async def test_get_item_translated_resolves_armor_detail(db: AsyncSession) -> None:
+    """get_item_translated resolves armor_detail for armor items."""
+    await seed_catalog(db)
+    results = await service.list_items_translated(db, search="Leather Armor")
+    armor = await service.get_item_translated(db, results[0].id, locale="en")
 
     assert armor is not None
     assert armor.armor_detail is not None
     assert armor.armor_detail.base_ac == 11
+    assert armor.equipment_category == "Light Armor"
+
+
+@pytest.mark.asyncio
+async def test_list_items_scoped_to_campaign_includes_srd_and_own_homebrew(
+    db: AsyncSession,
+) -> None:
+    """`list_items(campaign_id=X)` returns SRD + own campaign homebrew, not others'."""
+    await seed_catalog(db)
+    srd_items = await service.list_items(db)
+    equipment_category_id = srd_items[0].equipment_category_id
+
+    campaign_a = uuid.uuid4()
+    campaign_b = uuid.uuid4()
+    homebrew_a = Item(
+        id=uuid.uuid4(),
+        index=None,
+        item_type="gear",
+        equipment_category_id=equipment_category_id,
+        weight=1.0,
+        cost=100,
+        is_custom=True,
+        campaign_id=campaign_a,
+    )
+    homebrew_b = Item(
+        id=uuid.uuid4(),
+        index=None,
+        item_type="gear",
+        equipment_category_id=equipment_category_id,
+        weight=1.0,
+        cost=100,
+        is_custom=True,
+        campaign_id=campaign_b,
+    )
+    db.add_all([homebrew_a, homebrew_b])
+    await db.commit()
+
+    results = await service.list_items(db, campaign_id=campaign_a)
+    ids = {i.id for i in results}
+
+    assert homebrew_a.id in ids
+    assert homebrew_b.id not in ids
+    assert {i.id for i in srd_items} <= ids
 
 
 @pytest.mark.asyncio

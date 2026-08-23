@@ -16,10 +16,16 @@ from app.catalog.models import (
     ClassLevelFeature,
     ClassLevelResource,
     ClassLevelSpellSlot,
+    DamageType,
+    DamageTypeI18n,
+    EquipmentCategory,
+    EquipmentCategoryI18n,
     Feature,
     FeatureI18n,
     FeaturePrerequisite,
     Item,
+    ItemI18n,
+    ItemProperty,
     MagicSchool,
     MagicSchoolI18n,
     Race,
@@ -37,12 +43,15 @@ from app.catalog.models import (
     SubraceTrait,
     SubraceTraitI18n,
     WeaponDetail,
+    WeaponProperty,
+    WeaponPropertyI18n,
 )
 
-#: The 8 SRD schools of magic, needed as an FK target for `Spell`. Fixed
-#: vocabulary (PRD §7.4.1) has no seed of its own yet (a later backlog story
-#: covers all 24 categories from `_data/2014`) — this seeds just what
-#: `spells.json` references, idempotently by `index`.
+#: Fixed vocabulary (PRD §7.4.1) has no seed of its own yet (a later backlog
+#: story covers all 24 categories from `_data/2014`), but several catalogs
+#: added in later stories reference it via FK. `_ensure_fixed_vocab` below
+#: seeds just what each story's data actually references, idempotently by
+#: `index` — these dicts are the `index` -> English display name for each.
 _MAGIC_SCHOOL_NAMES = {
     "abjuration": "Abjuration",
     "conjuration": "Conjuration",
@@ -53,6 +62,53 @@ _MAGIC_SCHOOL_NAMES = {
     "necromancy": "Necromancy",
     "transmutation": "Transmutation",
 }
+_WEAPON_PROPERTY_NAMES = {
+    "versatile": "Versatile",
+    "finesse": "Finesse",
+    "light": "Light",
+    "thrown": "Thrown",
+    "heavy": "Heavy",
+    "two-handed": "Two-Handed",
+    "ammunition": "Ammunition",
+}
+_DAMAGE_TYPE_NAMES = {
+    "slashing": "Slashing",
+    "piercing": "Piercing",
+    "bludgeoning": "Bludgeoning",
+}
+_EQUIPMENT_CATEGORY_NAMES = {
+    "simple-weapons": "Simple Weapons",
+    "martial-weapons": "Martial Weapons",
+    "light-armor": "Light Armor",
+    "medium-armor": "Medium Armor",
+    "heavy-armor": "Heavy Armor",
+    "shields": "Shields",
+    "adventuring-gear": "Adventuring Gear",
+}
+
+
+async def _ensure_fixed_vocab(
+    session: AsyncSession,
+    model: Any,
+    i18n_model: Any,
+    names: dict[str, str],
+) -> dict[str, uuid.UUID]:
+    """Get-or-create fixed-vocabulary rows by `index`, returning `index` -> id.
+
+    Shared by every later-story seed that needs a §7.4.1 category as an FK
+    target (magic schools, weapon properties, damage types, equipment
+    categories) before that category has its own seed story.
+    """
+    result = await session.execute(select(model))
+    by_index = {row.index: row.id for row in result.scalars().all() if row.index}
+    for index, name in names.items():
+        if index in by_index:
+            continue
+        row = model(id=uuid.uuid4(), index=index, is_custom=False)
+        session.add(row)
+        await _seed_i18n(session, i18n_model, row.id, {"en": {"name": name}})
+        by_index[index] = row.id
+    return by_index
 
 _DATA_DIR = Path(__file__).parent / "data"
 
@@ -305,28 +361,14 @@ async def _seed_classes(session: AsyncSession) -> None:
                 )
 
 
-async def _ensure_magic_schools(session: AsyncSession) -> dict[str, uuid.UUID]:
-    """Get-or-create the 8 SRD schools of magic, returning `index` -> id."""
-    result = await session.execute(select(MagicSchool))
-    by_index = {ms.index: ms.id for ms in result.scalars().all() if ms.index}
-    for index, name in _MAGIC_SCHOOL_NAMES.items():
-        if index in by_index:
-            continue
-        school = MagicSchool(id=uuid.uuid4(), index=index, is_custom=False)
-        session.add(school)
-        await _seed_i18n(
-            session, MagicSchoolI18n, school.id, {"en": {"name": name, "desc": None}}
-        )
-        by_index[index] = school.id
-    return by_index
-
-
 async def _seed_spells(session: AsyncSession) -> None:
     count = await session.scalar(select(Spell).limit(1))
     if count is not None:
         return
 
-    schools_by_index = await _ensure_magic_schools(session)
+    schools_by_index = await _ensure_fixed_vocab(
+        session, MagicSchool, MagicSchoolI18n, _MAGIC_SCHOOL_NAMES
+    )
     classes_result = await session.execute(select(ClassDefinition))
     classes_by_index = {
         c.index: c.id for c in classes_result.scalars().all() if c.index
@@ -367,19 +409,39 @@ async def _seed_items(session: AsyncSession) -> None:
     if count is not None:
         return
 
+    categories_by_index = await _ensure_fixed_vocab(
+        session, EquipmentCategory, EquipmentCategoryI18n, _EQUIPMENT_CATEGORY_NAMES
+    )
+    properties_by_index = await _ensure_fixed_vocab(
+        session, WeaponProperty, WeaponPropertyI18n, _WEAPON_PROPERTY_NAMES
+    )
+    damage_types_by_index = await _ensure_fixed_vocab(
+        session, DamageType, DamageTypeI18n, _DAMAGE_TYPE_NAMES
+    )
+
     data = json.loads((_DATA_DIR / "items.json").read_text())
     for entry in data:
         item = Item(
             id=uuid.uuid4(),
-            name=entry["name"],
+            index=entry["index"],
             item_type=entry["item_type"],
+            equipment_category_id=categories_by_index[entry["equipment_category_index"]],
             rarity=entry.get("rarity"),
             weight=entry["weight"],
             cost=entry["cost"],
-            description=entry["description"],
-            properties=entry.get("properties"),
+            is_custom=False,
         )
         session.add(item)
+        await _seed_i18n(session, ItemI18n, item.id, entry["i18n"])
+
+        for prop_index in entry.get("properties", []):
+            property_id = properties_by_index.get(prop_index)
+            if property_id is not None:
+                session.add(
+                    ItemProperty(
+                        id=uuid.uuid4(), item_id=item.id, weapon_property_id=property_id
+                    )
+                )
 
         if wd := entry.get("weapon_detail"):
             session.add(
@@ -387,9 +449,8 @@ async def _seed_items(session: AsyncSession) -> None:
                     id=uuid.uuid4(),
                     item_id=item.id,
                     damage_dice=wd["damage_dice"],
-                    damage_type=wd["damage_type"],
+                    damage_type_id=damage_types_by_index[wd["damage_type_index"]],
                     weapon_range=wd["weapon_range"],
-                    weapon_properties=wd.get("weapon_properties"),
                 )
             )
 

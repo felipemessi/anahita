@@ -121,19 +121,27 @@ async def list_items(
     db: DB,
     search: SearchQ = None,
     item_type: Annotated[str | None, Query(description="Filter by item type")] = None,
+    include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
 ) -> list[ItemSummary]:
     """List all items, optionally filtered by name or type."""
-    items = await service.list_items(db, search=search, item_type=item_type)
-    return [ItemSummary.model_validate(i) for i in items]
+    return await service.list_items_translated(
+        db,
+        search=search,
+        item_type=item_type,
+        include_custom=include_custom,
+        locale=locale,
+    )
 
 
 @router.get("/items/{item_id}", response_model=ItemRead)
 async def get_item(
     item_id: uuid.UUID,
     db: DB,
+    locale: LocaleQ = "en",
 ) -> ItemRead:
-    """Get an item by ID with full details (weapon/armor stats if applicable)."""
-    item = await service.get_item(db, item_id)
+    """Get an item by ID with full details (weapon/armor stats, properties)."""
+    item = await service.get_item_translated(db, item_id, locale=locale)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    return ItemRead.model_validate(item)
+    return item

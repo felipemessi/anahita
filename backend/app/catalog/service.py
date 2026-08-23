@@ -16,9 +16,12 @@ from app.catalog.models import (
     ClassLevelFeature,
     Condition,
     DamageType,
+    EquipmentCategoryI18n,
     Feature,
     FeatureI18n,
     Item,
+    ItemI18n,
+    ItemProperty,
     Language,
     MagicSchool,
     Proficiency,
@@ -38,9 +41,12 @@ from app.catalog.models import (
     SubraceI18n,
     SubraceTrait,
     SubraceTraitI18n,
+    WeaponDetail,
     WeaponProperty,
+    WeaponPropertyI18n,
 )
 from app.catalog.schemas import (
+    ArmorDetailRead,
     ClassDefinitionRead,
     ClassLevelRead,
     ClassLevelResourceRead,
@@ -48,6 +54,9 @@ from app.catalog.schemas import (
     ClassSummary,
     FeaturePrerequisiteRead,
     FeatureRead,
+    ItemPropertyRead,
+    ItemRead,
+    ItemSummary,
     RaceAbilityBonusRead,
     RaceRead,
     RaceSummary,
@@ -58,6 +67,7 @@ from app.catalog.schemas import (
     SubclassRead,
     SubraceRead,
     SubraceTraitRead,
+    WeaponDetailRead,
 )
 
 
@@ -613,41 +623,153 @@ async def list_spells_translated(
     return summaries
 
 
+#: Eager-load options shared by `list_items`/`get_item`.
+_ITEM_LOAD_OPTIONS = (
+    selectinload(Item.weapon_detail).selectinload(WeaponDetail.damage_type),
+    selectinload(Item.armor_detail),
+    selectinload(Item.properties).selectinload(ItemProperty.weapon_property),
+    selectinload(Item.equipment_category),
+)
+
+
 async def list_items(
     session: AsyncSession,
     *,
-    search: str | None = None,
     item_type: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
 ) -> list[Item]:
-    """Return all items, optionally filtered by name substring or type."""
-    stmt = (
-        select(Item)
-        .options(
-            selectinload(Item.weapon_detail),
-            selectinload(Item.armor_detail),
-        )
-        .order_by(Item.name)
-    )
-    if search:
-        stmt = stmt.where(Item.name.ilike(f"%{search}%"))
+    """Return all items (base rows, eager-loaded details, untranslated).
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
+    stmt = select(Item).options(*_ITEM_LOAD_OPTIONS)
     if item_type:
         stmt = stmt.where(Item.item_type == item_type)
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Item.campaign_id.is_(None), Item.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(Item.is_custom.is_(False))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
 async def get_item(session: AsyncSession, item_id: uuid.UUID) -> Item | None:
-    """Return a single item by ID, or None if not found."""
-    stmt = (
-        select(Item)
-        .where(Item.id == item_id)
-        .options(
-            selectinload(Item.weapon_detail),
-            selectinload(Item.armor_detail),
-        )
-    )
+    """Return a single item by ID (untranslated), or None if not found."""
+    stmt = select(Item).where(Item.id == item_id).options(*_ITEM_LOAD_OPTIONS)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def _translate_item_properties(
+    session: AsyncSession, item: Item, locale: str
+) -> list[ItemPropertyRead]:
+    reads = []
+    for prop in item.properties:
+        t = await get_translated(
+            session,
+            WeaponPropertyI18n,
+            WeaponPropertyI18n.entity_id,
+            entity_id=prop.weapon_property_id,
+            locale=locale,
+        )
+        reads.append(
+            ItemPropertyRead(id=prop.weapon_property_id, name=t.name if t else "")
+        )
+    return reads
+
+
+async def get_item_translated(
+    session: AsyncSession, item_id: uuid.UUID, *, locale: str = "en"
+) -> ItemRead | None:
+    """Return an item by ID with every translatable field resolved for `locale`."""
+    item = await get_item(session, item_id)
+    if item is None:
+        return None
+    t = await get_translated(
+        session, ItemI18n, ItemI18n.entity_id, entity_id=item.id, locale=locale
+    )
+    category_t = await get_translated(
+        session,
+        EquipmentCategoryI18n,
+        EquipmentCategoryI18n.entity_id,
+        entity_id=item.equipment_category_id,
+        locale=locale,
+    )
+    weapon_detail = None
+    if item.weapon_detail is not None:
+        weapon_detail = WeaponDetailRead(
+            id=item.weapon_detail.id,
+            damage_dice=item.weapon_detail.damage_dice,
+            damage_type=item.weapon_detail.damage_type.index or "",
+            weapon_range=item.weapon_detail.weapon_range,
+        )
+    return ItemRead(
+        id=item.id,
+        index=item.index,
+        name=t.name if t else "",
+        item_type=item.item_type,
+        equipment_category=category_t.name if category_t else "",
+        rarity=item.rarity,
+        weight=item.weight,
+        cost=item.cost,
+        description=t.description if t else "",
+        is_custom=item.is_custom,
+        properties=await _translate_item_properties(session, item, locale),
+        weapon_detail=weapon_detail,
+        armor_detail=(
+            ArmorDetailRead.model_validate(item.armor_detail)
+            if item.armor_detail is not None
+            else None
+        ),
+    )
+
+
+async def list_items_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    item_type: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[ItemSummary]:
+    """Return all items with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: item counts are small enough that
+    resolving translations per-row here is simpler than a fallback-aware SQL
+    join.
+    """
+    items = await list_items(
+        session,
+        item_type=item_type,
+        include_custom=include_custom,
+        campaign_id=campaign_id,
+    )
+    summaries = []
+    for item in items:
+        t = await get_translated(
+            session, ItemI18n, ItemI18n.entity_id, entity_id=item.id, locale=locale
+        )
+        summaries.append(
+            ItemSummary(
+                id=item.id,
+                index=item.index,
+                name=t.name if t else "",
+                item_type=item.item_type,
+                rarity=item.rarity,
+                weight=item.weight,
+                cost=item.cost,
+                is_custom=item.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
 
 
 # --- Fixed vocabulary (SRD 2014 §7.4.1) -------------------------------------

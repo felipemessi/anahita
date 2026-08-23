@@ -237,7 +237,7 @@ class SpellSummary(BaseModel):
 
 
 class WeaponDetailRead(BaseModel):
-    """Read schema for weapon combat details."""
+    """Read schema for weapon combat details, with `damage_type` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -245,7 +245,6 @@ class WeaponDetailRead(BaseModel):
     damage_dice: str
     damage_type: str
     weapon_range: str
-    weapon_properties: str | None
 
 
 class ArmorDetailRead(BaseModel):
@@ -260,34 +259,48 @@ class ArmorDetailRead(BaseModel):
     strength_requirement: int | None
 
 
-class ItemRead(BaseModel):
-    """Read schema for an item."""
+class ItemPropertyRead(BaseModel):
+    """Read schema for a weapon property carried by an item, with `name` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     name: str
+
+
+class ItemRead(BaseModel):
+    """Read schema for an item, with translated text fields resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
     item_type: str
+    equipment_category: str
     rarity: str | None
     weight: float
     cost: int
     description: str
-    properties: str | None
+    is_custom: bool
+    properties: list[ItemPropertyRead]
     weapon_detail: WeaponDetailRead | None
     armor_detail: ArmorDetailRead | None
 
 
 class ItemSummary(BaseModel):
-    """Lightweight item listing schema."""
+    """Lightweight item listing schema, with translated `name` resolved."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    index: str | None
     name: str
     item_type: str
     rarity: str | None
     weight: float
     cost: int
+    is_custom: bool
 
 
 # --- Fixed vocabulary (SRD 2014 §7.4.1) -------------------------------------

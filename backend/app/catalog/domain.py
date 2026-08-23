@@ -36,13 +36,17 @@ class SpellSchool(enum.StrEnum):
 
 
 class ItemType(enum.StrEnum):
-    """Item category types."""
+    """Item category types (mundane equipment — see PRD §7.4.6).
+
+    Magic items are a separate catalog category (`MagicItem`, PRD §7.4.6),
+    not an `Item.item_type` value.
+    """
 
     weapon = "weapon"
     armor = "armor"
     gear = "gear"
+    tool = "tool"
     consumable = "consumable"
-    magic_item = "magic_item"
 
 
 class ItemRarity(enum.StrEnum):

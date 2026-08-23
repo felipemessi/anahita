@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.catalog.domain import (
     CreatureSize,
     FeaturePrerequisiteType,
+    ItemType,
     LanguageType,
     ProficiencyType,
 )
@@ -735,22 +736,69 @@ class SpellClass(Base):
     class_definition: Mapped[ClassDefinition] = relationship("ClassDefinition")
 
 
+class EquipmentCategory(CatalogEntityMixin, Base):
+    """A category of equipment (e.g. Simple Weapons, Heavy Armor)."""
+
+    __tablename__ = "catalog_equipment_categories"
+
+
+class EquipmentCategoryI18n(CatalogI18nMixin, Base):
+    """Translated text for an EquipmentCategory."""
+
+    __tablename__ = "catalog_equipment_categories_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_equipment_categories_i18n"
+        ),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_equipment_categories.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
 class Item(Base):
-    """An equipment item from the SRD."""
+    """An equipment item from the SRD or a campaign homebrew.
+
+    Translatable text (`name`, `description`) lives in `ItemI18n` — see
+    `app.catalog.mixins` for the `_i18n` convention.
+    """
 
     __tablename__ = "catalog_items"
+    __table_args__ = (
+        CheckConstraint(
+            _CUSTOM_CAMPAIGN_SCOPE_SQL, name="ck_catalog_items_custom_campaign_scope"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
-    item_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    index: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    item_type: Mapped[str] = mapped_column(
+        SAEnum(ItemType, name="itemtype"), nullable=False
+    )
+    equipment_category_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_equipment_categories.id"),
+        nullable=False,
+    )
     rarity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     weight: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     cost: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    properties: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # FK to users.id / campaigns.id — enforced at DB level in migration.
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
 
+    equipment_category: Mapped[EquipmentCategory] = relationship("EquipmentCategory")
     weapon_detail: Mapped[WeaponDetail | None] = relationship(
         "WeaponDetail",
         back_populates="item",
@@ -763,6 +811,54 @@ class Item(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    properties: Mapped[list[ItemProperty]] = relationship(
+        "ItemProperty", back_populates="item", cascade="all, delete-orphan"
+    )
+
+
+class ItemI18n(CatalogI18nMixin, Base):
+    """Translated text for an Item."""
+
+    __tablename__ = "catalog_items_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_items_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class ItemProperty(Base):
+    """Junction: an Item (typically a weapon) carries a WeaponProperty."""
+
+    __tablename__ = "catalog_item_properties"
+    __table_args__ = (
+        UniqueConstraint(
+            "item_id", "weapon_property_id", name="uq_catalog_item_properties"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    weapon_property_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_weapon_properties.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    item: Mapped[Item] = relationship("Item", back_populates="properties")
+    weapon_property: Mapped[WeaponProperty] = relationship("WeaponProperty")
 
 
 class WeaponDetail(Base):
@@ -780,11 +876,15 @@ class WeaponDetail(Base):
         unique=True,
     )
     damage_dice: Mapped[str] = mapped_column(String(20), nullable=False)
-    damage_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_damage_types.id"),
+        nullable=False,
+    )
     weapon_range: Mapped[str] = mapped_column(String(50), nullable=False)
-    weapon_properties: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     item: Mapped[Item] = relationship("Item", back_populates="weapon_detail")
+    damage_type: Mapped[DamageType] = relationship("DamageType")
 
 
 class ArmorDetail(Base):
@@ -1062,11 +1162,10 @@ class Proficiency(CatalogEntityMixin, Base):
         ForeignKey("catalog_ability_score_definitions.id"),
         nullable=True,
     )
-    # FK to catalog_equipment_categories.id once the Equipamento story lands —
-    # plain UUID for now, mirroring how campaign_id predates the Campaigns
-    # domain (see `CatalogEntityMixin`).
     equipment_category_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("catalog_equipment_categories.id"),
+        nullable=True,
     )
 
 
