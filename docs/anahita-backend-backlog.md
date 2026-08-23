@@ -168,6 +168,12 @@
   - [x] `router.py`: `POST /characters/{id}/classes` (só o dono da ficha; rejeita classe repetida com 409; recalcula `level`/`proficiency_bonus`)
   - [x] Teste: multiclass válido passa (Fighter→Wizard com INT 13+), inválido (INT insuficiente) é rejeitado (422), classe repetida rejeitada (409), personagem de outro jogador rejeitado (403), fluxo HTTP completo — `tests/characters/test_multiclass.py`, `tests/characters/test_router.py`
 
+- **Como usuário autenticado, quero consultar meu próprio perfil (`GET /auth/me`).** ✅ (2026-08-23)
+  - [x] `router.py`: `GET /auth/me` autenticado via `get_current_user`, retorna `UserPublic` (sem `hashed_password`)
+  - [x] Teste: retorna o perfil do usuário do token; 401 sem token/token inválido
+  - Motivação: o frontend (Fase 0) descobriu essa lacuna — o JWT de acesso só carrega `sub` (user id), então hoje não há forma de o cliente obter `username`/`email` após o login sem esse endpoint (ver `docs/anahita-frontend-backlog.md`, história de login/registro).
+  - Notas: nenhum `schemas.py`/`service.py` novo precisou ser criado — reaproveitou `UserPublic` e a dependência `get_current_user` (`app/core/dependencies.py`) já existentes. Próximo passo (Fase 1 do frontend): trocar a decodificação client-side do JWT em `lib/auth/session.ts` por uma chamada real a este endpoint.
+
 - **Como DM, quero criar uma sessão de jogo com número sequencial e notas.**
   - [x] `app/sessions/models.py`: `Session`, `SessionNote` (seção 7.5 do PRD)
   - [x] Migração Alembic — `alembic/versions/5faf7b3b9560_add_sessions_domain.py` (upgrade/downgrade/upgrade testados contra Postgres)

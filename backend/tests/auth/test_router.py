@@ -100,6 +100,46 @@ async def test_refresh_without_cookie_returns_401(client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
+async def test_me_returns_authenticated_user_profile(client: AsyncClient) -> None:
+    """GET /auth/me returns the profile of the user identified by the bearer token."""
+    await client.post(
+        "/auth/register",
+        json={
+            "email": "grace@example.com",
+            "username": "grace",
+            "password": "pass1234",
+        },
+    )
+    login_resp = await client.post(
+        "/auth/login",
+        json={"email": "grace@example.com", "password": "pass1234"},
+    )
+    access_token = login_resp.json()["access_token"]
+
+    me_resp = await client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert me_resp.status_code == 200
+    body = me_resp.json()
+    assert body["email"] == "grace@example.com"
+    assert body["username"] == "grace"
+    assert "hashed_password" not in body
+
+
+async def test_me_without_token_returns_401(client: AsyncClient) -> None:
+    """GET /auth/me without a bearer token returns 401."""
+    resp = await client.get("/auth/me")
+    assert resp.status_code == 401
+
+
+async def test_me_with_invalid_token_returns_401(client: AsyncClient) -> None:
+    """GET /auth/me with a malformed/expired token returns 401."""
+    resp = await client.get(
+        "/auth/me", headers={"Authorization": "Bearer not-a-real-token"}
+    )
+    assert resp.status_code == 401
+
+
 async def test_logout_clears_cookie_and_invalidates_refresh(
     client: AsyncClient,
 ) -> None:
