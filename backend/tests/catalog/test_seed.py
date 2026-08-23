@@ -12,6 +12,7 @@ from app.catalog.models import (
     Item,
     Monster,
     Race,
+    Rule,
     Spell,
 )
 from app.catalog.seeds.seed import seed_catalog
@@ -109,6 +110,16 @@ async def test_seed_creates_monsters(db: AsyncSession) -> None:
     summaries = await service.list_monsters_translated(db)
     names = {m.name for m in summaries}
     assert names == {"Goblin", "Young Red Dragon"}
+
+
+@pytest.mark.asyncio
+async def test_seed_creates_rules(db: AsyncSession) -> None:
+    """seed_catalog should insert the two SRD rules."""
+    await seed_catalog(db)
+
+    rules = (await db.execute(select(Rule).order_by(Rule.index))).scalars().all()
+    indexes = {r.index for r in rules}
+    assert indexes == {"cover", "difficult-terrain"}
 
 
 @pytest.mark.asyncio

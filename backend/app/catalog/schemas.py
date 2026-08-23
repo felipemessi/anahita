@@ -677,3 +677,42 @@ class MonsterSummary(BaseModel):
     creature_type: str
     challenge_rating: float
     is_custom: bool
+
+
+# --- Rules narrativas (SRD 2014 §7.4.9) --------------------------------------
+
+
+class RuleSectionRead(BaseModel):
+    """Read schema for a rule section, with translated text resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    desc: str
+    is_custom: bool
+
+
+class RuleRead(BaseModel):
+    """Read schema for a rule, with translated text and its sections resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    desc: str
+    is_custom: bool
+    sections: list[RuleSectionRead]
+
+
+class RuleSummary(BaseModel):
+    """Lightweight rule listing schema, with translated `name` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    is_custom: bool

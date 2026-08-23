@@ -59,6 +59,11 @@ from app.catalog.models import (
     RaceI18n,
     RaceTrait,
     RaceTraitI18n,
+    Rule,
+    RuleI18n,
+    RuleRuleSection,
+    RuleSection,
+    RuleSectionI18n,
     Spell,
     SpellClass,
     SpellI18n,
@@ -203,6 +208,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_backgrounds(session)
     await _seed_feats(session)
     await _seed_monsters(session)
+    await _seed_rules(session)
     await session.commit()
 
 
@@ -775,4 +781,33 @@ async def _seed_monsters(session: AsyncSession) -> None:
                 entry.get(list_key, []),
                 ability_scores_by_index=ability_scores_by_index,
                 damage_types_by_index=damage_types_by_index,
+            )
+
+
+async def _seed_rules(session: AsyncSession) -> None:
+    count = await session.scalar(select(RuleSection).limit(1))
+    if count is not None:
+        return
+
+    data = json.loads((_DATA_DIR / "rules.json").read_text())
+
+    sections_by_index: dict[str, uuid.UUID] = {}
+    for entry in data["sections"]:
+        section = RuleSection(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(section)
+        await _seed_i18n(session, RuleSectionI18n, section.id, entry["i18n"])
+        sections_by_index[entry["index"]] = section.id
+
+    for entry in data["rules"]:
+        rule = Rule(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(rule)
+        await _seed_i18n(session, RuleI18n, rule.id, entry["i18n"])
+
+        for section_index in entry.get("section_indexes", []):
+            session.add(
+                RuleRuleSection(
+                    id=uuid.uuid4(),
+                    rule_id=rule.id,
+                    rule_section_id=sections_by_index[section_index],
+                )
             )

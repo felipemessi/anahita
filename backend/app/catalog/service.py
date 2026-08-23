@@ -54,6 +54,11 @@ from app.catalog.models import (
     RaceI18n,
     RaceTrait,
     RaceTraitI18n,
+    Rule,
+    RuleI18n,
+    RuleRuleSection,
+    RuleSection,
+    RuleSectionI18n,
     SkillDefinition,
     Spell,
     SpellClass,
@@ -104,6 +109,9 @@ from app.catalog.schemas import (
     RaceRead,
     RaceSummary,
     RaceTraitRead,
+    RuleRead,
+    RuleSectionRead,
+    RuleSummary,
     SpellClassRead,
     SpellRead,
     SpellSummary,
@@ -1571,6 +1579,105 @@ async def list_monsters_translated(
                 creature_type=monster.creature_type,
                 challenge_rating=monster.challenge_rating,
                 is_custom=monster.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
+
+
+# --- Rules narrativas (SRD 2014 §7.4.9) --------------------------------------
+
+
+async def list_rule_sections(session: AsyncSession) -> list[RuleSection]:
+    """Return all rule sections."""
+    result = await session.execute(
+        select(RuleSection).order_by(RuleSection.index)
+    )
+    return list(result.scalars().all())
+
+
+async def _translate_rule_section(
+    session: AsyncSession, section: RuleSection, locale: str
+) -> RuleSectionRead:
+    t = await get_translated(
+        session,
+        RuleSectionI18n,
+        RuleSectionI18n.entity_id,
+        entity_id=section.id,
+        locale=locale,
+    )
+    return RuleSectionRead(
+        id=section.id,
+        index=section.index,
+        name=t.name if t else "",
+        desc=t.desc if t else "",
+        is_custom=section.is_custom,
+    )
+
+
+async def list_rules(session: AsyncSession) -> list[Rule]:
+    """Return all rules (base rows, eager-loaded sections, untranslated)."""
+    stmt = select(Rule).options(
+        selectinload(Rule.sections).selectinload(RuleRuleSection.rule_section)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_rule(session: AsyncSession, rule_id: uuid.UUID) -> Rule | None:
+    """Return a single rule by ID (untranslated), or None if not found."""
+    stmt = (
+        select(Rule)
+        .where(Rule.id == rule_id)
+        .options(selectinload(Rule.sections).selectinload(RuleRuleSection.rule_section))
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_rule_translated(
+    session: AsyncSession, rule_id: uuid.UUID, *, locale: str = "en"
+) -> RuleRead | None:
+    """Return a rule by ID with every translatable field resolved for `locale`."""
+    rule = await get_rule(session, rule_id)
+    if rule is None:
+        return None
+    t = await get_translated(
+        session, RuleI18n, RuleI18n.entity_id, entity_id=rule.id, locale=locale
+    )
+    sections = [
+        await _translate_rule_section(session, rrs.rule_section, locale)
+        for rrs in rule.sections
+    ]
+    return RuleRead(
+        id=rule.id,
+        index=rule.index,
+        name=t.name if t else "",
+        desc=t.desc if t else "",
+        is_custom=rule.is_custom,
+        sections=sections,
+    )
+
+
+async def list_rules_translated(
+    session: AsyncSession, *, search: str | None = None, locale: str = "en"
+) -> list[RuleSummary]:
+    """Return rules with `name` resolved for `locale`, optionally name-filtered."""
+    rules = await list_rules(session)
+    summaries = []
+    for rule in rules:
+        t = await get_translated(
+            session, RuleI18n, RuleI18n.entity_id, entity_id=rule.id, locale=locale
+        )
+        summaries.append(
+            RuleSummary(
+                id=rule.id,
+                index=rule.index,
+                name=t.name if t else "",
+                is_custom=rule.is_custom,
             )
         )
     if search:

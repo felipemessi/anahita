@@ -1,0 +1,18 @@
+{
+  "sections": [
+    {"index": "combat", "i18n": {"en": {"name": "Combat", "desc": "Rules governing initiative, attacks, and damage during combat."}}},
+    {"index": "adventuring", "i18n": {"en": {"name": "Adventuring", "desc": "Rules governing travel, resting, and exploration."}}}
+  ],
+  "rules": [
+    {
+      "index": "difficult-terrain",
+      "i18n": {"en": {"name": "Difficult Terrain", "desc": "Every foot of movement in difficult terrain costs 1 extra foot."}},
+      "section_indexes": ["adventuring", "combat"]
+    },
+    {
+      "index": "cover",
+      "i18n": {"en": {"name": "Cover", "desc": "Walls, trees, and other obstacles can provide cover during combat, making a target harder to hit."}},
+      "section_indexes": ["combat"]
+    }
+  ]
+}

@@ -22,6 +22,8 @@ from app.catalog.schemas import (
     MonsterSummary,
     RaceRead,
     RaceSummary,
+    RuleRead,
+    RuleSummary,
     SpellRead,
     SpellSummary,
 )
@@ -261,3 +263,26 @@ async def get_monster(
     if monster is None:
         raise HTTPException(status_code=404, detail="Monster not found")
     return monster
+
+
+@router.get("/rules", response_model=list[RuleSummary])
+async def list_rules(
+    db: DB,
+    search: SearchQ = None,
+    locale: LocaleQ = "en",
+) -> list[RuleSummary]:
+    """List all rules, optionally filtered by name."""
+    return await service.list_rules_translated(db, search=search, locale=locale)
+
+
+@router.get("/rules/{rule_id}", response_model=RuleRead)
+async def get_rule(
+    rule_id: uuid.UUID,
+    db: DB,
+    locale: LocaleQ = "en",
+) -> RuleRead:
+    """Get a rule by ID with full details, including its rule sections."""
+    rule = await service.get_rule_translated(db, rule_id, locale=locale)
+    if rule is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return rule

@@ -1971,3 +1971,90 @@ class MonsterSpecialAbilityDamage(Base):
         "MonsterSpecialAbility", back_populates="damages"
     )
     damage_type: Mapped[DamageType] = relationship("DamageType")
+
+
+# --- Rules narrativas (SRD 2014 §7.4.9) --------------------------------------
+
+
+class RuleSection(CatalogEntityMixin, Base):
+    """A top-level section of the rules reference (e.g. Combat, Adventuring).
+
+    Translatable text (`name`, `desc`) lives in `RuleSectionI18n`.
+    """
+
+    __tablename__ = "catalog_rule_sections"
+
+
+class RuleSectionI18n(CatalogI18nMixin, Base):
+    """Translated text for a RuleSection."""
+
+    __tablename__ = "catalog_rule_sections_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_rule_sections_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_rule_sections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class Rule(CatalogEntityMixin, Base):
+    """A single rule entry from the rules reference.
+
+    Translatable text (`name`, `desc`) lives in `RuleI18n`.
+    """
+
+    __tablename__ = "catalog_rules"
+
+    sections: Mapped[list[RuleRuleSection]] = relationship(
+        "RuleRuleSection", back_populates="rule", cascade="all, delete-orphan"
+    )
+
+
+class RuleI18n(CatalogI18nMixin, Base):
+    """Translated text for a Rule."""
+
+    __tablename__ = "catalog_rules_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_rules_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_rules.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    desc: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class RuleRuleSection(Base):
+    """Junction: a Rule belongs to a RuleSection."""
+
+    __tablename__ = "catalog_rule_rule_sections"
+    __table_args__ = (
+        UniqueConstraint(
+            "rule_id", "rule_section_id", name="uq_catalog_rule_rule_sections"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    rule_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_rules.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    rule_section_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_rule_sections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    rule: Mapped[Rule] = relationship("Rule", back_populates="sections")
+    rule_section: Mapped[RuleSection] = relationship("RuleSection")

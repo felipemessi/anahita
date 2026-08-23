@@ -847,3 +847,49 @@ async def test_get_monster_not_found_returns_none(db: AsyncSession) -> None:
     """get_monster should return None for an unknown ID."""
     result = await service.get_monster(db, uuid.uuid4())
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_rule_sections_returns_all(db: AsyncSession) -> None:
+    """list_rule_sections should return every seeded section."""
+    await seed_catalog(db)
+    sections = await service.list_rule_sections(db)
+    assert len(sections) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_rules_returns_all(db: AsyncSession) -> None:
+    """list_rules should return every seeded rule."""
+    await seed_catalog(db)
+    rules = await service.list_rules(db)
+    assert len(rules) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_rule_translated_resolves_sections(db: AsyncSession) -> None:
+    """get_rule_translated resolves a rule's linked sections, translated."""
+    await seed_catalog(db)
+    results = await service.list_rules_translated(db, search="Difficult Terrain")
+    rule = await service.get_rule_translated(db, results[0].id, locale="en")
+
+    assert rule is not None
+    assert rule.name == "Difficult Terrain"
+    assert {s.name for s in rule.sections} == {"Adventuring", "Combat"}
+
+
+@pytest.mark.asyncio
+async def test_get_rule_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_rule_translated falls back to `en` when locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_rules_translated(db, search="Cover")
+    rule = await service.get_rule_translated(db, results[0].id, locale="pt-BR")
+
+    assert rule is not None
+    assert rule.name == "Cover"
+
+
+@pytest.mark.asyncio
+async def test_get_rule_not_found_returns_none(db: AsyncSession) -> None:
+    """get_rule should return None for an unknown ID."""
+    result = await service.get_rule(db, uuid.uuid4())
+    assert result is None
