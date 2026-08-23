@@ -177,7 +177,7 @@
 
 - **Lacunas descobertas na Fase 3 (frontend) — pendentes de decisão.**
   - [x] Criar NPC com stat block ✅ (2026-08-23): busca no catálogo de monstros (`useCatalogList("monsters", { search, campaign_id })`, mesmo padrão do `MonsterPicker` do combat tracker) embutida no formulário de `npcs/page.tsx`; seleciona um monstro da lista, mostra o nome escolhido com opção de remover, e envia `stat_block_id` em `POST .../npcs`. Testado em `npcs/page.test.tsx` (com e sem stat block).
-  - [ ] Vincular NPC a sessão / local a sessão: os endpoints `POST /npcs/{id}/sessions` e `POST /locations/{id}/sessions` existem no backend, mas não há formulário na UI para criar esses vínculos (só contagem via badge, que sempre mostra 0 hoje).
+  - [x] Vincular NPC a sessão / local a sessão ✅ (2026-08-23): `NpcCard` ganhou um controle "Vincular a uma sessão" (DM-only, oculto pra jogador) que abre um select das sessões da campanha e chama `POST /npcs/{id}/sessions`; `locations/page.tsx` ganhou um formulário equivalente (seleciona local + sessão) para `POST /locations/{id}/sessions`. Badge de "sessões" no `NpcCard` já refletia a contagem real (via `useNpcSessions`) desde a história anterior — só faltava como criar o vínculo pela UI, que é o que esta história resolveu.
   - [ ] Rotas de detalhe por entidade: NPCs/locais/facções não têm página própria (`/world/npcs/[npcId]`, etc.) — resultados de busca e badges de vínculo linkam para a lista da categoria, não para o item específico.
 
 ---

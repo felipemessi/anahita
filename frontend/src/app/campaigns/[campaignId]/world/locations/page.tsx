@@ -5,7 +5,13 @@ import { useParams } from "next/navigation";
 
 import { LocationTree } from "@/components/world/location-tree";
 import { useMyMembership } from "@/hooks/use-campaign";
-import { useCreateLocation, useLocationTree, useLocations } from "@/hooks/use-world";
+import { useSessions } from "@/hooks/use-session";
+import {
+  useCreateLocation,
+  useLinkLocationSession,
+  useLocationTree,
+  useLocations,
+} from "@/hooks/use-world";
 import type { LocationType } from "@/types/world";
 
 const LOCATION_TYPES: LocationType[] = [
@@ -30,6 +36,11 @@ export default function LocationsPage() {
   const [parentId, setParentId] = useState("");
   const createLocation = useCreateLocation(campaignId);
 
+  const [linkLocationId, setLinkLocationId] = useState("");
+  const [linkSessionId, setLinkSessionId] = useState("");
+  const { data: campaignSessions } = useSessions(campaignId);
+  const linkLocationSession = useLinkLocationSession(linkLocationId);
+
   function handleCreate(event: React.FormEvent) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -41,6 +52,15 @@ export default function LocationsPage() {
         parent_location_id: parentId || null,
       },
       { onSuccess: () => setName("") },
+    );
+  }
+
+  function handleLinkSession(event: React.FormEvent) {
+    event.preventDefault();
+    if (!linkLocationId || !linkSessionId) return;
+    linkLocationSession.mutate(
+      { session_id: linkSessionId },
+      { onSuccess: () => setLinkSessionId("") },
     );
   }
 
@@ -92,6 +112,44 @@ export default function LocationsPage() {
         <p role="alert" className="text-sm text-destructive">
           Não foi possível criar o local.
         </p>
+      ) : null}
+
+      {isDm && locations && locations.length > 0 ? (
+        <form onSubmit={handleLinkSession} className="flex flex-wrap gap-2">
+          <select
+            value={linkLocationId}
+            onChange={(event) => setLinkLocationId(event.target.value)}
+            aria-label="Local a vincular a uma sessão"
+            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-xs"
+          >
+            <option value="">Vincular local a uma sessão…</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={linkSessionId}
+            onChange={(event) => setLinkSessionId(event.target.value)}
+            aria-label="Sessão visitada"
+            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-xs"
+          >
+            <option value="">Selecione uma sessão</option>
+            {campaignSessions?.map((session) => (
+              <option key={session.id} value={session.id}>
+                Sessão {session.session_number} — {session.title}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={!linkLocationId || !linkSessionId || linkLocationSession.isPending}
+            className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary/50 disabled:opacity-50"
+          >
+            Vincular
+          </button>
+        </form>
       ) : null}
 
       {isLoading ? (
