@@ -18,7 +18,7 @@
 |------|----------------------------------------|-----------------|----------------------|
 | 0    | Fundação de app (providers, auth, API client, locale) | Concluída       | 2026-08-23           |
 | 1    | Campanhas, Personagens, Catálogo       | Concluída (todas as lacunas de backend identificadas foram implementadas e integradas — ver notas de cada história) | 2026-08-23 |
-| 2    | Sessão ao Vivo (Combat Tracker)        | Em andamento (história 1/4 concluída)    | 2026-08-23           |
+| 2    | Sessão ao Vivo (Combat Tracker)        | Concluída       | 2026-08-23           |
 | 3    | World-building                          | Não iniciado    | —                    |
 | 4    | Loot, Inventário e Handouts             | Não iniciado    | —                    |
 | 5    | Registro e Lore                         | Não iniciado    | —                    |
@@ -149,9 +149,10 @@
   - [x] Teste: `monster-picker` autocompleta os campos ao selecionar um monstro do catálogo
   - Notas: nenhuma lacuna de backend — `update_participant`/`add_participant`/`remove_participant` via WS já cobriam tudo. `damage-dialog.tsx` tem presets de 1 tap (-1/-5/-10/+1/+5/+10) e um campo "outro" de 2 taps (digitar + confirmar "Dano"/"Cura"); dano nunca deixa `hit_point_current` negativo (`Math.max(0, …)` client-side, o backend já rejeita negativo via `ge=0`). `condition-badges.tsx` e a exibição em `participant-card.tsx` (Fase 2 história 2) agora compartilham o mapa de labels via `lib/utils/conditions.ts` (extraído nesta história para não duplicar as 15 traduções). `monster-picker.tsx` acabou sendo o formulário inteiro de "adicionar participante" (não só a busca) — inclui iniciativa/ordem de turno, que o catálogo não tem opinião sobre; ao selecionar um monstro, autocompleta nome/PV/CA (primeira entrada de `armor_classes`) via `useCatalogEntry`, mas os campos continuam editáveis para NPCs sem stat block. `turn-indicator.tsx` substituiu o botão inline que a história anterior tinha colocado direto em `page.tsx`. Sem endpoint de remoção de condição em lote — cada toggle é um `update_participant` (`add_condition`/`remove_condition`) separado, como o protocolo já previa.
 
-- **Como jogador, quero acompanhar o combate em tempo real sem poder alterar nada.**
-  - [ ] Visão read-only do tracker (mesmos componentes, sem os controles de ação do DM)
-  - [ ] Teste: jogador não vê botões de ação; UI atualiza via WS mesmo assim
+- **Como jogador, quero acompanhar o combate em tempo real sem poder alterar nada.** ✅ (2026-08-23)
+  - [x] Visão read-only do tracker (mesmos componentes, sem os controles de ação do DM)
+  - [x] Teste: jogador não vê botões de ação; UI atualiza via WS mesmo assim
+  - Notas: nenhuma lacuna — a árvore de componentes já era compartilhada entre DM e jogador desde a história 2 (`app/campaigns/[campaignId]/combat/[encounterId]/page.tsx` só passa `renderActions` para `InitiativeTracker` quando `isDm`, e só renderiza `TurnIndicator`/"Adicionar participante" para o DM); esta história ficou principalmente em cobrir isso com teste (`page.test.tsx`, 3 casos: jogador sem controles, DM com controles, e HP do jogador atualizando de uma rerenderização do estado do `useCombat()` sem nenhuma ação do jogador — simula o que `CombatProvider` faz ao processar um `participant_updated` de verdade). Adicionado um rótulo "Modo espectador" no cabeçalho para o jogador, só cosmético. Servidor já rejeita comandos de não-DM (`ws_router._handle_message`) mesmo que a UI de alguma forma exibisse um controle — defesa em profundidade que já existia, não nova nesta história.
 
 ---
 

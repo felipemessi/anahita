@@ -67,6 +67,7 @@ export default function CombatPage() {
             <p className="text-sm text-muted-foreground">
               {STATUS_LABEL[encounter.status] ?? encounter.status} · Round{" "}
               {encounter.current_round}
+              {!isDm ? " · Modo espectador" : ""}
             </p>
           </div>
 
