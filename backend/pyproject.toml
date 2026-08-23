@@ -21,6 +21,7 @@ dev = [
     "aiosqlite>=0.22.1",
     "mypy>=1.14.0",
     "pytest-asyncio>=0.25.0",
+    "pytest-cov>=7.1.0",
     "pytest>=8.3.4",
     "ruff>=0.9.0",
     "taskipy>=1.14.1",
@@ -29,6 +30,7 @@ dev = [
 [tool.taskipy.tasks]
 dev = "uvicorn app.main:app --reload"
 test = "pytest"
+test-cov = "pytest --cov --cov-report=html"
 lint = "ruff check app engine"
 format = "ruff format app engine"
 typecheck = "mypy app engine"
@@ -49,6 +51,19 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["app", "engine"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
