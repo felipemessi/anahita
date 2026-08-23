@@ -83,10 +83,10 @@
   - **Nota:** removido o item placeholder `+1 Longsword` (`item_type=magic_item`) do seed — itens mágicos passam a ser modelados na história de Itens Mágicos (`MagicItem`) a seguir, não em `Item`
 
 - **Como jogador, quero o catálogo de Itens Mágicos (362 itens) para poder distribuir loot mágico nas campanhas.**
-  - [ ] `models.py`: `MagicItem` (+ `variant_of_id` auto-FK), `MagicItemI18n`
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py`
-  - [ ] Testes: item mágico com variantes (ex. +1/+2/+3)
+  - [x] `models.py`: `MagicItem` (+ `variant_of_id` auto-FK), `MagicItemI18n`
+  - [x] Migração Alembic — `alembic/versions/b8f90e4b9664_*.py` (upgrade/downgrade testados contra Postgres; puramente aditiva, sem dados antigos para migrar)
+  - [x] `schemas.py`/`service.py`/`router.py` — `list_magic_items_translated`/`get_magic_item_translated` resolvem nome/descrição/categoria traduzidos e a lista de variantes (`MagicItemSummary`) de um item base
+  - [x] Testes: item mágico com variantes (+1/+2/+3 Longsword, +1/+2 Shield), variante aponta de volta pro item base (`variant_of_id`), item mágico custom preso à campanha
 
 - **Como jogador, quero o catálogo de Backgrounds e Feats para completar a criação de personagem.**
   - [ ] `models.py`: `Background`, `BackgroundI18n`, `BackgroundProficiency`, `BackgroundEquipment`, `BackgroundFeature`; `Feat`, `FeatI18n`, `FeatPrerequisite`
