@@ -156,3 +156,17 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 - Fase 2 do frontend, história 4 (última da fase — Sessão ao Vivo
   completa): visão do jogador no combat tracker, sem nenhum controle de
   ação do mestre, atualizada em tempo real pelo mesmo WebSocket.
+
+### Fixed
+- `docker compose`: porta 8000 do backend não era publicada para o host —
+  o frontend rodando fora do Docker (`npm run dev`) não conseguia
+  alcançar a API, quebrando registro e login com um erro genérico de rede.
+- `lib/api/campaigns.ts` importava `serverApiFetch` (marcado `server-only`)
+  numa função nunca usada (`listCampaignsServer`); como esse arquivo é
+  importado por `hooks/use-campaign.ts`, usado em Client Components por
+  toda a aplicação, o import vazava para o bundle do cliente e quebrava
+  qualquer tela de campanha com o erro "You're importing a component that
+  needs server-only". Função morta removida.
+- ESLint passou a ignorar `next-env.d.ts` (arquivo auto-gerado pelo Next a
+  cada `dev`/`build`, nunca editado à mão), que estava quebrando o lint
+  sempre que alguém rodava o servidor de desenvolvimento localmente.
