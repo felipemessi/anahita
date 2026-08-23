@@ -53,10 +53,10 @@
   - [x] Teste garantindo que exatamente um FK de referência está preenchido conforme `proficiency_type` — `tests/catalog/test_proficiencies.py`
 
 - **Como jogador, quero o catálogo de Raças completo (com traits, subraças e bônus de habilidade) em vez do MVP mínimo atual.**
-  - [ ] Estender `models.py` existente (`Race`, `RaceTrait`, `Subrace`, `SubraceTrait`, `RaceAbilityBonus`): adicionar `index` nullable a `Race`/`Subrace`; extrair `name`/`description`/`age`/`alignment_desc`/`size_description`/`language_desc` para `RaceI18n`, `trait_name`/`description` para `RaceTraitI18n` e `SubraceTraitI18n` (seção 7.4.2)
-  - [ ] Migração Alembic de alteração (cuidado: migrar dados do seed mínimo atual antes de dropar as colunas antigas, ou recriar o seed do zero se for aceitável perder os 4 registros de placeholder)
-  - [ ] Atualizar `schemas.py`/`service.py`/`router.py` do catálogo para refletir o novo shape
-  - [ ] Atualizar/estender `backend/tests/catalog/test_service.py` e `test_seed.py`
+  - [x] Estender `models.py` existente (`Race`, `RaceTrait`, `Subrace`, `SubraceTrait`, `RaceAbilityBonus`): adicionar `index` nullable a `Race`/`Subrace`; extrair `name`/`description`/`age`/`alignment_desc`/`size_description`/`language_desc` para `RaceI18n`, `trait_name`/`description` para `RaceTraitI18n` e `SubraceTraitI18n` (seção 7.4.2)
+  - [x] Migração Alembic de alteração — recriou o seed do zero (4 registros de placeholder), conforme permitido pela história; `alembic/versions/4a3a38b85c46_*.py` (upgrade/downgrade testados contra Postgres)
+  - [x] Atualizar `schemas.py`/`service.py`/`router.py` do catálogo para refletir o novo shape — `list_races_translated`/`get_race_translated` resolvem texto traduzido (fallback `en`) com `locale` como query param no router
+  - [x] Atualizar/estender `backend/tests/catalog/test_service.py` e `test_seed.py`
 
 - **Como jogador, quero o catálogo de Classes completo (progressão por nível, features, subclasses, spellcasting) em vez do MVP mínimo atual.**
   - [ ] Generalizar `ClassLevelFeature` → `Feature` (suporta subclass, `parent_feature_id`, `FeaturePrerequisite`) — seção 7.4.4
