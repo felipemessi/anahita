@@ -218,3 +218,37 @@ async def test_remove_participant_over_http(client: AsyncClient) -> None:
     )
     assert delete_resp.status_code == 200
     assert delete_resp.json()["participants"] == []
+
+
+async def test_get_log_over_http(client: AsyncClient) -> None:
+    """GET /encounters/{id}/log returns the recorded actions in order."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    session_id = await _make_campaign_and_session(client, dm_token)
+
+    create_resp = await client.post(
+        f"/sessions/{session_id}/encounters",
+        json={"name": "Ambush"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    encounter_id = create_resp.json()["id"]
+
+    await client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={
+            "name": "Goblin",
+            "initiative": 10,
+            "hit_point_max": 7,
+            "armor_class": 15,
+            "turn_order": 0,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+
+    log_resp = await client.get(
+        f"/encounters/{encounter_id}/log",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert log_resp.status_code == 200
+    entries = log_resp.json()
+    assert len(entries) == 1
+    assert entries[0]["description"] == "Goblin joined the encounter"

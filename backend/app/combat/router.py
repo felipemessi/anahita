@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.combat.schemas import (
+    CombatLogRead,
     EncounterCreate,
     EncounterParticipantCreate,
     EncounterParticipantUpdate,
@@ -128,3 +129,14 @@ async def remove_participant(
     return await service.remove_participant(
         encounter_id, participant_id, user.id, db
     )
+
+
+@router.get("/encounters/{encounter_id}/log", response_model=list[CombatLogRead])
+async def get_log(
+    encounter_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CombatService, Depends(get_combat_service)],
+) -> list[CombatLogRead]:
+    """List an encounter's combat log, in chronological order. Any member."""
+    return await service.get_log(encounter_id, user.id, db)

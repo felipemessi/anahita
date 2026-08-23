@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.combat.domain import ConditionType, EncounterStatus
+from app.combat.domain import ActionType, ConditionType, EncounterStatus
 
 
 class EncounterCreate(BaseModel):
@@ -91,6 +91,28 @@ class EncounterParticipantRead(BaseModel):
     is_active: bool
     conditions: list[EncounterConditionRead]
     effects: list[MechanicalEffectRead]
+
+
+class CombatLogRead(BaseModel):
+    """Response schema for one logged combat action (PRD §7.6, história 4).
+
+    `actor_id`/`target_id` are `ON DELETE SET NULL` — a removed participant
+    doesn't take its history with it, see `app.combat.models.CombatLog`.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    encounter_id: uuid.UUID
+    round: int
+    turn_order: int
+    actor_id: uuid.UUID | None
+    action_type: ActionType
+    description: str
+    damage_dealt: int | None
+    damage_type: str | None
+    target_id: uuid.UUID | None
+    created_at: datetime
 
 
 class EncounterRead(BaseModel):

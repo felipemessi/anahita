@@ -98,7 +98,14 @@ class EncounterCondition(Base):
 
 
 class CombatLog(Base):
-    """One logged action during an encounter, for post-session reference."""
+    """One logged action during an encounter, for post-session reference.
+
+    `actor_id`/`target_id` are `ON DELETE SET NULL` (not a plain FK like the
+    PRD table implies) — a log entry must outlive the participant it refers
+    to (removing a fled/dead participant is a normal `remove_participant`
+    action, PRD §10.2), so the reference is nulled out rather than the log
+    row being lost or blocking the delete.
+    """
 
     __tablename__ = "combat_logs"
 
@@ -108,8 +115,10 @@ class CombatLog(Base):
     )
     round: Mapped[int] = mapped_column(Integer)
     turn_order: Mapped[int] = mapped_column(Integer)
-    actor_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("encounter_participants.id")
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("encounter_participants.id", ondelete="SET NULL"),
+        nullable=True,
     )
     action_type: Mapped[ActionType] = mapped_column(
         SAEnum(ActionType, name="combatactiontype")
@@ -118,7 +127,9 @@ class CombatLog(Base):
     damage_dealt: Mapped[int | None] = mapped_column(Integer, nullable=True)
     damage_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     target_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid, ForeignKey("encounter_participants.id"), nullable=True
+        Uuid,
+        ForeignKey("encounter_participants.id", ondelete="SET NULL"),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
