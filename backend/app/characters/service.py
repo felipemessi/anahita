@@ -33,6 +33,7 @@ from app.characters.schemas import (
     CharacterCreate,
     CharacterRead,
     CharacterSkillRead,
+    CharacterUpdate,
 )
 from engine.abilities import (
     calculate_modifier,
@@ -243,6 +244,72 @@ class CharacterService:
         )
         character.level += data.level
         character.proficiency_bonus = calculate_proficiency_bonus(character.level)
+
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def list_characters_for_campaign(
+        self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[CharacterRead]:
+        """List every character in `campaign_id`. Viewable by any of its members."""
+        membership_result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.campaign_id == campaign_id,
+                CampaignMember.user_id == requester_id,
+            )
+        )
+        if membership_result.scalar_one_or_none() is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not a member of this campaign",
+            )
+
+        result = await db.execute(
+            select(Character)
+            .join(CampaignMember, CampaignMember.id == Character.campaign_member_id)
+            .where(CampaignMember.campaign_id == campaign_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        return [self._to_read(c) for c in result.scalars().all()]
+
+    async def update_character(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterUpdate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Update a character's combat-facing fields (HP/AC/inspiration).
+
+        Only the character's own player may do this — mirrors `add_class`.
+        """
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+
+        if data.hit_point_current is not None:
+            if data.hit_point_current > character.hit_point_max:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="hit_point_current cannot exceed hit_point_max",
+                )
+            character.hit_point_current = data.hit_point_current
+        if data.temporary_hit_points is not None:
+            character.temporary_hit_points = data.temporary_hit_points
+        if data.armor_class is not None:
+            character.armor_class = data.armor_class
+        if data.inspiration is not None:
+            character.inspiration = data.inspiration
 
         await db.commit()
         return await self._reload_as_read(character.id, db)

@@ -83,6 +83,20 @@ class CharacterCreate(BaseModel):
     classes: list[CharacterClassCreate] = Field(min_length=1)
 
 
+class CharacterUpdate(BaseModel):
+    """Request body to update a character's combat-facing fields.
+
+    Every field is optional — only the ones supplied are changed. Used by
+    the inline HP editor on the character sheet (and future inline
+    editors for AC/temp HP/inspiration).
+    """
+
+    hit_point_current: int | None = Field(default=None, ge=0)
+    temporary_hit_points: int | None = Field(default=None, ge=0)
+    armor_class: int | None = Field(default=None, ge=0)
+    inspiration: bool | None = None
+
+
 class CharacterRead(BaseModel):
     """Response schema for a character."""
 

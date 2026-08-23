@@ -213,3 +213,190 @@ async def test_multiclass_over_http(client: AsyncClient) -> None:
     body = resp.json()
     assert len(body["classes"]) == 2
     assert body["level"] == 2
+
+
+async def test_list_characters_by_campaign_over_http(client: AsyncClient) -> None:
+    """GET /characters?campaign_id= lists every character in the campaign."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+
+    await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    resp = await client.get(
+        "/characters",
+        params={"campaign_id": campaign_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    names = [c["name"] for c in resp.json()]
+    assert names == ["Aldric"]
+
+
+async def test_list_characters_forbidden_for_non_member(client: AsyncClient) -> None:
+    """A non-member cannot list a campaign's characters."""
+    token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    outsider_token = await _register_and_login(client, "outsider@example.com")
+    resp = await client.get(
+        "/characters",
+        params={"campaign_id": campaign_id},
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert resp.status_code == 403
+
+
+async def test_update_character_hp_over_http(client: AsyncClient) -> None:
+    """A player can update their own character's current HP inline."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/characters/{character_id}",
+        json={"hit_point_current": 3},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["hit_point_current"] == 3
+
+
+async def test_update_character_hp_rejects_exceeding_max(client: AsyncClient) -> None:
+    """Setting hit_point_current above hit_point_max is rejected."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+    hit_point_max = create_resp.json()["hit_point_max"]
+
+    resp = await client.patch(
+        f"/characters/{character_id}",
+        json={"hit_point_current": hit_point_max + 100},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
+async def test_update_character_forbidden_for_other_player(client: AsyncClient) -> None:
+    """A different player cannot update someone else's character."""
+    token = await _register_and_login(client, "owner@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    outsider_token = await _register_and_login(client, "outsider@example.com")
+    resp = await client.patch(
+        f"/characters/{character_id}",
+        json={"hit_point_current": 1},
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert resp.status_code == 403

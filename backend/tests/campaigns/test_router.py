@@ -144,3 +144,73 @@ async def test_non_dm_cannot_create_invite_over_http(client: AsyncClient) -> Non
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert resp.status_code == 403
+
+
+async def test_get_campaign_returns_detail_for_member(client: AsyncClient) -> None:
+    """GET /campaigns/{id} returns the campaign detail for one of its members."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep", "setting": "Sword Coast"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    resp = await client.get(
+        f"/campaigns/{campaign_id}", headers={"Authorization": f"Bearer {dm_token}"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == campaign_id
+    assert body["name"] == "Waterdeep"
+
+
+async def test_get_campaign_404_for_non_member(client: AsyncClient) -> None:
+    """GET /campaigns/{id} is rejected for a user who isn't a member."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    outsider_token = await _register_and_login(client, "outsider@example.com")
+    resp = await client.get(
+        f"/campaigns/{campaign_id}",
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert resp.status_code == 404
+
+
+async def test_list_members_returns_dm_and_player(client: AsyncClient) -> None:
+    """GET /campaigns/{id}/members lists every member, DM and players alike."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    resp = await client.get(
+        f"/campaigns/{campaign_id}/members",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert resp.status_code == 200
+    roles = sorted(m["role"] for m in resp.json())
+    assert roles == ["dm", "player"]
