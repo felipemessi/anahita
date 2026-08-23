@@ -16,7 +16,7 @@
 
 | Fase | Domínio                          | Status                          | Última atualização |
 |------|-----------------------------------|----------------------------------|----------------------|
-| 0    | Catálogo SRD                      | Parcial (Race/Class/Spell/Item mínimos) | 2026-08-22    |
+| 0    | Catálogo SRD                      | Parcial (fundação i18n/custom-scope + vocabulário fixo prontos) | 2026-08-22    |
 | 1    | Fundação (Auth, Campaigns, Characters) | Parcial (Auth + Storage prontos) | 2026-08-22    |
 | 2    | Sessão ao Vivo (Combat, WS)        | Não iniciado                     | —                    |
 | 3    | World-building                    | Não iniciado                     | —                    |
@@ -30,21 +30,21 @@
 > Objetivo: ter as 24 categorias do SRD 2014 modeladas, migradas e semeadas (seed) em `en` (completo) e `pt-BR` (parcial, conforme dados disponíveis em `_data/2014/pt-BR`), antes de qualquer feature de personagem/combate depender delas. Ver seção 7.4 do PRD para o schema detalhado de cada história abaixo.
 
 - **Como desenvolvedor, quero um padrão reutilizável de i18n relacional para que qualquer entidade de catálogo suporte múltiplos idiomas sem JSONB nem tabelas genéricas.**
-  - [ ] Documentar (docstring/README curto em `app/catalog/`) a convenção `_i18n`: `entity_id` FK, `locale` (String(5), valores `en`/`pt-BR` por ora), unique `(entity_id, locale)`, fallback para `en` quando a tradução do locale ativo não existir
-  - [ ] Criar helper de query genérico em `app/catalog/service.py` (ex. `get_translated(entity, locale)`) que resolve a tradução com fallback, reutilizável por todos os catálogos
-  - [ ] Escrever teste unitário do helper de fallback (locale ausente → cai pra `en`; locale presente → usa o específico)
+  - [x] Documentar (docstring/README curto em `app/catalog/`) a convenção `_i18n`: `entity_id` FK, `locale` (String(5), valores `en`/`pt-BR` por ora), unique `(entity_id, locale)`, fallback para `en` quando a tradução do locale ativo não existir — `app/catalog/mixins.py`
+  - [x] Criar helper de query genérico em `app/catalog/service.py` (ex. `get_translated(entity, locale)`) que resolve a tradução com fallback, reutilizável por todos os catálogos
+  - [x] Escrever teste unitário do helper de fallback (locale ausente → cai pra `en`; locale presente → usa o específico) — `tests/catalog/test_i18n.py`
 
 - **Como DM, quero conteúdo custom (raças, classes, magias, itens, monstros, etc.) preso à minha campanha, para que homebrews não vazem para outras mesas nem para o catálogo global.**
-  - [ ] Adicionar constraint de domínio (validação em `service.py`, reforçada por CHECK na migração onde o dialeto suportar) `is_custom=False ⟺ campaign_id IS NULL` — implementar uma vez como função utilitária reaproveitada por todos os serviços de catálogo
-  - [ ] Escrever teste unitário garantindo que a constraint rejeita `is_custom=True, campaign_id=None` e `is_custom=False, campaign_id=<algo>`
-  - [ ] Escrever teste de query garantindo que uma listagem de catálogo (ex. `list_races(campaign_id=X)`) retorna SRD (`campaign_id IS NULL`) + custom da campanha `X`, mas nunca custom de outra campanha
+  - [x] Adicionar constraint de domínio (validação em `service.py`, reforçada por CHECK na migração onde o dialeto suportar) `is_custom=False ⟺ campaign_id IS NULL` — implementar uma vez como função utilitária reaproveitada por todos os serviços de catálogo — `app/catalog/domain.py::validate_custom_campaign_scope` + `CatalogEntityMixin` CHECK constraint (aplicada também a `Race`/`ClassDefinition`/`SubclassDefinition`)
+  - [x] Escrever teste unitário garantindo que a constraint rejeita `is_custom=True, campaign_id=None` e `is_custom=False, campaign_id=<algo>` — `tests/catalog/test_custom_campaign_scope.py`
+  - [x] Escrever teste de query garantindo que uma listagem de catálogo (ex. `list_races(campaign_id=X)`) retorna SRD (`campaign_id IS NULL`) + custom da campanha `X`, mas nunca custom de outra campanha
 
 - **Como desenvolvedor, quero o vocabulário fixo do SRD modelado (Ability Scores, Skills, Alignments, Conditions, Damage Types, Magic Schools, Languages, Weapon Properties) para servir de base a todas as outras categorias.**
-  - [ ] Criar `models.py`: `AbilityScoreDefinition`, `SkillDefinition`, `Alignment`, `Condition`, `DamageType`, `MagicSchool`, `Language`, `WeaponProperty` + suas 8 tabelas `_i18n` (seção 7.4.1 do PRD)
-  - [ ] Migração Alembic para as 16 tabelas acima
-  - [ ] `schemas.py` (Pydantic, request/response) para as 8 entidades
-  - [ ] `service.py`: CRUD de leitura (catálogo fixo não tem create via API por ora, só seed)
-  - [ ] Testes unitários (SQLite) cobrindo criação + leitura traduzida de cada uma das 8 entidades
+  - [x] Criar `models.py`: `AbilityScoreDefinition`, `SkillDefinition`, `Alignment`, `Condition`, `DamageType`, `MagicSchool`, `Language`, `WeaponProperty` + suas 8 tabelas `_i18n` (seção 7.4.1 do PRD)
+  - [x] Migração Alembic para as 16 tabelas acima — `alembic/versions/0ab8e6ca5757_*.py` (upgrade/downgrade testados contra Postgres)
+  - [x] `schemas.py` (Pydantic, request/response) para as 8 entidades
+  - [x] `service.py`: CRUD de leitura (catálogo fixo não tem create via API por ora, só seed)
+  - [x] Testes unitários (SQLite) cobrindo criação + leitura traduzida de cada uma das 8 entidades — `tests/catalog/test_fixed_vocabulary.py`
 
 - **Como desenvolvedor, quero Proficiencies modeladas e ligadas a skills/abilities/equipamento para que raças, classes e backgrounds possam referenciá-las.**
   - [ ] `models.py`: `Proficiency` (FKs nullable e mutuamente exclusivos por `proficiency_type`), `ProficiencyI18n`, `ProficiencyClass`, `ProficiencyRace`
