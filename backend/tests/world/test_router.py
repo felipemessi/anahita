@@ -94,3 +94,41 @@ async def test_dm_creates_npc_and_player_can_list_it(client: AsyncClient) -> Non
         headers={"Authorization": f"Bearer {player_token}"},
     )
     assert player_create_resp.status_code == 403
+
+
+async def test_dm_links_npc_to_faction(client: AsyncClient) -> None:
+    """Full flow: DM creates an NPC and a faction, then links them."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    npc_resp = await client.post(
+        f"/campaigns/{campaign_id}/npcs",
+        json={"name": "Volo", "race": "Human", "description": ""},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    npc_id = npc_resp.json()["id"]
+    faction_resp = await client.post(
+        f"/campaigns/{campaign_id}/factions",
+        json={"name": "Harpers", "description": ""},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    faction_id = faction_resp.json()["id"]
+
+    link_resp = await client.post(
+        f"/npcs/{npc_id}/factions",
+        json={"faction_id": faction_id, "role_in_faction": "Spymaster"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert link_resp.status_code == 201
+
+    list_resp = await client.get(
+        f"/npcs/{npc_id}/factions",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert len(list_resp.json()) == 1
+    assert list_resp.json()[0]["role_in_faction"] == "Spymaster"

@@ -10,14 +10,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog.models import Monster
+from app.sessions.models import Session
 from app.world.domain import LocationCycleError, validate_no_parent_cycle
-from app.world.models import NPC, Faction, Location
+from app.world.models import (
+    NPC,
+    Faction,
+    FactionRelationship,
+    Location,
+    LocationSession,
+    NPCFaction,
+    NPCLocation,
+    NPCSession,
+)
 from app.world.schemas import (
     FactionCreate,
+    FactionRelationshipCreate,
     LocationCreate,
     LocationParentUpdate,
+    LocationSessionCreate,
     LocationTreeNode,
     NPCCreate,
+    NPCFactionCreate,
+    NPCLocationCreate,
+    NPCSessionCreate,
 )
 
 
@@ -204,6 +219,232 @@ class WorldService:
             .order_by(Faction.name)
         )
         return list(result.scalars().all())
+
+    async def link_npc_faction(
+        self,
+        npc_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: NPCFactionCreate,
+        db: AsyncSession,
+    ) -> NPCFaction:
+        """Link an NPC to a Faction from their own campaign; DM-only."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_dm(npc.campaign_id, requester_id, db)
+        faction = await self._require_same_campaign_faction(
+            data.faction_id, npc.campaign_id, db
+        )
+
+        link = NPCFaction(
+            npc_id=npc.id,
+            faction_id=faction.id,
+            role_in_faction=data.role_in_faction,
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
+        return link
+
+    async def list_npc_factions(
+        self, npc_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[NPCFaction]:
+        """List an NPC's faction links; requester must be a campaign member."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_membership(npc.campaign_id, requester_id, db)
+        result = await db.execute(select(NPCFaction).where(NPCFaction.npc_id == npc.id))
+        return list(result.scalars().all())
+
+    async def link_npc_location(
+        self,
+        npc_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: NPCLocationCreate,
+        db: AsyncSession,
+    ) -> NPCLocation:
+        """Link an NPC to a Location from their own campaign; DM-only."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_dm(npc.campaign_id, requester_id, db)
+        location = await self._require_location(data.location_id, db)
+        if location.campaign_id != npc.campaign_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Location not found"
+            )
+
+        link = NPCLocation(
+            npc_id=npc.id,
+            location_id=location.id,
+            presence_type=data.presence_type,
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
+        return link
+
+    async def list_npc_locations(
+        self, npc_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[NPCLocation]:
+        """List an NPC's location links; requester must be a campaign member."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_membership(npc.campaign_id, requester_id, db)
+        result = await db.execute(
+            select(NPCLocation).where(NPCLocation.npc_id == npc.id)
+        )
+        return list(result.scalars().all())
+
+    async def link_npc_session(
+        self,
+        npc_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: NPCSessionCreate,
+        db: AsyncSession,
+    ) -> NPCSession:
+        """Link an NPC to a Session appearance from their own campaign; DM-only."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_dm(npc.campaign_id, requester_id, db)
+        session = await self._require_same_campaign_session(
+            data.session_id, npc.campaign_id, db
+        )
+
+        link = NPCSession(
+            npc_id=npc.id,
+            session_id=session.id,
+            appearance_note=data.appearance_note,
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
+        return link
+
+    async def list_npc_sessions(
+        self, npc_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[NPCSession]:
+        """List an NPC's session appearances; requester must be a campaign member."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_membership(npc.campaign_id, requester_id, db)
+        result = await db.execute(select(NPCSession).where(NPCSession.npc_id == npc.id))
+        return list(result.scalars().all())
+
+    async def link_location_session(
+        self,
+        location_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: LocationSessionCreate,
+        db: AsyncSession,
+    ) -> LocationSession:
+        """Link a Location to a Session visit from their own campaign; DM-only."""
+        location = await self._require_location(location_id, db)
+        await self._require_dm(location.campaign_id, requester_id, db)
+        session = await self._require_same_campaign_session(
+            data.session_id, location.campaign_id, db
+        )
+
+        link = LocationSession(
+            location_id=location.id,
+            session_id=session.id,
+            visit_note=data.visit_note,
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
+        return link
+
+    async def list_location_sessions(
+        self, location_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[LocationSession]:
+        """List a Location's session visits; requester must be a campaign member."""
+        location = await self._require_location(location_id, db)
+        await self._require_membership(location.campaign_id, requester_id, db)
+        result = await db.execute(
+            select(LocationSession).where(LocationSession.location_id == location.id)
+        )
+        return list(result.scalars().all())
+
+    async def link_faction_relationship(
+        self,
+        faction_a_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: FactionRelationshipCreate,
+        db: AsyncSession,
+    ) -> FactionRelationship:
+        """Set a relationship between two Factions from the same campaign; DM-only."""
+        faction_a = await self._require_faction(faction_a_id, db)
+        await self._require_dm(faction_a.campaign_id, requester_id, db)
+        if data.faction_b_id == faction_a_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A faction cannot have a relationship with itself",
+            )
+        faction_b = await self._require_same_campaign_faction(
+            data.faction_b_id, faction_a.campaign_id, db
+        )
+
+        link = FactionRelationship(
+            faction_a_id=faction_a.id,
+            faction_b_id=faction_b.id,
+            relationship_type=data.relationship_type,
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
+        return link
+
+    async def list_faction_relationships(
+        self, faction_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[FactionRelationship]:
+        """List a Faction's relationships (as either side); membership required."""
+        faction = await self._require_faction(faction_id, db)
+        await self._require_membership(faction.campaign_id, requester_id, db)
+        result = await db.execute(
+            select(FactionRelationship).where(
+                (FactionRelationship.faction_a_id == faction.id)
+                | (FactionRelationship.faction_b_id == faction.id)
+            )
+        )
+        return list(result.scalars().all())
+
+    async def _require_npc(self, npc_id: uuid.UUID, db: AsyncSession) -> NPC:
+        """Fetch an NPC by id, or raise 404."""
+        result = await db.execute(select(NPC).where(NPC.id == npc_id))
+        npc = result.scalar_one_or_none()
+        if npc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="NPC not found"
+            )
+        return npc
+
+    async def _require_faction(
+        self, faction_id: uuid.UUID, db: AsyncSession
+    ) -> Faction:
+        """Fetch a faction by id, or raise 404."""
+        result = await db.execute(select(Faction).where(Faction.id == faction_id))
+        faction = result.scalar_one_or_none()
+        if faction is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Faction not found"
+            )
+        return faction
+
+    async def _require_same_campaign_faction(
+        self, faction_id: uuid.UUID, campaign_id: uuid.UUID, db: AsyncSession
+    ) -> Faction:
+        """Fetch a faction, requiring it belongs to `campaign_id`, or raise 404."""
+        faction = await self._require_faction(faction_id, db)
+        if faction.campaign_id != campaign_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Faction not found"
+            )
+        return faction
+
+    async def _require_same_campaign_session(
+        self, session_id: uuid.UUID, campaign_id: uuid.UUID, db: AsyncSession
+    ) -> Session:
+        """Fetch a session, requiring it belongs to `campaign_id`, or raise 404."""
+        result = await db.execute(select(Session).where(Session.id == session_id))
+        session = result.scalar_one_or_none()
+        if session is None or session.campaign_id != campaign_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+            )
+        return session
 
     async def _require_location(
         self, location_id: uuid.UUID, db: AsyncSession

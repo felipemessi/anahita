@@ -7,7 +7,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.world.domain import LocationType
+from app.world.domain import (
+    FactionRelationshipType,
+    LocationType,
+    NPCLocationPresenceType,
+)
 
 
 class NPCCreate(BaseModel):
@@ -98,3 +102,93 @@ class FactionRead(BaseModel):
     description: str
     alignment: str | None
     influence_level: str | None
+
+
+class NPCFactionCreate(BaseModel):
+    """Request body to link an NPC to a Faction."""
+
+    faction_id: uuid.UUID
+    role_in_faction: str | None = None
+
+
+class NPCFactionRead(BaseModel):
+    """Response schema for an NPC-Faction link."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    npc_id: uuid.UUID
+    faction_id: uuid.UUID
+    role_in_faction: str | None
+
+
+class NPCLocationCreate(BaseModel):
+    """Request body to link an NPC to a Location."""
+
+    location_id: uuid.UUID
+    presence_type: NPCLocationPresenceType
+
+
+class NPCLocationRead(BaseModel):
+    """Response schema for an NPC-Location link."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    npc_id: uuid.UUID
+    location_id: uuid.UUID
+    presence_type: NPCLocationPresenceType
+
+
+class NPCSessionCreate(BaseModel):
+    """Request body to link an NPC to a Session appearance."""
+
+    session_id: uuid.UUID
+    appearance_note: str | None = None
+
+
+class NPCSessionRead(BaseModel):
+    """Response schema for an NPC-Session link."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    npc_id: uuid.UUID
+    session_id: uuid.UUID
+    appearance_note: str | None
+
+
+class LocationSessionCreate(BaseModel):
+    """Request body to link a Location to a Session visit."""
+
+    session_id: uuid.UUID
+    visit_note: str | None = None
+
+
+class LocationSessionRead(BaseModel):
+    """Response schema for a Location-Session link."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    location_id: uuid.UUID
+    session_id: uuid.UUID
+    visit_note: str | None
+
+
+class FactionRelationshipCreate(BaseModel):
+    """Request body to set a relationship between two Factions."""
+
+    faction_b_id: uuid.UUID
+    relationship_type: FactionRelationshipType
+
+
+class FactionRelationshipRead(BaseModel):
+    """Response schema for a Faction relationship."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    faction_a_id: uuid.UUID
+    faction_b_id: uuid.UUID
+    relationship_type: FactionRelationshipType
