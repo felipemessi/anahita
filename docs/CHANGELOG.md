@@ -114,3 +114,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   atualizar/remover participantes — tudo restrito ao mestre da campanha,
   leitura liberada para qualquer membro. Um participante é PC **ou** NPC,
   nunca ambos, validado em `app/combat/domain.py`.
+
+### Added
+- Fase 2 do backend, história 2: combate em tempo real via WebSocket
+  (`/ws/combat/{encounter_id}`, PRD §10). Protocolo de envelope
+  `{"event_type", "payload"}`; mestre avança turno, aplica dano/cura/
+  condição e encerra o combate, tudo transmitido a todos os conectados;
+  jogadores só recebem, comandos deles são rejeitados com um evento
+  `error`. Reconexão sempre recebe um `state_sync` completo (Postgres
+  como fonte de verdade, nunca o WebSocket).

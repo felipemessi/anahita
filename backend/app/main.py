@@ -8,6 +8,7 @@ from app.campaigns.router import router as campaigns_router
 from app.catalog.router import router as catalog_router
 from app.characters.router import router as characters_router
 from app.combat.router import router as combat_router
+from app.combat.ws_router import router as combat_ws_router
 from app.sessions.router import router as sessions_router
 
 app = FastAPI(title="Anahita", version="0.1.0")
@@ -26,6 +27,7 @@ app.include_router(catalog_router)
 app.include_router(characters_router)
 app.include_router(sessions_router)
 app.include_router(combat_router)
+app.include_router(combat_ws_router)
 
 
 @app.get("/health")

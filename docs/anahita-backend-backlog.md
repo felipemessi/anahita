@@ -18,7 +18,7 @@
 |------|-----------------------------------|----------------------------------|----------------------|
 | 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
 | 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
-| 2    | Sessão ao Vivo (Combat, WS)        | Em andamento (história 1/4: CRUD de encounter/participantes) | 2026-08-23 |
+| 2    | Sessão ao Vivo (Combat, WS)        | Em andamento (histórias 1-2/4: CRUD de encounter/participantes + WebSocket em tempo real) | 2026-08-23 |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
 | 5    | Registro e Lore                   | Não iniciado                     | —                    |
@@ -210,13 +210,14 @@
   - [x] Testes de domain (`CombatState`) + service
   - Notas: `EncounterParticipant.npc_id` não tem FK real (NPC é Fase 3, ainda não implementado) — mesmo padrão de `Race.campaign_id` no catálogo. "CombatState" do backlog virou `app/combat/domain.py::advance_turn` (função pura, não classe) + `TurnParticipant`/`TurnAdvanceResult`, testado isoladamente sem DB; será reaproveitado pelo comando `advance_turn` do WebSocket (história 2). Rotas REST: `POST`/`GET /sessions/{session_id}/encounters`, `GET /encounters/{id}`, `POST /encounters/{id}/start` (preparing→active), `POST /encounters/{id}/participants`, `PATCH`/`DELETE /encounters/{id}/participants/{participant_id}` — todas as de escrita são DM-only, leitura é para qualquer membro da campanha. `PATCH` de participante fora do fluxo de turno reaproveita a mesma regra de `CharacterUpdate` (HP acima do máximo rejeitado com 422). Testes: `tests/combat/test_domain.py`, `tests/combat/test_service.py`, `tests/combat/test_router.py` (25 testes).
 
-- **Como DM, quero avançar turnos e aplicar dano/cura/condições em tempo real para todos os jogadores verem.**
-  - [ ] `app/combat/ws_manager.py`: `WSConnectionManager` (dict `encounter_id → list[WebSocket]`)
-  - [ ] `app/combat/ws_router.py`: endpoint `/ws/combat/{encounter_id}`, auth via JWT em query param, valida membership
-  - [ ] Protocolo de mensagens (seção 10.2 do PRD): `state_sync`, `turn_advanced`, `participant_updated`, `encounter_status_changed` (servidor→cliente); `advance_turn`, `update_participant`, `add_participant`, `remove_participant`, `end_encounter` (DM→servidor)
-  - [ ] Regra: apenas `role=dm` pode enviar comandos; jogadores read-only (validado a cada mensagem)
-  - [ ] Teste de reconexão: cliente desconecta e reconecta, recebe `state_sync` completo
-  - [ ] Teste: jogador tentando enviar comando de DM é rejeitado
+- **Como DM, quero avançar turnos e aplicar dano/cura/condições em tempo real para todos os jogadores verem.** ✅ (2026-08-23)
+  - [x] `app/combat/ws_manager.py`: `WSConnectionManager` (dict `encounter_id → list[WebSocket]`)
+  - [x] `app/combat/ws_router.py`: endpoint `/ws/combat/{encounter_id}`, auth via JWT em query param, valida membership
+  - [x] Protocolo de mensagens (seção 10.2 do PRD): `state_sync`, `turn_advanced`, `participant_updated`, `encounter_status_changed` (servidor→cliente); `advance_turn`, `update_participant`, `add_participant`, `remove_participant`, `end_encounter` (DM→servidor)
+  - [x] Regra: apenas `role=dm` pode enviar comandos; jogadores read-only (validado a cada mensagem)
+  - [x] Teste de reconexão: cliente desconecta e reconecta, recebe `state_sync` completo
+  - [x] Teste: jogador tentando enviar comando de DM é rejeitado
+  - Notas: adicionado evento `error` (servidor→cliente) fora da tabela do PRD §10.2 — necessário para dar feedback de comando inválido/rejeitado ao cliente (`event_type` desconhecido, payload malformado, ou 403/422/404 do service), nunca fecha a conexão. `advance_turn` reaproveita `app/combat/domain.py::advance_turn` (história 1). `update_participant` cobre dano/cura (`hit_point_current`/`temporary_hit_points`/`armor_class`) e condição (`add_condition`/`remove_condition`, cria/remove `EncounterCondition`) num único comando — resolução de efeitos mecânicos das condições fica para a história 3. `add_participant`/`remove_participant` via WS fazem broadcast de `state_sync` completo (o protocolo não define um evento dedicado para essas duas ações). O handler usa `Depends(get_db)` (compatível com `dependency_overrides` dos testes) em vez de abrir sessão direto de `AsyncSessionLocal`, uma sessão por conexão. Testado com `fastapi.testclient.TestClient` (síncrono — é o que de fato dirige WebSocket em teste; a suíte usa `httpx.AsyncClient` pros demais routers, mas isso não dá suporte a WS). Dependência nova: `websockets` (`uv add websockets`), necessária para o transporte WS tanto em runtime (uvicorn) quanto nos testes. 34 testes em `tests/combat/` (25 REST da história 1 + 9 WS novos).
 
 - **Como jogador, quero ver as condições ativas do meu personagem e seus efeitos mecânicos durante o combate.**
   - [ ] Conectar `EncounterCondition` a `engine/conditions.py` (`get_condition_effects`)
