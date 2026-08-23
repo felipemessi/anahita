@@ -16,7 +16,7 @@
 
 | Fase | Domínio                              | Status         | Última atualização |
 |------|----------------------------------------|-----------------|----------------------|
-| 0    | Fundação de app (providers, auth, API client, locale) | Não iniciado | 2026-08-22 |
+| 0    | Fundação de app (providers, auth, API client, locale) | Concluída       | 2026-08-23           |
 | 1    | Campanhas, Personagens, Catálogo       | Não iniciado    | 2026-08-22           |
 | 2    | Sessão ao Vivo (Combat Tracker)        | Não iniciado    | —                    |
 | 3    | World-building                          | Não iniciado    | —                    |
@@ -29,30 +29,34 @@
 
 > Objetivo: ter o esqueleto do Next.js funcional — providers, autenticação, cliente de API, tema e locale — antes de construir qualquer tela de domínio. Depende do backend Fase 1 (auth) já pronto.
 
-- **Como usuário, quero abrir o app e ver a landing/dashboard renderizados com o tema visual correto.**
-  - [ ] `app/layout.tsx`: providers (`QueryProvider`, `ThemeProvider`), fontes (DM Sans + Space Mono), `styles/globals.css` com CSS variables do tema (deep navy + gold, dark padrão)
-  - [ ] `providers/query-provider.tsx`, `providers/theme-provider.tsx`
-  - [ ] `app/page.tsx`: landing simples (CTA login/registro)
-  - [ ] Configurar `next.config.ts` com `output: 'standalone'`
-  - [ ] Teste: layout renderiza sem erros (smoke test)
+- **Como usuário, quero abrir o app e ver a landing/dashboard renderizados com o tema visual correto.** ✅ (2026-08-23)
+  - [x] `app/layout.tsx`: providers (`QueryProvider`, `ThemeProvider`), fontes (DM Sans + Space Mono), `styles/globals.css` com CSS variables do tema (deep navy + gold, dark padrão)
+  - [x] `providers/query-provider.tsx`, `providers/theme-provider.tsx`
+  - [x] `app/page.tsx`: landing simples (CTA login/registro)
+  - [x] Configurar `next.config.ts` com `output: 'standalone'`
+  - [x] Teste: layout renderiza sem erros (smoke test)
+  - Notas: projeto Next.js bootstrapado do zero (package.json/tsconfig/tailwind/eslint/vitest estavam vazios — Fase 0 real começa aqui). Stack: Next 15 + React 19 + Tailwind v3 (CSS vars) + next-themes + TanStack Query v5 + Vitest/RTL. `lint`, `typecheck` e `test` passam. `next build` completo ainda falha, como esperado — as demais páginas do esqueleto (`auth/`, `campaigns/`, etc.) continuam como stubs de 0 bytes até suas próprias histórias.
 
-- **Como usuário, quero fazer login/registro e ter minha sessão mantida entre navegações.**
-  - [ ] `lib/api/client.ts`: fetch client-side, access token em memória, refresh automático em 401
-  - [ ] `lib/api/server.ts`: fetch server-side propagando cookie de refresh token
-  - [ ] `lib/auth/session.ts`, `lib/auth/middleware.ts`: leitura de sessão + proteção de rotas (`middleware.ts` redireciona para `/auth/login`)
-  - [ ] `app/auth/login/page.tsx`, `app/auth/register/page.tsx`
-  - [ ] Teste: middleware bloqueia rota protegida sem sessão; libera com sessão válida
-  - [ ] Teste: formulário de login chama a API e trata erro de credenciais inválidas
+- **Como usuário, quero fazer login/registro e ter minha sessão mantida entre navegações.** ✅ (2026-08-23)
+  - [x] `lib/api/client.ts`: fetch client-side, access token em memória, refresh automático em 401
+  - [x] `lib/api/server.ts`: fetch server-side propagando cookie de refresh token
+  - [x] `lib/auth/session.ts`, `lib/auth/middleware.ts`: leitura de sessão + proteção de rotas (`middleware.ts` redireciona para `/auth/login`)
+  - [x] `app/auth/login/page.tsx`, `app/auth/register/page.tsx`
+  - [x] Teste: middleware bloqueia rota protegida sem sessão; libera com sessão válida
+  - [x] Teste: formulário de login chama a API e trata erro de credenciais inválidas
+  - Notas: backend não tem endpoint `/auth/me`/users — o JWT de acesso só carrega `sub` (user id), então `lib/auth/session.ts` decodifica isso client-side (sem verificar assinatura, só para UI) e não expõe username/email ainda; isso deverá ser resolvido quando o backend expuser perfil do usuário (possivelmente já na Fase 1, dashboard de campanhas). Criado também `src/middleware.ts` (não listado no backlog, mas exigido pela convenção do Next.js para o middleware ser de fato carregado) que delega para `lib/auth/middleware.ts::authMiddleware`. `lib/api/server.ts` resolve o access token chamando `/auth/refresh` diretamente com o cookie de refresh propagado (em vez de um Route Handler interno dedicado — mais simples e equivalente). Novas env vars: `NEXT_PUBLIC_API_URL` (client) e `ANAHITA_API_URL` (server), documentadas em `.env.example`.
 
-- **Como usuário, quero escolher o idioma em que vejo o catálogo (SRD) da campanha.**
-  - [ ] `lib/i18n/locale.ts`: leitura/escrita do cookie `anahita_locale`, default `en`
-  - [ ] `components/catalog/locale-switcher.tsx` no header
-  - [ ] `lib/api/client.ts`/`server.ts`: anexar `?locale=` em chamadas a `lib/api/catalog.ts`
-  - [ ] Teste: trocar locale invalida o cache de catálogo do TanStack Query
+- **Como usuário, quero escolher o idioma em que vejo o catálogo (SRD) da campanha.** ✅ (2026-08-23)
+  - [x] `lib/i18n/locale.ts`: leitura/escrita do cookie `anahita_locale`, default `en`
+  - [x] `components/catalog/locale-switcher.tsx` no header
+  - [x] `lib/api/client.ts`/`server.ts`: anexar `?locale=` em chamadas a `lib/api/catalog.ts`
+  - [x] Teste: trocar locale invalida o cache de catálogo do TanStack Query
+  - Notas: `lib/api/catalog.ts` ainda não existe (é da Fase 1) — `apiFetch`/`serverApiFetch` ganharam um parâmetro opcional `locale` genérico que já anexa `?locale=`, pronto para o `catalog.ts` da Fase 1 usar. `locale-switcher.tsx` ainda não está montado em nenhum header real (`components/layout/header.tsx` também é Fase 1); ele exporta `CATALOG_QUERY_KEY_PREFIX = ["catalog"]`, que `hooks/use-catalog.ts` (Fase 1) deve usar como prefixo de toda query key de catálogo para a invalidação funcionar.
 
-- **Como desenvolvedor, quero os tipos base espelhando os schemas do backend antes de construir telas.**
-  - [ ] `types/campaign.ts`, `types/character.ts`, `types/catalog.ts` (24 categorias + `translations`), `types/session.ts`, `types/combat.ts`, `types/world.ts`, `types/handout.ts`, `types/inventory.ts`
-  - [ ] Conferir que cada tipo bate com o `schemas.py` Pydantic correspondente no backend (checagem manual, não há geração automática por ora)
+- **Como desenvolvedor, quero os tipos base espelhando os schemas do backend antes de construir telas.** ✅ (2026-08-23)
+  - [x] `types/campaign.ts`, `types/character.ts`, `types/catalog.ts` (24 categorias + `translations`), `types/session.ts`, `types/combat.ts`, `types/world.ts`, `types/handout.ts`, `types/inventory.ts`
+  - [x] Conferir que cada tipo bate com o `schemas.py` Pydantic correspondente no backend (checagem manual, não há geração automática por ora)
+  - Notas: `campaign.ts`, `character.ts`, `catalog.ts` e `session.ts` foram conferidos linha a linha contra `backend/app/{campaigns,characters,catalog,sessions}/schemas.py` + `domain.py` — batem. `catalog.ts` não tem campo `translations` bruto porque o backend já resolve o texto traduzido no servidor via `?locale=` antes de responder (schemas trazem `name`/`description` já resolvidos, não um blob de traduções) — a menção a "translations" no backlog está desatualizada em relação à implementação real. `combat.ts`, `world.ts`, `handout.ts`, `inventory.ts` são **provisórios**: os domínios de backend correspondentes (Fases 2–4) ainda não existem, então foram espelhados a partir do modelo de dados descrito em `docs/anahita-backend-prd.md` §7.6–7.9 — precisam ser reconferidos contra o `schemas.py` real assim que cada domínio for implementado no backend.
 
 ---
 
