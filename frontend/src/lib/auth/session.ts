@@ -2,9 +2,11 @@
 
 import { apiFetch, setAccessToken } from "@/lib/api/client";
 
-/** Minimal identity decoded from the access token's JWT payload. */
+/** Public profile of the authenticated user — mirrors backend UserPublic (GET /auth/me). */
 export interface SessionUser {
   id: string;
+  email: string;
+  username: string;
 }
 
 interface TokenResponse {
@@ -12,23 +14,9 @@ interface TokenResponse {
   token_type: string;
 }
 
-/**
- * Decode a JWT payload without verifying its signature. Safe here because
- * the token itself was already validated by the backend that issued it —
- * this is only used to read the `sub` claim for UI purposes, never to
- * authorize anything client-side.
- */
-function decodeAccessToken(token: string): SessionUser | null {
-  try {
-    const [, payload] = token.split(".");
-    if (!payload) return null;
-    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as {
-      sub?: string;
-    };
-    return json.sub ? { id: json.sub } : null;
-  } catch {
-    return null;
-  }
+/** Fetch the authenticated user's profile from GET /auth/me. */
+export async function getCurrentUser(): Promise<SessionUser> {
+  return apiFetch<SessionUser>("/auth/me");
 }
 
 /** Log in with email + password. Stores the access token in memory and returns the session user. */
@@ -42,11 +30,7 @@ export async function login(
     skipAuthRefresh: true,
   });
   setAccessToken(access_token);
-  const user = decodeAccessToken(access_token);
-  if (!user) {
-    throw new Error("Received an invalid access token");
-  }
-  return user;
+  return getCurrentUser();
 }
 
 /** Register a new account. Does not log the user in automatically. */
