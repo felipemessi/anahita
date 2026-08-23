@@ -107,3 +107,56 @@ async def test_create_character_over_http(client: AsyncClient) -> None:
     assert len(body["ability_scores"]) == 6
     assert len(body["classes"]) == 1
     assert body["hit_point_max"] == 11
+    assert len(body["skills"]) == 18
+    dex_modifier = next(
+        s["modifier"] for s in body["ability_scores"] if s["ability"] == "dex"
+    )
+    assert dex_modifier == 2
+
+    character_id = body["id"]
+    get_resp = await client.get(
+        f"/characters/{character_id}", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert get_resp.status_code == 200
+    assert get_resp.json()["id"] == character_id
+
+
+async def test_get_character_forbidden_for_other_player(client: AsyncClient) -> None:
+    """A different player cannot fetch someone else's character sheet."""
+    token = await _register_and_login(client, "owner@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Baldur's Gate"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    classes_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = classes_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    outsider_token = await _register_and_login(client, "outsider@example.com")
+    resp = await client.get(
+        f"/characters/{character_id}",
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert resp.status_code == 403

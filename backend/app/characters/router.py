@@ -1,5 +1,6 @@
 """HTTP router for the characters domain."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -30,5 +31,15 @@ async def create_character(
     service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> CharacterRead:
     """Create a character sheet for the authenticated user's own membership."""
-    character = await service.create_character(user.id, body, db)
-    return CharacterRead.model_validate(character)
+    return await service.create_character(user.id, body, db)
+
+
+@router.get("/{character_id}", response_model=CharacterRead)
+async def get_character(
+    character_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Fetch a character sheet with calculated modifiers and skill bonuses."""
+    return await service.get_character(character_id, user.id, db)

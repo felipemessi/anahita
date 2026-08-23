@@ -5,6 +5,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.domain import AbilityScore
+from app.characters.domain import Skill
 
 
 class CharacterAbilityScoreCreate(BaseModel):
@@ -17,15 +18,33 @@ class CharacterAbilityScoreCreate(BaseModel):
 
 
 class CharacterAbilityScoreRead(BaseModel):
-    """Response schema for a character's ability score."""
+    """Response schema for a character's ability score.
 
-    model_config = ConfigDict(from_attributes=True)
+    `modifier` is computed by `engine.abilities.calculate_modifier` — it is
+    never persisted, only derived on read.
+    """
 
     id: uuid.UUID
     ability: AbilityScore
     base_score: int
     asi_bonus: int
     misc_bonus: int
+    modifier: int
+
+
+class CharacterSkillRead(BaseModel):
+    """Response schema for a character's skill.
+
+    `ability` (the governing ability) and `bonus` (via
+    `engine.abilities.calculate_skill_bonus`) are computed, never persisted.
+    """
+
+    id: uuid.UUID
+    skill: Skill
+    ability: AbilityScore
+    proficient: bool
+    expertise: bool
+    bonus: int
 
 
 class CharacterClassCreate(BaseModel):
@@ -86,4 +105,5 @@ class CharacterRead(BaseModel):
     inspiration: bool
     proficiency_bonus: int
     ability_scores: list[CharacterAbilityScoreRead]
+    skills: list[CharacterSkillRead]
     classes: list[CharacterClassRead]

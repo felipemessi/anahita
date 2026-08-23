@@ -158,9 +158,10 @@
   - [x] Testes: criação de personagem simples (1 classe, 1 raça) com HP/CA/bônus de proficiência calculados via `engine/`, rejeição de referência a catálogo custom de outra campanha, criação para membership de outro usuário rejeitada, ability scores incompletos rejeitados, fluxo HTTP completo — `tests/characters/test_service.py`, `tests/characters/test_router.py`
 
 - **Como jogador, quero ver os atributos calculados da minha ficha (modificadores, bônus de perícia, CA, PV) sem calcular na mão.**
-  - [ ] Conectar `service.py` de characters à `engine/` (ability modifiers, skill bonus, armor class, hit points)
-  - [ ] `schemas.py`: response inclui campos calculados (não persistidos)
-  - [ ] Testes: ficha de exemplo com valores conhecidos → conferir modificadores calculados batem com as regras do 5e
+  - [x] Conectar `service.py` de characters à `engine/` (ability modifiers, skill bonus — CA/PV já calculados na criação, seção anterior) — `CharacterService._to_read` recalcula `modifier` (`engine.abilities.calculate_modifier`) e `bonus` de cada uma das 18 skills (`engine.abilities.calculate_skill_bonus`) a cada leitura, nunca confiando em valor persistido; criação agora também inicializa as 18 `CharacterSkill` (não proficientes por padrão)
+  - [x] `schemas.py`: response inclui campos calculados (não persistidos) — `CharacterAbilityScoreRead.modifier`, `CharacterSkillRead.ability`/`bonus`
+  - [x] `GET /characters/{id}` (novo endpoint), visível ao dono da ficha e ao DM da campanha, 403 para outros jogadores
+  - [x] Testes: ficha de exemplo com valores conhecidos → modificadores batem com as regras do 5e; bônus de perícia recalculado após marcar proficiência direto no banco (prova que não é confiado o valor persistido); controle de acesso (dono vê, DM vê, outro jogador não vê) — `tests/characters/test_calculated_fields.py`, `tests/characters/test_router.py`
 
 - **Como jogador multiclasse, quero adicionar uma segunda classe ao meu personagem.**
   - [ ] `service.py`: validação de multiclass via `engine/validation.py` (prerequisitos de ability score)

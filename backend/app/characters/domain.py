@@ -39,6 +39,29 @@ class FeatureSourceType(enum.StrEnum):
     feat = "feat"
 
 
+#: The ability score that governs each skill check (PRD §7.3, standard 5e rules).
+SKILL_ABILITY: dict[Skill, AbilityScore] = {
+    Skill.acrobatics: AbilityScore.dex,
+    Skill.animal_handling: AbilityScore.wis,
+    Skill.arcana: AbilityScore.int,
+    Skill.athletics: AbilityScore.str,
+    Skill.deception: AbilityScore.cha,
+    Skill.history: AbilityScore.int,
+    Skill.insight: AbilityScore.wis,
+    Skill.intimidation: AbilityScore.cha,
+    Skill.investigation: AbilityScore.int,
+    Skill.medicine: AbilityScore.wis,
+    Skill.nature: AbilityScore.int,
+    Skill.perception: AbilityScore.wis,
+    Skill.performance: AbilityScore.cha,
+    Skill.persuasion: AbilityScore.cha,
+    Skill.religion: AbilityScore.int,
+    Skill.sleight_of_hand: AbilityScore.dex,
+    Skill.stealth: AbilityScore.dex,
+    Skill.survival: AbilityScore.wis,
+}
+
+
 class CrossCampaignCatalogReferenceError(ValueError):
     """Raised when a character references custom catalog content it can't see."""
 

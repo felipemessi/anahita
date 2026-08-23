@@ -1,4 +1,4 @@
-"""CharacterService orchestrates character sheet creation."""
+"""CharacterService orchestrates character sheet creation and reads."""
 
 import uuid
 from typing import Protocol
@@ -8,18 +8,43 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
 from app.catalog.domain import AbilityScore
 from app.characters.domain import (
+    SKILL_ABILITY,
     CrossCampaignCatalogReferenceError,
+    Skill,
     validate_catalog_reference,
 )
-from app.characters.models import Character, CharacterAbilityScore, CharacterClass
-from app.characters.schemas import CharacterAbilityScoreCreate, CharacterCreate
-from engine.abilities import calculate_modifier, calculate_proficiency_bonus
+from app.characters.models import (
+    Character,
+    CharacterAbilityScore,
+    CharacterClass,
+    CharacterSkill,
+)
+from app.characters.schemas import (
+    CharacterAbilityScoreCreate,
+    CharacterAbilityScoreRead,
+    CharacterClassRead,
+    CharacterCreate,
+    CharacterRead,
+    CharacterSkillRead,
+)
+from engine.abilities import (
+    calculate_modifier,
+    calculate_proficiency_bonus,
+    calculate_skill_bonus,
+)
 from engine.armor_class import calculate_ac
 from engine.hit_points import calculate_max_hp
+
+_CHARACTER_LOAD_OPTIONS = (
+    selectinload(Character.ability_scores),
+    selectinload(Character.skills),
+    selectinload(Character.classes),
+)
 
 
 class _CatalogScopedEntity(Protocol):
@@ -30,11 +55,11 @@ class _CatalogScopedEntity(Protocol):
 
 
 class CharacterService:
-    """Orchestrates character creation and catalog-reference validation."""
+    """Orchestrates character creation, reads, and catalog-reference validation."""
 
     async def create_character(
         self, requester_id: uuid.UUID, data: CharacterCreate, db: AsyncSession
-    ) -> Character:
+    ) -> CharacterRead:
         """Create a character sheet tied to `data.campaign_member_id`.
 
         Only the owner of that campaign membership may create the character.
@@ -117,17 +142,127 @@ class CharacterService:
                     level=class_entry.level,
                 )
             )
+        for skill in Skill:
+            db.add(CharacterSkill(character_id=character.id, skill=skill))
 
         await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def get_character(
+        self, character_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> CharacterRead:
+        """Fetch a character with calculated fields (modifiers, skill bonuses).
+
+        Viewable by the character's own player and by the campaign's DM.
+        """
         result = await db.execute(
             select(Character)
-            .where(Character.id == character.id)
-            .options(
-                selectinload(Character.ability_scores),
-                selectinload(Character.classes),
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_viewer(character, requester_id, db)
+        return self._to_read(character)
+
+    async def _require_viewer(
+        self, character: Character, requester_id: uuid.UUID, db: AsyncSession
+    ) -> None:
+        """Raise 403 unless `requester_id` owns the sheet or DMs its campaign."""
+        result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.id == character.campaign_member_id
             )
         )
-        return result.scalar_one()
+        owning_member = result.scalar_one_or_none()
+        if owning_member is not None and owning_member.user_id == requester_id:
+            return
+        if owning_member is not None:
+            dm_result = await db.execute(
+                select(CampaignMember).where(
+                    CampaignMember.campaign_id == owning_member.campaign_id,
+                    CampaignMember.user_id == requester_id,
+                    CampaignMember.role == CampaignRole.dm,
+                )
+            )
+            if dm_result.scalar_one_or_none() is not None:
+                return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot view another player's character",
+        )
+
+    async def _reload_as_read(
+        self, character_id: uuid.UUID, db: AsyncSession
+    ) -> CharacterRead:
+        """Reload a freshly-created character with relationships, as a read schema."""
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        return self._to_read(result.scalar_one())
+
+    def _to_read(self, character: Character) -> CharacterRead:
+        """Build the read schema, computing ability modifiers and skill bonuses."""
+        modifier_by_ability = {
+            score.ability: calculate_modifier(
+                score.base_score + score.asi_bonus + score.misc_bonus
+            )
+            for score in character.ability_scores
+        }
+        ability_scores = [
+            CharacterAbilityScoreRead(
+                id=score.id,
+                ability=score.ability,
+                base_score=score.base_score,
+                asi_bonus=score.asi_bonus,
+                misc_bonus=score.misc_bonus,
+                modifier=modifier_by_ability[score.ability],
+            )
+            for score in character.ability_scores
+        ]
+        skills = [
+            CharacterSkillRead(
+                id=skill.id,
+                skill=skill.skill,
+                ability=SKILL_ABILITY[skill.skill],
+                proficient=skill.proficient,
+                expertise=skill.expertise,
+                bonus=calculate_skill_bonus(
+                    modifier_by_ability[SKILL_ABILITY[skill.skill]],
+                    skill.proficient,
+                    skill.expertise,
+                    character.proficiency_bonus,
+                ),
+            )
+            for skill in character.skills
+        ]
+        classes = [CharacterClassRead.model_validate(c) for c in character.classes]
+        return CharacterRead(
+            id=character.id,
+            campaign_member_id=character.campaign_member_id,
+            name=character.name,
+            race_id=character.race_id,
+            subrace_id=character.subrace_id,
+            level=character.level,
+            experience_points=character.experience_points,
+            alignment=character.alignment,
+            background=character.background,
+            hit_point_max=character.hit_point_max,
+            hit_point_current=character.hit_point_current,
+            temporary_hit_points=character.temporary_hit_points,
+            armor_class=character.armor_class,
+            speed=character.speed,
+            inspiration=character.inspiration,
+            proficiency_bonus=character.proficiency_bonus,
+            ability_scores=ability_scores,
+            skills=skills,
+            classes=classes,
+        )
 
     async def _require_own_membership(
         self, campaign_member_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
