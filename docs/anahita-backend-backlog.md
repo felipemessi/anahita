@@ -67,11 +67,12 @@
   - [x] Testes cobrindo: leitura de progressão completa de uma classe (todos os 20 níveis, Fighter), leitura de recursos por nível (rage_count/rage_damage do Barbarian) — `tests/catalog/test_service.py`, `tests/catalog/test_seed.py`
 
 - **Como jogador, quero o catálogo de Magias completo (319 spells do SRD) com escola, classes que conjuram e dano estruturado.**
-  - [ ] Adicionar `is_custom`/`campaign_id`/`index`/`magic_school_id` a `Spell` (hoje `school` é string solta — trocar por FK)
-  - [ ] Criar `SpellI18n`, `SpellClass` (junção)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py` atualizados
-  - [ ] Testes: spell com múltiplas classes, spell custom presa à campanha
+  - [x] Adicionar `is_custom`/`campaign_id`/`index`/`magic_school_id` a `Spell` (hoje `school` é string solta — trocar por FK)
+  - [x] Criar `SpellI18n`, `SpellClass` (junção)
+  - [x] Migração Alembic — `alembic/versions/d95c9bd92d79_*.py` (upgrade/downgrade testados contra Postgres; limpa os dados antigos de `catalog_spells`, reseedados do zero conforme permitido pela história). Seed também garante (get-or-create idempotente) os 8 `MagicSchool` do SRD referenciados por `magic_school_id`, já que o vocabulário fixo ainda não tem seed próprio (história pendente abaixo)
+  - [x] `schemas.py`/`service.py`/`router.py` atualizados — `list_spells_translated`/`get_spell_translated` resolvem nome/descrição/higher_levels com fallback `en`, escola (slug do `MagicSchool`) e classes conjuradoras traduzidas
+  - [x] Testes: spell com múltiplas classes (Detect Magic: Wizard+Cleric), spell custom presa à campanha
+  - **Nota:** o PRD (§7.4.5) não define dano estruturado para `Spell` (diferente de `WeaponDetail`) — dano de magia continua só na `description` em texto livre; título da história ficou mais amplo que o schema detalhado
 
 - **Como jogador, quero o catálogo de Equipamento completo (237 itens + categorias + propriedades de arma) em vez do MVP mínimo atual.**
   - [ ] Criar `EquipmentCategory` (+ i18n), estender `Item` com `is_custom`/`campaign_id`/`index`/`equipment_category_id`, criar `ItemI18n`, `ItemProperty` (junção com `WeaponProperty`)
