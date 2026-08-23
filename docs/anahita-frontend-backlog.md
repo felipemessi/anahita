@@ -18,7 +18,7 @@
 |------|----------------------------------------|-----------------|----------------------|
 | 0    | Fundação de app (providers, auth, API client, locale) | Concluída       | 2026-08-23           |
 | 1    | Campanhas, Personagens, Catálogo       | Concluída (todas as lacunas de backend identificadas foram implementadas e integradas — ver notas de cada história) | 2026-08-23 |
-| 2    | Sessão ao Vivo (Combat Tracker)        | Não iniciado    | —                    |
+| 2    | Sessão ao Vivo (Combat Tracker)        | Em andamento (história 1/4 concluída)    | 2026-08-23           |
 | 3    | World-building                          | Não iniciado    | —                    |
 | 4    | Loot, Inventário e Handouts             | Não iniciado    | —                    |
 | 5    | Registro e Lore                         | Não iniciado    | —                    |
@@ -124,12 +124,13 @@
 
 > Depende do backend Fase 2 (encounters + WebSocket).
 
-- **Como DM, quero gerenciar sessões e suas notas.**
-  - [ ] `lib/api/sessions.ts`, `hooks/use-session.ts`
-  - [ ] `app/campaigns/[campaignId]/sessions/page.tsx` + `components/sessions/session-card.tsx`
-  - [ ] `app/campaigns/[campaignId]/sessions/[sessionId]/page.tsx` + `components/sessions/note-editor.tsx`, `quick-note.tsx`
-  - [ ] Regra de UI: notas privadas (`is_private`) só aparecem para o DM
-  - [ ] Teste: Player não vê notas privadas de outro autor
+- **Como DM, quero gerenciar sessões e suas notas.** ✅ (2026-08-23)
+  - [x] `lib/api/sessions.ts`, `hooks/use-session.ts`
+  - [x] `app/campaigns/[campaignId]/sessions/page.tsx` + `components/sessions/session-card.tsx`
+  - [x] `app/campaigns/[campaignId]/sessions/[sessionId]/page.tsx` + `components/sessions/note-editor.tsx`, `quick-note.tsx`
+  - [x] Regra de UI: notas privadas (`is_private`) só aparecem para o DM
+  - [x] Teste: Player não vê notas privadas de outro autor
+  - Notas: backend já tinha tudo que essa história precisava (`POST/GET /campaigns/{id}/sessions`, `POST/GET /sessions/{id}/notes`) — nenhuma lacuna encontrada. A filtragem de notas privadas é feita inteiramente no backend (`SessionService.list_notes`); o frontend não reimplementa essa regra, só renderiza o que a API retorna (o teste de `note-editor.test.tsx` documenta isso — não há lógica de filtro do lado do cliente para testar, só a ausência de vazamento). Não existe `GET /sessions/{id}` (só a listagem por campanha), então a página de detalhe deriva a sessão a partir do cache de `useSessions(campaignId)` por id — sem chamada extra. `quick-note.tsx` é o formulário compacto de adicionar nota (reaproveitado dentro de `note-editor.tsx`); o checkbox "nota privada" só é renderizado quando `isDm=true`. Nomes de autor resolvidos via `useUserProfiles` (já existente da Fase 1, `GET /auth/users?ids=`). `campaign-sidebar.tsx`: item "Sessões" passou de `implemented: false` para `true`. Sem edição de `dm_notes`/status da sessão nesta história (backend não expõe `PATCH /sessions/{id}` — fora do escopo do backlog atual).
 
 - **Como DM, quero um combat tracker mobile-first para rodar combates na mesa.**
   - [ ] `lib/ws/combat-socket.ts`, `lib/ws/types.ts`, `providers/combat-provider.tsx`, `hooks/use-combat.ts`

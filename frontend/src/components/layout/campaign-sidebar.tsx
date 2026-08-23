@@ -25,7 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: "Sessões",
     href: (id) => `/campaigns/${id}/sessions`,
-    implemented: false,
+    implemented: true,
   },
   {
     label: "World",
