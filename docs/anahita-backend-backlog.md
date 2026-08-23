@@ -101,10 +101,10 @@
   - [x] Testes: monstro com múltiplas ações + dano (Goblin: Scimitar/Shortbow), monstro com legendary actions (Young Red Dragon), monstro custom preso à campanha. `MonsterProficiency`/`MonsterConditionImmunity` testados via construção direta (mesmo motivo do `BackgroundProficiency`/`FeatPrerequisite` da história anterior — dependem de vocabulário fixo ainda não seedado)
 
 - **Como desenvolvedor, quero Rules/RuleSections modeladas para eventual tela de referência de regras no frontend.**
-  - [ ] `models.py`: `RuleSection`, `Rule`, `RuleRuleSection` (+ i18n)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py`
-  - [ ] Testes básicos
+  - [x] `models.py`: `RuleSection`, `Rule`, `RuleRuleSection` (+ i18n)
+  - [x] Migração Alembic — `alembic/versions/6f9cf284365a_*.py` (upgrade/downgrade testados contra Postgres; puramente aditiva)
+  - [x] `schemas.py`/`service.py`/`router.py` — `list_rules_translated`/`get_rule_translated` resolvem nome/descrição com fallback `en` e as `RuleSection`s vinculadas
+  - [x] Testes básicos: listagem, leitura com seções vinculadas, fallback de locale, 404, idempotência do seed
 
 - **Como desenvolvedor, quero um seed completo em inglês (`en`) para todas as 24 categorias, substituindo os arquivos de placeholder atuais.**
   - [ ] Escrever script(s) de conversão de `_data/2014/en/*.json` (formato SRD/APIReference) para o formato normalizado do banco (mapear `index` → FK real, resolver referências em ordem topológica: vocabulário fixo → raças/classes/proficiencies → spells/equipment → backgrounds/feats/monstros)
