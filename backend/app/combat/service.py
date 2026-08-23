@@ -22,6 +22,7 @@ from sqlalchemy.orm import selectinload
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.combat.domain import (
+    ActionType,
     ConditionType,
     EncounterStatus,
     ParticipantKindError,
@@ -30,8 +31,14 @@ from app.combat.domain import (
     validate_participant_kind,
 )
 from app.combat.domain import advance_turn as compute_next_turn
-from app.combat.models import Encounter, EncounterCondition, EncounterParticipant
+from app.combat.models import (
+    CombatLog,
+    Encounter,
+    EncounterCondition,
+    EncounterParticipant,
+)
 from app.combat.schemas import (
+    CombatLogRead,
     EncounterConditionRead,
     EncounterCreate,
     EncounterParticipantCreate,
@@ -201,18 +208,24 @@ class CombatService:
             if data.hit_point_current is not None
             else data.hit_point_max
         )
-        db.add(
-            EncounterParticipant(
-                encounter_id=encounter.id,
-                character_id=data.character_id,
-                npc_id=data.npc_id,
-                name=data.name,
-                initiative=data.initiative,
-                hit_point_max=data.hit_point_max,
-                hit_point_current=hit_point_current,
-                armor_class=data.armor_class,
-                turn_order=data.turn_order,
-            )
+        participant = EncounterParticipant(
+            encounter_id=encounter.id,
+            character_id=data.character_id,
+            npc_id=data.npc_id,
+            name=data.name,
+            initiative=data.initiative,
+            hit_point_max=data.hit_point_max,
+            hit_point_current=hit_point_current,
+            armor_class=data.armor_class,
+            turn_order=data.turn_order,
+        )
+        db.add(participant)
+        await db.flush()
+        self._log(
+            db,
+            encounter,
+            actor_id=participant.id,
+            description=f"{participant.name} joined the encounter",
         )
         await db.commit()
         return encounter_to_read(await self._reload_encounter(encounter.id, db))
@@ -236,6 +249,9 @@ class CombatService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="hit_point_current cannot exceed hit_point_max",
                 )
+            self._log_hp_change(
+                db, encounter, participant, data.hit_point_current
+            )
             participant.hit_point_current = data.hit_point_current
         if data.temporary_hit_points is not None:
             participant.temporary_hit_points = data.temporary_hit_points
@@ -263,6 +279,12 @@ class CombatService:
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
         participant = self._find_participant_or_404(encounter, participant_id)
 
+        self._log(
+            db,
+            encounter,
+            actor_id=participant.id,
+            description=f"{participant.name} left the encounter",
+        )
         await db.delete(participant)
         await db.commit()
         return encounter_to_read(await self._reload_encounter(encounter.id, db))
@@ -285,6 +307,16 @@ class CombatService:
         )
         encounter.current_round = result.round
         encounter.current_turn_order = result.turn_order
+        if result.participant_id is not None:
+            next_up = next(
+                p for p in encounter.participants if p.id == result.participant_id
+            )
+            self._log(
+                db,
+                encounter,
+                actor_id=next_up.id,
+                description=f"Round {result.round}: {next_up.name}'s turn",
+            )
         await db.commit()
         reloaded = await self._reload_encounter(encounter.id, db)
         return encounter_to_read(reloaded), result
@@ -297,6 +329,7 @@ class CombatService:
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
 
         encounter.status = EncounterStatus.completed
+        self._log(db, encounter, description="Encounter ended")
         await db.commit()
         return encounter_to_read(await self._reload_encounter(encounter.id, db))
 
@@ -328,6 +361,7 @@ class CombatService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="hit_point_current cannot exceed hit_point_max",
                 )
+            self._log_hp_change(db, encounter, participant, hit_point_current)
             participant.hit_point_current = hit_point_current
         if temporary_hit_points is not None:
             participant.temporary_hit_points = temporary_hit_points
@@ -346,10 +380,27 @@ class CombatService:
                         applied_at_round=encounter.current_round,
                     )
                 )
+                self._log(
+                    db,
+                    encounter,
+                    target_id=participant.id,
+                    description=(
+                        f"{participant.name} gained condition: {add_condition}"
+                    ),
+                )
         if remove_condition is not None:
             for condition in list(participant.conditions):
                 if condition.condition == remove_condition:
                     await db.delete(condition)
+                    self._log(
+                        db,
+                        encounter,
+                        target_id=participant.id,
+                        description=(
+                            f"{participant.name} lost condition: "
+                            f"{remove_condition}"
+                        ),
+                    )
 
         await db.commit()
         result = await db.execute(
@@ -359,6 +410,72 @@ class CombatService:
             .execution_options(populate_existing=True)
         )
         return participant_to_read(result.scalar_one())
+
+    async def get_log(
+        self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[CombatLogRead]:
+        """List an encounter's combat log, in chronological order. Any member."""
+        encounter, _member = await self.get_encounter_membership(
+            encounter_id, requester_id, db
+        )
+        result = await db.execute(
+            select(CombatLog)
+            .where(CombatLog.encounter_id == encounter.id)
+            .order_by(CombatLog.created_at)
+        )
+        return [CombatLogRead.model_validate(log) for log in result.scalars().all()]
+
+    def _log(
+        self,
+        db: AsyncSession,
+        encounter: Encounter,
+        *,
+        description: str,
+        actor_id: uuid.UUID | None = None,
+        target_id: uuid.UUID | None = None,
+        action_type: ActionType = ActionType.other,
+        damage_dealt: int | None = None,
+        damage_type: str | None = None,
+    ) -> None:
+        """Record one CombatLog entry at the encounter's current round/turn."""
+        db.add(
+            CombatLog(
+                encounter_id=encounter.id,
+                round=encounter.current_round,
+                turn_order=encounter.current_turn_order,
+                actor_id=actor_id,
+                action_type=action_type,
+                description=description,
+                damage_dealt=damage_dealt,
+                damage_type=damage_type,
+                target_id=target_id,
+            )
+        )
+
+    def _log_hp_change(
+        self,
+        db: AsyncSession,
+        encounter: Encounter,
+        participant: EncounterParticipant,
+        new_hit_point_current: int,
+    ) -> None:
+        """Log a damage or heal entry from an HP change, skipping no-ops."""
+        delta = new_hit_point_current - participant.hit_point_current
+        if delta == 0:
+            return
+        if delta < 0:
+            description = f"{participant.name} took {-delta} damage"
+            damage_dealt = -delta
+        else:
+            description = f"{participant.name} healed {delta} HP"
+            damage_dealt = None
+        self._log(
+            db,
+            encounter,
+            target_id=participant.id,
+            description=description,
+            damage_dealt=damage_dealt,
+        )
 
     def _find_participant_or_404(
         self, encounter: Encounter, participant_id: uuid.UUID

@@ -18,7 +18,7 @@
 |------|-----------------------------------|----------------------------------|----------------------|
 | 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
 | 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
-| 2    | Sessão ao Vivo (Combat, WS)        | Em andamento (histórias 1-3/4: CRUD de encounter/participantes + WebSocket em tempo real + efeitos mecânicos de condições) | 2026-08-23 |
+| 2    | Sessão ao Vivo (Combat, WS)        | Completo (encounter/participantes, WebSocket em tempo real, efeitos mecânicos de condições, log de combate) | 2026-08-23 |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
 | 5    | Registro e Lore                   | Não iniciado                     | —                    |
@@ -225,10 +225,11 @@
   - [x] Teste: personagem cego (blinded) → efeito de disadvantage retornado
   - Notas: `EncounterParticipantRead.effects: list[MechanicalEffectRead]` — resolvido a cada leitura (nunca persistido), mesmo padrão de `CharacterAbilityScoreRead.modifier`. Isso exigiu refatorar `CombatService` para retornar `EncounterRead`/`EncounterParticipantRead` diretamente (em vez de rows ORM cruas + `.model_validate()` nos routers) — agora no mesmo padrão de `CharacterService`; `router.py`/`ws_router.py` simplificados de acordo (`get_encounter_membership` continua expondo o ORM cru, único caso em que o WS handler precisa do objeto para autenticar antes de montar o read). `app.combat.domain.ConditionType`/`engine.types.ConditionType` convertidos por `.value` (mesmas strings). A engine não modela severidade de exhaustion no banco (`EncounterCondition` não tem coluna de nível — PRD §7.6 não lista uma), então exhaustion é sempre resolvida em `level=1`, documentado em `participant_to_read`. 3 novos testes em `tests/combat/test_condition_effects.py`.
 
-- **Como DM, quero um log do que aconteceu no combate para referência pós-sessão.**
-  - [ ] `service.py`: toda ação relevante grava `CombatLog`
-  - [ ] `router.py`: `GET /encounters/{id}/log`
-  - [ ] Teste: sequência de ações gera log na ordem correta
+- **Como DM, quero um log do que aconteceu no combate para referência pós-sessão.** ✅ (2026-08-23)
+  - [x] `service.py`: toda ação relevante grava `CombatLog`
+  - [x] `router.py`: `GET /encounters/{id}/log`
+  - [x] Teste: sequência de ações gera log na ordem correta
+  - Notas: registrado em `participant joined/left`, dano/cura (`update_participant` REST e `live_update_participant` via WS, delta de `hit_point_current`), condição ganha/perdida, avanço de turno (`Round N: Fulano's turn`) e fim de encontro — todos com `action_type=other` (o enum do PRD — attack/spell/move/dash/dodge/disengage/help/hide/ready/other — é vocabulário de ação declarada em turno, não mapeia 1:1 para essas ações administrativas/de sistema; usar `other` uniformemente evita reinterpretar o enum). Migração nova (`700e6e3f1e67`) tornando `combat_logs.actor_id`/`target_id` `ON DELETE SET NULL` em vez de FK simples — a tabela original (história 1) exigia `actor_id` `NOT NULL`, o que quebraria ao remover um participante referenciado por um log já existente (`remove_participant` é uma ação normal do protocolo); a entrada de log sobrevive à remoção, só perde a referência. `actor_id`/`target_id` nem sempre têm um "ator" real no sentido do PRD (ex. dano não rastreia quem atacou) — usados como "quem entrou/saiu" (join/leave) ou "quem foi afetado" (target, dano/condição), documentado em `CombatLog`/`CombatLogRead`. 5 novos testes (`tests/combat/test_log.py` + 1 em `test_router.py`).
 
 ---
 

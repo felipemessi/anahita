@@ -129,3 +129,10 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   agora resolvem seus efeitos mecânicos (`engine/conditions.py`) a cada
   leitura — um personagem cego, por exemplo, mostra `attack_disadvantage`,
   `attacks_against_advantage` e `auto_fail_save` na ficha do participante.
+
+### Added
+- Fase 2 do backend, história 4 (última da fase — Sessão ao Vivo completa):
+  log de combate (`GET /encounters/{id}/log`) registrando participante
+  entrou/saiu, dano/cura, condição ganha/perdida, avanço de turno e fim de
+  encontro, em ordem cronológica. A entrada de log sobrevive à remoção do
+  participante que referenciava (`ON DELETE SET NULL`).
