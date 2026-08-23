@@ -10,6 +10,12 @@ from app.catalog.mixins import CatalogI18nMixin
 from app.catalog.models import (
     AbilityScoreDefinition,
     Alignment,
+    Background,
+    BackgroundEquipment,
+    BackgroundFeature,
+    BackgroundFeatureI18n,
+    BackgroundI18n,
+    BackgroundProficiency,
     ClassDefinition,
     ClassDefinitionI18n,
     ClassLevel,
@@ -17,6 +23,8 @@ from app.catalog.models import (
     Condition,
     DamageType,
     EquipmentCategoryI18n,
+    Feat,
+    FeatI18n,
     Feature,
     FeatureI18n,
     Item,
@@ -49,11 +57,18 @@ from app.catalog.models import (
 )
 from app.catalog.schemas import (
     ArmorDetailRead,
+    BackgroundEquipmentRead,
+    BackgroundFeatureRead,
+    BackgroundRead,
+    BackgroundSummary,
     ClassDefinitionRead,
     ClassLevelRead,
     ClassLevelResourceRead,
     ClassLevelSpellSlotRead,
     ClassSummary,
+    FeatPrerequisiteRead,
+    FeatRead,
+    FeatSummary,
     FeaturePrerequisiteRead,
     FeatureRead,
     ItemPropertyRead,
@@ -61,6 +76,7 @@ from app.catalog.schemas import (
     ItemSummary,
     MagicItemRead,
     MagicItemSummary,
+    ProficiencyRead,
     RaceAbilityBonusRead,
     RaceRead,
     RaceSummary,
@@ -1092,3 +1108,249 @@ async def list_proficiencies_for_race(
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+# --- Backgrounds and Feats (SRD 2014 §7.4.7) --------------------------------
+
+#: Eager-load options shared by `list_backgrounds`/`get_background`.
+_BACKGROUND_LOAD_OPTIONS = (
+    selectinload(Background.proficiencies).selectinload(BackgroundProficiency.proficiency),
+    selectinload(Background.equipment).selectinload(BackgroundEquipment.item),
+    selectinload(Background.feature),
+)
+
+
+async def list_backgrounds(
+    session: AsyncSession,
+    *,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+) -> list[Background]:
+    """Return all backgrounds (base rows, eager-loaded grants, untranslated).
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
+    stmt = select(Background).options(*_BACKGROUND_LOAD_OPTIONS)
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Background.campaign_id.is_(None), Background.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(Background.is_custom.is_(False))
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_background(
+    session: AsyncSession, background_id: uuid.UUID
+) -> Background | None:
+    """Return a single background by ID (untranslated), or None if not found."""
+    stmt = (
+        select(Background)
+        .where(Background.id == background_id)
+        .options(*_BACKGROUND_LOAD_OPTIONS)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def _translate_background_equipment(
+    session: AsyncSession, grant: BackgroundEquipment, locale: str
+) -> BackgroundEquipmentRead:
+    t = await get_translated(
+        session, ItemI18n, ItemI18n.entity_id, entity_id=grant.item_id, locale=locale
+    )
+    return BackgroundEquipmentRead(
+        id=grant.id,
+        item_id=grant.item_id,
+        item_name=t.name if t else "",
+        quantity=grant.quantity,
+    )
+
+
+async def _translate_background_feature(
+    session: AsyncSession, feature: BackgroundFeature, locale: str
+) -> BackgroundFeatureRead:
+    t = await get_translated(
+        session,
+        BackgroundFeatureI18n,
+        BackgroundFeatureI18n.entity_id,
+        entity_id=feature.id,
+        locale=locale,
+    )
+    return BackgroundFeatureRead(
+        id=feature.id,
+        feature_name=t.feature_name if t else "",
+        description=t.description if t else "",
+    )
+
+
+async def get_background_translated(
+    session: AsyncSession, background_id: uuid.UUID, *, locale: str = "en"
+) -> BackgroundRead | None:
+    """Return a background by ID with every translatable field resolved for `locale`."""
+    background = await get_background(session, background_id)
+    if background is None:
+        return None
+    t = await get_translated(
+        session,
+        BackgroundI18n,
+        BackgroundI18n.entity_id,
+        entity_id=background.id,
+        locale=locale,
+    )
+    equipment = [
+        await _translate_background_equipment(session, grant, locale)
+        for grant in background.equipment
+    ]
+    feature = (
+        await _translate_background_feature(session, background.feature, locale)
+        if background.feature is not None
+        else None
+    )
+    return BackgroundRead(
+        id=background.id,
+        index=background.index,
+        name=t.name if t else "",
+        personality_traits=t.personality_traits if t else "",
+        ideals=t.ideals if t else "",
+        bonds=t.bonds if t else "",
+        flaws=t.flaws if t else "",
+        is_custom=background.is_custom,
+        proficiencies=[
+            ProficiencyRead.model_validate(bp.proficiency)
+            for bp in background.proficiencies
+        ],
+        equipment=equipment,
+        feature=feature,
+    )
+
+
+async def list_backgrounds_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[BackgroundSummary]:
+    """Return backgrounds with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: background counts are small enough that
+    resolving translations per-row here is simpler than a fallback-aware SQL
+    join.
+    """
+    backgrounds = await list_backgrounds(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
+    summaries = []
+    for background in backgrounds:
+        t = await get_translated(
+            session,
+            BackgroundI18n,
+            BackgroundI18n.entity_id,
+            entity_id=background.id,
+            locale=locale,
+        )
+        summaries.append(
+            BackgroundSummary(
+                id=background.id,
+                index=background.index,
+                name=t.name if t else "",
+                is_custom=background.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
+
+
+async def list_feats(
+    session: AsyncSession,
+    *,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+) -> list[Feat]:
+    """Return all feats (base rows, eager-loaded prerequisites, untranslated).
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
+    stmt = select(Feat).options(selectinload(Feat.prerequisites))
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(Feat.campaign_id.is_(None), Feat.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(Feat.is_custom.is_(False))
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_feat(session: AsyncSession, feat_id: uuid.UUID) -> Feat | None:
+    """Return a single feat by ID (untranslated), or None if not found."""
+    stmt = (
+        select(Feat).where(Feat.id == feat_id).options(selectinload(Feat.prerequisites))
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_feat_translated(
+    session: AsyncSession, feat_id: uuid.UUID, *, locale: str = "en"
+) -> FeatRead | None:
+    """Return a feat by ID with every translatable field resolved for `locale`."""
+    feat = await get_feat(session, feat_id)
+    if feat is None:
+        return None
+    t = await get_translated(
+        session, FeatI18n, FeatI18n.entity_id, entity_id=feat.id, locale=locale
+    )
+    return FeatRead(
+        id=feat.id,
+        index=feat.index,
+        name=t.name if t else "",
+        description=t.description if t else "",
+        is_custom=feat.is_custom,
+        prerequisites=[
+            FeatPrerequisiteRead.model_validate(p) for p in feat.prerequisites
+        ],
+    )
+
+
+async def list_feats_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[FeatSummary]:
+    """Return feats with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: feat counts are small enough that
+    resolving translations per-row here is simpler than a fallback-aware SQL
+    join.
+    """
+    feats = await list_feats(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
+    summaries = []
+    for feat in feats:
+        t = await get_translated(
+            session, FeatI18n, FeatI18n.entity_id, entity_id=feat.id, locale=locale
+        )
+        summaries.append(
+            FeatSummary(
+                id=feat.id,
+                index=feat.index,
+                name=t.name if t else "",
+                is_custom=feat.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries

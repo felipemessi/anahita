@@ -1,0 +1,47 @@
+[
+  {
+    "index": "acolyte",
+    "i18n": {
+      "en": {
+        "name": "Acolyte",
+        "personality_traits": "I idolize a particular hero of my faith and constantly refer to that person's deeds and example. / I can find common ground between the fiercest enemies, empathizing with them and always working toward peace.",
+        "ideals": "Tradition. The ancient traditions of worship and sacrifice must be preserved and upheld. (Lawful)",
+        "bonds": "I would die to recover an ancient relic of my faith that was lost long ago.",
+        "flaws": "I judge others harshly, and myself even more severely."
+      }
+    },
+    "proficiencies": [],
+    "equipment": [
+      {"item_index": "backpack", "quantity": 1}
+    ],
+    "feature": {
+      "en": {
+        "feature_name": "Shelter of the Faithful",
+        "description": "As an acolyte, you command the respect of those who share your faith, and you can perform the religious ceremonies of your deity. You and your adventuring companions can expect to receive free healing and care at a temple, shrine, or other established presence of your faith."
+      }
+    }
+  },
+  {
+    "index": "soldier",
+    "i18n": {
+      "en": {
+        "name": "Soldier",
+        "personality_traits": "I'm always polite and respectful. / I'm haunted by memories of war. I can't get the images of violence out of my mind.",
+        "ideals": "Responsibility. I do what I must and obey just authority. (Lawful)",
+        "bonds": "I would still lay down my life for the people I served with.",
+        "flaws": "I have little respect for anyone who is not a proven warrior."
+      }
+    },
+    "proficiencies": [],
+    "equipment": [
+      {"item_index": "backpack", "quantity": 1},
+      {"item_index": "rope-hempen-50-feet", "quantity": 1}
+    ],
+    "feature": {
+      "en": {
+        "feature_name": "Military Rank",
+        "description": "You have a military rank from your career as a soldier. Soldiers loyal to your former military organization still recognize your authority and influence, and they defer to you if they are of a lower rank."
+      }
+    }
+  }
+]

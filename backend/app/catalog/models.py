@@ -1288,3 +1288,213 @@ class ProficiencyRace(Base):
         ForeignKey("catalog_races.id", ondelete="CASCADE"),
         nullable=False,
     )
+
+
+# --- Backgrounds and Feats (SRD 2014 §7.4.7) --------------------------------
+
+
+class Background(CatalogEntityMixin, Base):
+    """A character background from the SRD or a campaign homebrew.
+
+    Translatable text (`name`, `personality_traits`, `ideals`, `bonds`,
+    `flaws`) lives in `BackgroundI18n`.
+    """
+
+    __tablename__ = "catalog_backgrounds"
+
+    proficiencies: Mapped[list[BackgroundProficiency]] = relationship(
+        "BackgroundProficiency",
+        back_populates="background",
+        cascade="all, delete-orphan",
+    )
+    equipment: Mapped[list[BackgroundEquipment]] = relationship(
+        "BackgroundEquipment",
+        back_populates="background",
+        cascade="all, delete-orphan",
+    )
+    feature: Mapped[BackgroundFeature | None] = relationship(
+        "BackgroundFeature",
+        back_populates="background",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class BackgroundI18n(CatalogI18nMixin, Base):
+    """Translated text for a Background.
+
+    The SRD presents `personality_traits`/`ideals`/`bonds`/`flaws` as
+    roll-tables; here they're descriptive free text (a future phase could
+    normalize them into a rollable-options table if the UI needs to roll or
+    pick from them directly).
+    """
+
+    __tablename__ = "catalog_backgrounds_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_backgrounds_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_backgrounds.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    personality_traits: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    ideals: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    bonds: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    flaws: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class BackgroundProficiency(Base):
+    """Junction: a Background grants a Proficiency by default."""
+
+    __tablename__ = "catalog_background_proficiencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "background_id",
+            "proficiency_id",
+            name="uq_catalog_background_proficiencies",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    background_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_backgrounds.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    proficiency_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiencies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    background: Mapped[Background] = relationship(
+        "Background", back_populates="proficiencies"
+    )
+    proficiency: Mapped[Proficiency] = relationship("Proficiency")
+
+
+class BackgroundEquipment(Base):
+    """Junction: a Background grants a starting Item, in a given quantity."""
+
+    __tablename__ = "catalog_background_equipment"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    background_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_backgrounds.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    background: Mapped[Background] = relationship(
+        "Background", back_populates="equipment"
+    )
+    item: Mapped[Item] = relationship("Item")
+
+
+class BackgroundFeature(Base):
+    """The single signature feature granted by a Background (1:1).
+
+    Translatable text (`feature_name`, `description`) lives in
+    `BackgroundFeatureI18n`.
+    """
+
+    __tablename__ = "catalog_background_features"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    background_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_backgrounds.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+
+    background: Mapped[Background] = relationship(
+        "Background", back_populates="feature"
+    )
+
+
+class BackgroundFeatureI18n(CatalogI18nMixin, Base):
+    """Translated text for a BackgroundFeature."""
+
+    __tablename__ = "catalog_background_features_i18n"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_id", "locale", name="uq_catalog_background_features_i18n"
+        ),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_background_features.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    feature_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class Feat(CatalogEntityMixin, Base):
+    """A feat from the SRD or a campaign homebrew.
+
+    Translatable text (`name`, `description`) lives in `FeatI18n`.
+    """
+
+    __tablename__ = "catalog_feats"
+
+    prerequisites: Mapped[list[FeatPrerequisite]] = relationship(
+        "FeatPrerequisite", back_populates="feat", cascade="all, delete-orphan"
+    )
+
+
+class FeatI18n(CatalogI18nMixin, Base):
+    """Translated text for a Feat."""
+
+    __tablename__ = "catalog_feats_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_feats_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_feats.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class FeatPrerequisite(Base):
+    """An ability score minimum gating a Feat (e.g. Strength 13 for Grappler)."""
+
+    __tablename__ = "catalog_feat_prerequisites"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    feat_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_feats.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_ability_score_definitions.id"),
+        nullable=True,
+    )
+    minimum_score: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    feat: Mapped[Feat] = relationship("Feat", back_populates="prerequisites")

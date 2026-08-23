@@ -440,3 +440,90 @@ class ProficiencyRead(BaseModel):
     ability_score_id: uuid.UUID | None
     equipment_category_id: uuid.UUID | None
     is_custom: bool
+
+
+# --- Backgrounds and Feats (SRD 2014 §7.4.7) --------------------------------
+
+
+class BackgroundEquipmentRead(BaseModel):
+    """Read schema for a starting equipment grant, with `item_name` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    item_id: uuid.UUID
+    item_name: str
+    quantity: int
+
+
+class BackgroundFeatureRead(BaseModel):
+    """Read schema for a background's signature feature."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    feature_name: str
+    description: str
+
+
+class BackgroundRead(BaseModel):
+    """Read schema for a background, with translated text fields resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    personality_traits: str
+    ideals: str
+    bonds: str
+    flaws: str
+    is_custom: bool
+    proficiencies: list[ProficiencyRead]
+    equipment: list[BackgroundEquipmentRead]
+    feature: BackgroundFeatureRead | None
+
+
+class BackgroundSummary(BaseModel):
+    """Lightweight background listing schema, with translated `name` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    is_custom: bool
+
+
+class FeatPrerequisiteRead(BaseModel):
+    """Read schema for a feat's ability score prerequisite."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    ability_score_id: uuid.UUID | None
+    minimum_score: int
+
+
+class FeatRead(BaseModel):
+    """Read schema for a feat, with translated text fields resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    description: str
+    is_custom: bool
+    prerequisites: list[FeatPrerequisiteRead]
+
+
+class FeatSummary(BaseModel):
+    """Lightweight feat listing schema, with translated `name` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    is_custom: bool

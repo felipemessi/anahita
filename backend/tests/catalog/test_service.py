@@ -6,7 +6,17 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
-from app.catalog.models import Item, MagicItem, Spell
+from app.catalog.models import (
+    AbilityScoreDefinition,
+    Background,
+    BackgroundProficiency,
+    Feat,
+    FeatPrerequisite,
+    Item,
+    MagicItem,
+    Proficiency,
+    Spell,
+)
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -486,4 +496,185 @@ async def test_list_magic_items_scoped_to_campaign_includes_srd_and_own_homebrew
 async def test_get_magic_item_not_found_returns_none(db: AsyncSession) -> None:
     """get_magic_item should return None for an unknown ID."""
     result = await service.get_magic_item(db, uuid.uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_backgrounds_returns_all(db: AsyncSession) -> None:
+    """list_backgrounds should return every seeded background."""
+    await seed_catalog(db)
+    backgrounds = await service.list_backgrounds(db)
+    assert len(backgrounds) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_background_translated_resolves_equipment_and_feature(
+    db: AsyncSession,
+) -> None:
+    """get_background_translated resolves starting equipment and its feature."""
+    await seed_catalog(db)
+    results = await service.list_backgrounds_translated(db, search="Acolyte")
+    acolyte = await service.get_background_translated(db, results[0].id, locale="en")
+
+    assert acolyte is not None
+    assert acolyte.name == "Acolyte"
+    assert acolyte.feature is not None
+    assert acolyte.feature.feature_name == "Shelter of the Faithful"
+    assert any(e.item_name == "Backpack" for e in acolyte.equipment)
+
+
+@pytest.mark.asyncio
+async def test_get_background_translated_resolves_proficiencies(
+    db: AsyncSession,
+) -> None:
+    """A background's granted proficiencies resolve via the junction table."""
+    await seed_catalog(db)
+    results = await service.list_backgrounds_translated(db, search="Acolyte")
+    acolyte_id = results[0].id
+
+    prof = Proficiency(
+        id=uuid.uuid4(),
+        index="thieves-tools",
+        proficiency_type="other",
+        is_custom=False,
+    )
+    db.add(prof)
+    db.add(
+        BackgroundProficiency(
+            id=uuid.uuid4(), background_id=acolyte_id, proficiency_id=prof.id
+        )
+    )
+    await db.commit()
+
+    acolyte = await service.get_background_translated(db, acolyte_id, locale="en")
+    assert acolyte is not None
+    assert any(p.id == prof.id for p in acolyte.proficiencies)
+
+
+@pytest.mark.asyncio
+async def test_get_background_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_background_translated falls back to `en` when locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_backgrounds_translated(db, search="Acolyte")
+    acolyte = await service.get_background_translated(
+        db, results[0].id, locale="pt-BR"
+    )
+
+    assert acolyte is not None
+    assert acolyte.name == "Acolyte"
+
+
+@pytest.mark.asyncio
+async def test_list_backgrounds_scoped_to_campaign_includes_srd_and_own_homebrew(
+    db: AsyncSession,
+) -> None:
+    """`list_backgrounds(campaign_id=X)` returns SRD + own homebrew, not others'."""
+    await seed_catalog(db)
+    srd_backgrounds = await service.list_backgrounds(db)
+
+    campaign_a = uuid.uuid4()
+    campaign_b = uuid.uuid4()
+    homebrew_a = Background(
+        id=uuid.uuid4(), index=None, is_custom=True, campaign_id=campaign_a
+    )
+    homebrew_b = Background(
+        id=uuid.uuid4(), index=None, is_custom=True, campaign_id=campaign_b
+    )
+    db.add_all([homebrew_a, homebrew_b])
+    await db.commit()
+
+    results = await service.list_backgrounds(db, campaign_id=campaign_a)
+    ids = {b.id for b in results}
+
+    assert homebrew_a.id in ids
+    assert homebrew_b.id not in ids
+    assert {b.id for b in srd_backgrounds} <= ids
+
+
+@pytest.mark.asyncio
+async def test_get_background_not_found_returns_none(db: AsyncSession) -> None:
+    """get_background should return None for an unknown ID."""
+    result = await service.get_background(db, uuid.uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_feats_returns_all(db: AsyncSession) -> None:
+    """list_feats should return every seeded feat."""
+    await seed_catalog(db)
+    feats = await service.list_feats(db)
+    assert len(feats) == 3
+
+
+@pytest.mark.asyncio
+async def test_get_feat_translated_resolves_prerequisite(db: AsyncSession) -> None:
+    """A feat's ability score prerequisite resolves via FeatPrerequisite."""
+    await seed_catalog(db)
+    results = await service.list_feats_translated(db, search="Grappler")
+    grappler_id = results[0].id
+
+    ability_score = AbilityScoreDefinition(
+        id=uuid.uuid4(), index="str", is_custom=False
+    )
+    db.add(ability_score)
+    db.add(
+        FeatPrerequisite(
+            id=uuid.uuid4(),
+            feat_id=grappler_id,
+            ability_score_id=ability_score.id,
+            minimum_score=13,
+        )
+    )
+    await db.commit()
+
+    grappler = await service.get_feat_translated(db, grappler_id, locale="en")
+    assert grappler is not None
+    assert grappler.name == "Grappler"
+    assert len(grappler.prerequisites) == 1
+    assert grappler.prerequisites[0].ability_score_id == ability_score.id
+    assert grappler.prerequisites[0].minimum_score == 13
+
+
+@pytest.mark.asyncio
+async def test_get_feat_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_feat_translated falls back to `en` when locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_feats_translated(db, search="Alert")
+    alert = await service.get_feat_translated(db, results[0].id, locale="pt-BR")
+
+    assert alert is not None
+    assert alert.name == "Alert"
+
+
+@pytest.mark.asyncio
+async def test_list_feats_scoped_to_campaign_includes_srd_and_own_homebrew(
+    db: AsyncSession,
+) -> None:
+    """`list_feats(campaign_id=X)` returns SRD + own campaign homebrew, not others'."""
+    await seed_catalog(db)
+    srd_feats = await service.list_feats(db)
+
+    campaign_a = uuid.uuid4()
+    campaign_b = uuid.uuid4()
+    homebrew_a = Feat(
+        id=uuid.uuid4(), index=None, is_custom=True, campaign_id=campaign_a
+    )
+    homebrew_b = Feat(
+        id=uuid.uuid4(), index=None, is_custom=True, campaign_id=campaign_b
+    )
+    db.add_all([homebrew_a, homebrew_b])
+    await db.commit()
+
+    results = await service.list_feats(db, campaign_id=campaign_a)
+    ids = {f.id for f in results}
+
+    assert homebrew_a.id in ids
+    assert homebrew_b.id not in ids
+    assert {f.id for f in srd_feats} <= ids
+
+
+@pytest.mark.asyncio
+async def test_get_feat_not_found_returns_none(db: AsyncSession) -> None:
+    """get_feat should return None for an unknown ID."""
+    result = await service.get_feat(db, uuid.uuid4())
     assert result is None

@@ -8,8 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
 from app.catalog.schemas import (
+    BackgroundRead,
+    BackgroundSummary,
     ClassDefinitionRead,
     ClassSummary,
+    FeatRead,
+    FeatSummary,
     ItemRead,
     ItemSummary,
     MagicItemRead,
@@ -175,3 +179,57 @@ async def get_magic_item(
     if magic_item is None:
         raise HTTPException(status_code=404, detail="Magic item not found")
     return magic_item
+
+
+@router.get("/backgrounds", response_model=list[BackgroundSummary])
+async def list_backgrounds(
+    db: DB,
+    search: SearchQ = None,
+    include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
+) -> list[BackgroundSummary]:
+    """List all backgrounds, optionally filtered by name."""
+    return await service.list_backgrounds_translated(
+        db, search=search, include_custom=include_custom, locale=locale
+    )
+
+
+@router.get("/backgrounds/{background_id}", response_model=BackgroundRead)
+async def get_background(
+    background_id: uuid.UUID,
+    db: DB,
+    locale: LocaleQ = "en",
+) -> BackgroundRead:
+    """Get a background by ID with full details (proficiencies, equipment, feature)."""
+    background = await service.get_background_translated(
+        db, background_id, locale=locale
+    )
+    if background is None:
+        raise HTTPException(status_code=404, detail="Background not found")
+    return background
+
+
+@router.get("/feats", response_model=list[FeatSummary])
+async def list_feats(
+    db: DB,
+    search: SearchQ = None,
+    include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
+) -> list[FeatSummary]:
+    """List all feats, optionally filtered by name."""
+    return await service.list_feats_translated(
+        db, search=search, include_custom=include_custom, locale=locale
+    )
+
+
+@router.get("/feats/{feat_id}", response_model=FeatRead)
+async def get_feat(
+    feat_id: uuid.UUID,
+    db: DB,
+    locale: LocaleQ = "en",
+) -> FeatRead:
+    """Get a feat by ID with full details, including ability score prerequisites."""
+    feat = await service.get_feat_translated(db, feat_id, locale=locale)
+    if feat is None:
+        raise HTTPException(status_code=404, detail="Feat not found")
+    return feat

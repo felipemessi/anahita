@@ -10,6 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import (
     ArmorDetail,
+    Background,
+    BackgroundEquipment,
+    BackgroundFeature,
+    BackgroundFeatureI18n,
+    BackgroundI18n,
     ClassDefinition,
     ClassDefinitionI18n,
     ClassLevel,
@@ -20,6 +25,9 @@ from app.catalog.models import (
     DamageTypeI18n,
     EquipmentCategory,
     EquipmentCategoryI18n,
+    Feat,
+    FeatI18n,
+    FeatPrerequisite,
     Feature,
     FeatureI18n,
     FeaturePrerequisite,
@@ -146,6 +154,8 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_spells(session)
     await _seed_items(session)
     await _seed_magic_items(session)
+    await _seed_backgrounds(session)
+    await _seed_feats(session)
     await session.commit()
 
 
@@ -520,3 +530,57 @@ async def _seed_magic_items(session: AsyncSession) -> None:
             equipment_category_id=categories_by_index[entry["equipment_category_index"]],
             variant_of_id=None,
         )
+
+
+async def _seed_backgrounds(session: AsyncSession) -> None:
+    count = await session.scalar(select(Background).limit(1))
+    if count is not None:
+        return
+
+    items_result = await session.execute(select(Item))
+    items_by_index = {i.index: i.id for i in items_result.scalars().all() if i.index}
+
+    data = json.loads((_DATA_DIR / "backgrounds.json").read_text())
+    for entry in data:
+        background = Background(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(background)
+        await _seed_i18n(session, BackgroundI18n, background.id, entry["i18n"])
+
+        for grant in entry.get("equipment", []):
+            item_id = items_by_index.get(grant["item_index"])
+            if item_id is not None:
+                session.add(
+                    BackgroundEquipment(
+                        id=uuid.uuid4(),
+                        background_id=background.id,
+                        item_id=item_id,
+                        quantity=grant["quantity"],
+                    )
+                )
+
+        if feature_i18n := entry.get("feature"):
+            feature = BackgroundFeature(id=uuid.uuid4(), background_id=background.id)
+            session.add(feature)
+            await _seed_i18n(session, BackgroundFeatureI18n, feature.id, feature_i18n)
+
+
+async def _seed_feats(session: AsyncSession) -> None:
+    count = await session.scalar(select(Feat).limit(1))
+    if count is not None:
+        return
+
+    data = json.loads((_DATA_DIR / "feats.json").read_text())
+    for entry in data:
+        feat = Feat(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(feat)
+        await _seed_i18n(session, FeatI18n, feat.id, entry["i18n"])
+
+        for prereq in entry.get("prerequisites", []):
+            session.add(
+                FeatPrerequisite(
+                    id=uuid.uuid4(),
+                    feat_id=feat.id,
+                    ability_score_id=None,
+                    minimum_score=prereq["minimum_score"],
+                )
+            )

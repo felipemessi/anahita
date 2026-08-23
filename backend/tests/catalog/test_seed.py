@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
-from app.catalog.models import ClassDefinition, Item, Race, Spell
+from app.catalog.models import Background, ClassDefinition, Feat, Item, Race, Spell
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -57,6 +57,34 @@ async def test_seed_creates_items(db: AsyncSession) -> None:
 
     items = (await db.execute(select(Item))).scalars().all()
     assert len(items) > 0
+
+
+@pytest.mark.asyncio
+async def test_seed_creates_backgrounds(db: AsyncSession) -> None:
+    """seed_catalog should insert the two SRD backgrounds."""
+    await seed_catalog(db)
+
+    backgrounds = (
+        (await db.execute(select(Background).order_by(Background.index)))
+        .scalars()
+        .all()
+    )
+    indexes = {b.index for b in backgrounds}
+    assert indexes == {"acolyte", "soldier"}
+
+    summaries = await service.list_backgrounds_translated(db)
+    names = {b.name for b in summaries}
+    assert names == {"Acolyte", "Soldier"}
+
+
+@pytest.mark.asyncio
+async def test_seed_creates_feats(db: AsyncSession) -> None:
+    """seed_catalog should insert the three SRD feats."""
+    await seed_catalog(db)
+
+    feats = (await db.execute(select(Feat).order_by(Feat.index))).scalars().all()
+    indexes = {f.index for f in feats}
+    assert indexes == {"alert", "grappler", "tough"}
 
 
 @pytest.mark.asyncio

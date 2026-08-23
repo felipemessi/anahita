@@ -1,0 +1,32 @@
+[
+  {
+    "index": "grappler",
+    "i18n": {
+      "en": {
+        "name": "Grappler",
+        "description": "You've developed the skills necessary to hold your own in close-quarters grappling. You gain the following benefits: You have advantage on attack rolls against a creature you are grappling. You can use your action to try to pin a creature grappled by you."
+      }
+    },
+    "prerequisites": []
+  },
+  {
+    "index": "alert",
+    "i18n": {
+      "en": {
+        "name": "Alert",
+        "description": "Always on the lookout for danger, you gain the following benefits: You gain a +5 bonus to initiative. You can't be surprised while you are conscious. Other creatures don't gain advantage on attack rolls against you as a result of being unseen by you."
+      }
+    },
+    "prerequisites": []
+  },
+  {
+    "index": "tough",
+    "i18n": {
+      "en": {
+        "name": "Tough",
+        "description": "Your hit point maximum increases by an amount equal to twice your level when you gain this feat. Whenever you gain a level thereafter, your hit point maximum increases by an additional 2 hit points."
+      }
+    },
+    "prerequisites": []
+  }
+]
