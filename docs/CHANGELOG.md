@@ -70,3 +70,23 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ### Added
 - Skills do Claude Code (`commit`, `merge-request`) para padronizar commits
   semânticos e o fluxo de merge request do projeto.
+
+### Added
+- Frontend Fase 1 (Campanhas, Personagens, Catálogo): lista/criação de
+  campanhas, dashboard, convite/ingresso, shell de campanha (sidebar/
+  header/mobile-nav), configurações com lista de membros e geração de
+  convite; navegação e busca no catálogo (9 categorias) com detalhe e
+  stat block de monstro, criação de homebrew (DM only); wizard de criação
+  de personagem guiado pelo catálogo da campanha e ficha de personagem com
+  edição inline de PV (mutação otimista); espelho client-side das fórmulas
+  da rules engine (`lib/utils/dnd-rules.ts`).
+- `GET /campaigns/{id}` (detalhe) e `GET /campaigns/{id}/members` (lista de
+  membros), visíveis a qualquer membro da campanha.
+- `GET /characters?campaign_id=` (lista de personagens de uma campanha) e
+  `PATCH /characters/{id}` (atualização de PV atual/PV temporário/CA/
+  inspiration, restrita ao dono da ficha).
+- Criação de conteúdo homebrew no catálogo (`POST /catalog/{races,classes,
+  spells,items,monsters}`), sempre presa a uma campanha e restrita ao
+  mestre; `GET /catalog/{category}` ganhou o parâmetro `campaign_id` para
+  escopar a listagem de homebrew à própria campanha (antes vazava homebrew
+  de outras campanhas quando `include_custom` estava ativo).
