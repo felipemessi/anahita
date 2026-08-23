@@ -47,10 +47,10 @@
   - [x] Testes unitários (SQLite) cobrindo criação + leitura traduzida de cada uma das 8 entidades — `tests/catalog/test_fixed_vocabulary.py`
 
 - **Como desenvolvedor, quero Proficiencies modeladas e ligadas a skills/abilities/equipamento para que raças, classes e backgrounds possam referenciá-las.**
-  - [ ] `models.py`: `Proficiency` (FKs nullable e mutuamente exclusivos por `proficiency_type`), `ProficiencyI18n`, `ProficiencyClass`, `ProficiencyRace`
-  - [ ] Migração Alembic
-  - [ ] `schemas.py` + `service.py` (leitura)
-  - [ ] Teste garantindo que exatamente um FK de referência está preenchido conforme `proficiency_type`
+  - [x] `models.py`: `Proficiency` (FKs nullable e mutuamente exclusivos por `proficiency_type`), `ProficiencyI18n`, `ProficiencyClass`, `ProficiencyRace` — `equipment_category_id` ainda é UUID solto (sem FK), como `campaign_id`, até a história de Equipamento criar `EquipmentCategory`
+  - [x] Migração Alembic — `alembic/versions/1b5ef8883035_*.py` (upgrade/downgrade testados contra Postgres)
+  - [x] `schemas.py` + `service.py` (leitura)
+  - [x] Teste garantindo que exatamente um FK de referência está preenchido conforme `proficiency_type` — `tests/catalog/test_proficiencies.py`
 
 - **Como jogador, quero o catálogo de Raças completo (com traits, subraças e bônus de habilidade) em vez do MVP mínimo atual.**
   - [ ] Estender `models.py` existente (`Race`, `RaceTrait`, `Subrace`, `SubraceTrait`, `RaceAbilityBonus`): adicionar `index` nullable a `Race`/`Subrace`; extrair `name`/`description`/`age`/`alignment_desc`/`size_description`/`language_desc` para `RaceI18n`, `trait_name`/`description` para `RaceTraitI18n` e `SubraceTraitI18n` (seção 7.4.2)
