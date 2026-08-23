@@ -12,6 +12,8 @@ from app.catalog.schemas import (
     ClassSummary,
     ItemRead,
     ItemSummary,
+    MagicItemRead,
+    MagicItemSummary,
     RaceRead,
     RaceSummary,
     SpellRead,
@@ -145,3 +147,31 @@ async def get_item(
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
+
+
+@router.get("/magic-items", response_model=list[MagicItemSummary])
+async def list_magic_items(
+    db: DB,
+    search: SearchQ = None,
+    include_custom: IncludeCustomQ = True,
+    locale: LocaleQ = "en",
+) -> list[MagicItemSummary]:
+    """List all magic items, optionally filtered by name."""
+    return await service.list_magic_items_translated(
+        db, search=search, include_custom=include_custom, locale=locale
+    )
+
+
+@router.get("/magic-items/{magic_item_id}", response_model=MagicItemRead)
+async def get_magic_item(
+    magic_item_id: uuid.UUID,
+    db: DB,
+    locale: LocaleQ = "en",
+) -> MagicItemRead:
+    """Get a magic item by ID with full details, including its variants."""
+    magic_item = await service.get_magic_item_translated(
+        db, magic_item_id, locale=locale
+    )
+    if magic_item is None:
+        raise HTTPException(status_code=404, detail="Magic item not found")
+    return magic_item

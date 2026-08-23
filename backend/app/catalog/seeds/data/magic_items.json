@@ -1,0 +1,82 @@
+[
+  {
+    "index": "sword-of-sharpness",
+    "equipment_category_index": "martial-weapons",
+    "rarity": "very_rare",
+    "i18n": {
+      "en": {
+        "name": "Sword of Sharpness",
+        "description": "This sword ignores resistance to slashing damage. In addition, when you attack an object with the sword or make a melee attack with it against a creature and roll a 20 on the attack roll, the target is cut extremely deeply, and additional damage is dealt."
+      }
+    },
+    "variants": []
+  },
+  {
+    "index": "plate-armor-of-etherealness",
+    "equipment_category_index": "heavy-armor",
+    "rarity": "legendary",
+    "i18n": {
+      "en": {
+        "name": "Plate Armor of Etherealness",
+        "description": "While wearing this armor, you can speak its command word as a bonus action to gain the effect of the etherealness spell, which lasts until you use a bonus action to speak the command word again or until you remove the armor."
+      }
+    },
+    "variants": []
+  },
+  {
+    "index": "longsword-1",
+    "equipment_category_index": "martial-weapons",
+    "rarity": "uncommon",
+    "i18n": {
+      "en": {
+        "name": "+1 Longsword",
+        "description": "You have a +1 bonus to attack and damage rolls made with this magic weapon."
+      }
+    },
+    "variants": [
+      {
+        "index": "longsword-2",
+        "rarity": "rare",
+        "i18n": {
+          "en": {
+            "name": "+2 Longsword",
+            "description": "You have a +2 bonus to attack and damage rolls made with this magic weapon."
+          }
+        }
+      },
+      {
+        "index": "longsword-3",
+        "rarity": "very_rare",
+        "i18n": {
+          "en": {
+            "name": "+3 Longsword",
+            "description": "You have a +3 bonus to attack and damage rolls made with this magic weapon."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "index": "shield-1",
+    "equipment_category_index": "shields",
+    "rarity": "uncommon",
+    "i18n": {
+      "en": {
+        "name": "+1 Shield",
+        "description": "While holding this shield, you have a +1 bonus to AC. This bonus is in addition to the shield's normal bonus to AC."
+      }
+    },
+    "variants": [
+      {
+        "index": "shield-2",
+        "rarity": "rare",
+        "i18n": {
+          "en": {
+            "name": "+2 Shield",
+            "description": "While holding this shield, you have a +2 bonus to AC. This bonus is in addition to the shield's normal bonus to AC."
+          }
+        }
+      }
+    ]
+  }
+]

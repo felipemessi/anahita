@@ -23,6 +23,8 @@ from app.catalog.models import (
     ItemI18n,
     ItemProperty,
     Language,
+    MagicItem,
+    MagicItemI18n,
     MagicSchool,
     Proficiency,
     ProficiencyClass,
@@ -57,6 +59,8 @@ from app.catalog.schemas import (
     ItemPropertyRead,
     ItemRead,
     ItemSummary,
+    MagicItemRead,
+    MagicItemSummary,
     RaceAbilityBonusRead,
     RaceRead,
     RaceSummary,
@@ -763,6 +767,146 @@ async def list_items_translated(
                 weight=item.weight,
                 cost=item.cost,
                 is_custom=item.is_custom,
+            )
+        )
+    if search:
+        needle = search.lower()
+        summaries = [s for s in summaries if needle in s.name.lower()]
+    summaries.sort(key=lambda s: s.name)
+    return summaries
+
+
+#: Eager-load options shared by `list_magic_items`/`get_magic_item`.
+_MAGIC_ITEM_LOAD_OPTIONS = (
+    selectinload(MagicItem.equipment_category),
+    selectinload(MagicItem.variants),
+)
+
+
+async def list_magic_items(
+    session: AsyncSession,
+    *,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+) -> list[MagicItem]:
+    """Return all magic items (base rows, eager-loaded variants, untranslated).
+
+    See `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
+    """
+    stmt = select(MagicItem).options(*_MAGIC_ITEM_LOAD_OPTIONS)
+    if campaign_id is not None:
+        stmt = stmt.where(
+            or_(MagicItem.campaign_id.is_(None), MagicItem.campaign_id == campaign_id)
+        )
+    elif not include_custom:
+        stmt = stmt.where(MagicItem.is_custom.is_(False))
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_magic_item(
+    session: AsyncSession, magic_item_id: uuid.UUID
+) -> MagicItem | None:
+    """Return a single magic item by ID (untranslated), or None if not found."""
+    stmt = (
+        select(MagicItem)
+        .where(MagicItem.id == magic_item_id)
+        .options(*_MAGIC_ITEM_LOAD_OPTIONS)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_magic_item_translated(
+    session: AsyncSession, magic_item_id: uuid.UUID, *, locale: str = "en"
+) -> MagicItemRead | None:
+    """Return a magic item by ID with every translatable field resolved for `locale`."""
+    magic_item = await get_magic_item(session, magic_item_id)
+    if magic_item is None:
+        return None
+    t = await get_translated(
+        session,
+        MagicItemI18n,
+        MagicItemI18n.entity_id,
+        entity_id=magic_item.id,
+        locale=locale,
+    )
+    category_t = await get_translated(
+        session,
+        EquipmentCategoryI18n,
+        EquipmentCategoryI18n.entity_id,
+        entity_id=magic_item.equipment_category_id,
+        locale=locale,
+    )
+    variants = []
+    for variant in magic_item.variants:
+        vt = await get_translated(
+            session,
+            MagicItemI18n,
+            MagicItemI18n.entity_id,
+            entity_id=variant.id,
+            locale=locale,
+        )
+        variants.append(
+            MagicItemSummary(
+                id=variant.id,
+                index=variant.index,
+                name=vt.name if vt else "",
+                rarity=variant.rarity,
+                is_variant=variant.is_variant,
+                variant_of_id=variant.variant_of_id,
+                is_custom=variant.is_custom,
+            )
+        )
+    return MagicItemRead(
+        id=magic_item.id,
+        index=magic_item.index,
+        name=t.name if t else "",
+        description=t.description if t else "",
+        equipment_category=category_t.name if category_t else "",
+        rarity=magic_item.rarity,
+        is_custom=magic_item.is_custom,
+        is_variant=magic_item.is_variant,
+        variant_of_id=magic_item.variant_of_id,
+        variants=variants,
+    )
+
+
+async def list_magic_items_translated(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    include_custom: bool = True,
+    campaign_id: uuid.UUID | None = None,
+    locale: str = "en",
+) -> list[MagicItemSummary]:
+    """Return magic items with `name` resolved for `locale`, optionally name-filtered.
+
+    Mirrors `list_races_translated`: magic item counts are small enough that
+    resolving translations per-row here is simpler than a fallback-aware SQL
+    join.
+    """
+    magic_items = await list_magic_items(
+        session, include_custom=include_custom, campaign_id=campaign_id
+    )
+    summaries = []
+    for magic_item in magic_items:
+        t = await get_translated(
+            session,
+            MagicItemI18n,
+            MagicItemI18n.entity_id,
+            entity_id=magic_item.id,
+            locale=locale,
+        )
+        summaries.append(
+            MagicItemSummary(
+                id=magic_item.id,
+                index=magic_item.index,
+                name=t.name if t else "",
+                rarity=magic_item.rarity,
+                is_variant=magic_item.is_variant,
+                variant_of_id=magic_item.variant_of_id,
+                is_custom=magic_item.is_custom,
             )
         )
     if search:

@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -909,6 +910,58 @@ class ArmorDetail(Base):
     strength_requirement: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     item: Mapped[Item] = relationship("Item", back_populates="armor_detail")
+
+
+class MagicItem(CatalogEntityMixin, Base):
+    """A magic item from the SRD or a campaign homebrew.
+
+    `variant_of_id` links a numbered variant (e.g. a +2 version) back to its
+    base magic item (e.g. +1); `is_variant` marks which of the two a row is.
+    Translatable text (`name`, `description`) lives in `MagicItemI18n`.
+    """
+
+    __tablename__ = "catalog_magic_items"
+    _extra_table_args: ClassVar[tuple[ForeignKeyConstraint, ...]] = (
+        ForeignKeyConstraint(
+            ["variant_of_id"], ["catalog_magic_items.id"], ondelete="CASCADE"
+        ),
+    )
+
+    equipment_category_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_equipment_categories.id"),
+        nullable=False,
+    )
+    rarity: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_variant: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    variant_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    equipment_category: Mapped[EquipmentCategory] = relationship("EquipmentCategory")
+    variant_of: Mapped[MagicItem | None] = relationship(
+        "MagicItem", remote_side="MagicItem.id", back_populates="variants"
+    )
+    variants: Mapped[list[MagicItem]] = relationship(
+        "MagicItem", back_populates="variant_of"
+    )
+
+
+class MagicItemI18n(CatalogI18nMixin, Base):
+    """Translated text for a MagicItem."""
+
+    __tablename__ = "catalog_magic_items_i18n"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "locale", name="uq_catalog_magic_items_i18n"),
+    )
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_magic_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
 # --- Fixed vocabulary (SRD 2014 §7.4.1) ------------------------------------

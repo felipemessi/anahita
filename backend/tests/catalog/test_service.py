@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
-from app.catalog.models import Item, Spell
+from app.catalog.models import Item, MagicItem, Spell
 from app.catalog.seeds.seed import seed_catalog
 
 
@@ -384,4 +384,106 @@ async def test_list_items_scoped_to_campaign_includes_srd_and_own_homebrew(
 async def test_get_item_not_found_returns_none(db: AsyncSession) -> None:
     """get_item should return None for an unknown ID."""
     result = await service.get_item(db, uuid.uuid4())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_magic_items_returns_all(db: AsyncSession) -> None:
+    """list_magic_items should return every seeded magic item, base + variants."""
+    await seed_catalog(db)
+    magic_items = await service.list_magic_items(db)
+    assert len(magic_items) == 7
+
+
+@pytest.mark.asyncio
+async def test_get_magic_item_translated_resolves_variants(db: AsyncSession) -> None:
+    """A base magic item (e.g. +1 Longsword) resolves its +2/+3 variants."""
+    await seed_catalog(db)
+    results = await service.list_magic_items_translated(db, search="+1 Longsword")
+    plus_one = await service.get_magic_item_translated(db, results[0].id, locale="en")
+
+    assert plus_one is not None
+    assert plus_one.name == "+1 Longsword"
+    assert plus_one.is_variant is False
+    assert plus_one.variant_of_id is None
+    variant_names = {v.name for v in plus_one.variants}
+    assert variant_names == {"+2 Longsword", "+3 Longsword"}
+
+
+@pytest.mark.asyncio
+async def test_get_magic_item_translated_variant_points_back_to_base(
+    db: AsyncSession,
+) -> None:
+    """A variant (e.g. +3 Longsword) carries `is_variant`/`variant_of_id`."""
+    await seed_catalog(db)
+    base_results = await service.list_magic_items_translated(db, search="+1 Longsword")
+    base = base_results[0]
+    variant_results = await service.list_magic_items_translated(
+        db, search="+3 Longsword"
+    )
+    plus_three = await service.get_magic_item_translated(
+        db, variant_results[0].id, locale="en"
+    )
+
+    assert plus_three is not None
+    assert plus_three.is_variant is True
+    assert plus_three.variant_of_id == base.id
+    assert plus_three.rarity == "very_rare"
+
+
+@pytest.mark.asyncio
+async def test_get_magic_item_translated_falls_back_to_en(db: AsyncSession) -> None:
+    """get_magic_item_translated falls back to `en` when locale has no translation."""
+    await seed_catalog(db)
+    results = await service.list_magic_items_translated(db, search="+1 Longsword")
+    plus_one = await service.get_magic_item_translated(
+        db, results[0].id, locale="pt-BR"
+    )
+
+    assert plus_one is not None
+    assert plus_one.name == "+1 Longsword"
+
+
+@pytest.mark.asyncio
+async def test_list_magic_items_scoped_to_campaign_includes_srd_and_own_homebrew(
+    db: AsyncSession,
+) -> None:
+    """`list_magic_items(campaign_id=X)` returns SRD + own homebrew, not others'."""
+    await seed_catalog(db)
+    srd_magic_items = await service.list_magic_items(db)
+    equipment_category_id = srd_magic_items[0].equipment_category_id
+
+    campaign_a = uuid.uuid4()
+    campaign_b = uuid.uuid4()
+    homebrew_a = MagicItem(
+        id=uuid.uuid4(),
+        index=None,
+        equipment_category_id=equipment_category_id,
+        rarity="rare",
+        is_custom=True,
+        campaign_id=campaign_a,
+    )
+    homebrew_b = MagicItem(
+        id=uuid.uuid4(),
+        index=None,
+        equipment_category_id=equipment_category_id,
+        rarity="rare",
+        is_custom=True,
+        campaign_id=campaign_b,
+    )
+    db.add_all([homebrew_a, homebrew_b])
+    await db.commit()
+
+    results = await service.list_magic_items(db, campaign_id=campaign_a)
+    ids = {m.id for m in results}
+
+    assert homebrew_a.id in ids
+    assert homebrew_b.id not in ids
+    assert {m.id for m in srd_magic_items} <= ids
+
+
+@pytest.mark.asyncio
+async def test_get_magic_item_not_found_returns_none(db: AsyncSession) -> None:
+    """get_magic_item should return None for an unknown ID."""
+    result = await service.get_magic_item(db, uuid.uuid4())
     assert result is None

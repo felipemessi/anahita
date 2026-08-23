@@ -303,6 +303,37 @@ class ItemSummary(BaseModel):
     is_custom: bool
 
 
+class MagicItemSummary(BaseModel):
+    """Lightweight magic item listing schema, with translated `name` resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    rarity: str
+    is_variant: bool
+    variant_of_id: uuid.UUID | None
+    is_custom: bool
+
+
+class MagicItemRead(BaseModel):
+    """Read schema for a magic item, with translated text fields resolved."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    name: str
+    description: str
+    equipment_category: str
+    rarity: str
+    is_custom: bool
+    is_variant: bool
+    variant_of_id: uuid.UUID | None
+    variants: list[MagicItemSummary]
+
+
 # --- Fixed vocabulary (SRD 2014 §7.4.1) -------------------------------------
 #
 # These entities have no `name`/translated text on the base row — that lives

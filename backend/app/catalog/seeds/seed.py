@@ -26,6 +26,8 @@ from app.catalog.models import (
     Item,
     ItemI18n,
     ItemProperty,
+    MagicItem,
+    MagicItemI18n,
     MagicSchool,
     MagicSchoolI18n,
     Race,
@@ -143,6 +145,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_classes(session)
     await _seed_spells(session)
     await _seed_items(session)
+    await _seed_magic_items(session)
     await session.commit()
 
 
@@ -465,3 +468,55 @@ async def _seed_items(session: AsyncSession) -> None:
                     strength_requirement=ad.get("strength_requirement"),
                 )
             )
+
+async def _seed_magic_item_entry(
+    session: AsyncSession,
+    entry: dict[str, Any],
+    *,
+    equipment_category_id: uuid.UUID,
+    variant_of_id: uuid.UUID | None,
+) -> None:
+    """Create one MagicItem row (+ i18n) and recurse into its `variants`, if any.
+
+    A variant (e.g. a +2 version) shares its base item's equipment category —
+    `variants.json` entries don't repeat `equipment_category_index`, so the
+    resolved id is threaded down through the recursion instead.
+    """
+    magic_item = MagicItem(
+        id=uuid.uuid4(),
+        index=entry["index"],
+        equipment_category_id=equipment_category_id,
+        rarity=entry["rarity"],
+        is_custom=False,
+        is_variant=variant_of_id is not None,
+        variant_of_id=variant_of_id,
+    )
+    session.add(magic_item)
+    await _seed_i18n(session, MagicItemI18n, magic_item.id, entry["i18n"])
+
+    for variant in entry.get("variants", []):
+        await _seed_magic_item_entry(
+            session,
+            variant,
+            equipment_category_id=equipment_category_id,
+            variant_of_id=magic_item.id,
+        )
+
+
+async def _seed_magic_items(session: AsyncSession) -> None:
+    count = await session.scalar(select(MagicItem).limit(1))
+    if count is not None:
+        return
+
+    categories_by_index = await _ensure_fixed_vocab(
+        session, EquipmentCategory, EquipmentCategoryI18n, _EQUIPMENT_CATEGORY_NAMES
+    )
+
+    data = json.loads((_DATA_DIR / "magic_items.json").read_text())
+    for entry in data:
+        await _seed_magic_item_entry(
+            session,
+            entry,
+            equipment_category_id=categories_by_index[entry["equipment_category_index"]],
+            variant_of_id=None,
+        )
