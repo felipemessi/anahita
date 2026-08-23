@@ -155,7 +155,7 @@ export default function LocationsPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : (
-        <LocationTree tree={tree ?? []} />
+        <LocationTree tree={tree ?? []} campaignId={campaignId} />
       )}
     </main>
   );

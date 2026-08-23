@@ -7,6 +7,7 @@ describe("LocationTree", () => {
   it("renders a region → city → tavern hierarchy nested correctly", () => {
     render(
       <LocationTree
+        campaignId="campaign-1"
         tree={[
           {
             id: "region-1",
@@ -49,7 +50,7 @@ describe("LocationTree", () => {
   });
 
   it("shows a placeholder when the campaign has no locations", () => {
-    render(<LocationTree tree={[]} />);
+    render(<LocationTree tree={[]} campaignId="campaign-1" />);
     expect(screen.getByText(/nenhum local/i)).toBeInTheDocument();
   });
 });

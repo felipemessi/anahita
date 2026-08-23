@@ -55,7 +55,7 @@ export default function FactionsPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : (
-        <FactionGraph factions={factions ?? []} />
+        <FactionGraph factions={factions ?? []} campaignId={campaignId} />
       )}
     </main>
   );
