@@ -255,10 +255,11 @@
   - [x] Testes de cada relação — `tests/world/test_service.py`
   - **Nota:** todas as junções são DM-only para criar, exigem que as duas pontas pertençam à mesma campanha (404 se não), e `FactionRelationship` rejeita uma facção relacionada consigo mesma (400). `list_faction_relationships` retorna o vínculo tanto pelo lado `faction_a` quanto `faction_b`.
 
-- **Como DM, quero buscar por nome/descrição em NPCs, locais e facções da minha campanha.**
-  - [ ] `tsvector` do Postgres em `app/queries/world_queries.py`
-  - [ ] `router.py`: endpoint de busca cross-entidade
-  - [ ] Teste de busca (Postgres — não roda em SQLite, marcar como teste de integração)
+- **Como DM, quero buscar por nome/descrição em NPCs, locais e facções da minha campanha.** ✅ (2026-08-23)
+  - [x] `tsvector` do Postgres em `app/queries/world_queries.py` — `search_world_entities` (UNION ALL rankeado por `ts_rank`, `plainto_tsquery`)
+  - [x] `router.py`: endpoint de busca cross-entidade — `GET /campaigns/{campaign_id}/world/search?q=`
+  - [x] Teste de busca (Postgres — não roda em SQLite, marcar como teste de integração) — `tests/queries/test_world_queries_postgres.py`, marcado `@pytest.mark.postgres`, pula automaticamente se não houver Postgres alcançável em `TEST_POSTGRES_URL`/padrão local
+  - **Nota:** a checagem de membership (403 pra quem não é da campanha) é coberta separadamente em SQLite (`tests/world/test_service.py::test_search_rejects_non_members`, com `search_world_entities` mockado) já que essa parte independe do Postgres.
 
 ---
 

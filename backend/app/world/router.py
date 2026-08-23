@@ -28,6 +28,7 @@ from app.world.schemas import (
     NPCRead,
     NPCSessionCreate,
     NPCSessionRead,
+    WorldSearchResult,
 )
 from app.world.service import WorldService
 
@@ -144,6 +145,20 @@ async def list_factions(
     """List a campaign's factions."""
     factions = await service.list_factions(campaign_id, user.id, db)
     return [FactionRead.model_validate(f) for f in factions]
+
+
+@router.get(
+    "/campaigns/{campaign_id}/world/search", response_model=list[WorldSearchResult]
+)
+async def search_world(
+    campaign_id: uuid.UUID,
+    q: str,
+    user: CurrentUser,
+    db: DB,
+    service: WorldSvc,
+) -> list[WorldSearchResult]:
+    """Search a campaign's NPCs, locations, and factions by name/description."""
+    return await service.search(campaign_id, user.id, q, db)
 
 
 @router.post(

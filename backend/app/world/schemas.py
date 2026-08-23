@@ -192,3 +192,12 @@ class FactionRelationshipRead(BaseModel):
     faction_a_id: uuid.UUID
     faction_b_id: uuid.UUID
     relationship_type: FactionRelationshipType
+
+
+class WorldSearchResult(BaseModel):
+    """One cross-entity search hit — an NPC, Location, or Faction."""
+
+    entity_type: str
+    id: uuid.UUID
+    name: str
+    snippet: str
