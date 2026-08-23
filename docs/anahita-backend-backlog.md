@@ -134,11 +134,11 @@
   - [x] Confirmar que `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` existem e têm teste de integração cobrindo o fluxo completo — endpoints já existiam; adicionado teste de integração HTTP end-to-end (`TestClient`/`httpx.AsyncClient` contra a app real, com `get_db` sobrescrito para SQLite em memória) em `tests/auth/test_router.py`, cobrindo registro → login → refresh (rotação de cookie) → refresh do token antigo rejeitado, e-mail duplicado, senha errada, refresh sem cookie, logout
 
 - **Como usuário, quero criar uma campanha e ser automaticamente seu DM.**
-  - [ ] `app/campaigns/models.py`: `Campaign`, `CampaignMember`, `CampaignInvite` (seção 7.2 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Regra: criar campanha cria automaticamente `CampaignMember(role=dm)` para o criador
-  - [ ] Testes de service + router (criação, unique `(campaign_id, user_id)`)
+  - [x] `app/campaigns/models.py`: `Campaign`, `CampaignMember`, `CampaignInvite` (seção 7.2 do PRD)
+  - [x] Migração Alembic — `alembic/versions/8045f11d1dfb_add_campaigns_domain.py` (upgrade/downgrade/upgrade testados contra Postgres; downgrade dropa explicitamente os enums `campaignrole`/`campaignstatus`, já que `DROP TABLE` não os remove)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py` — `POST /campaigns` (autenticado via `get_current_user`)
+  - [x] Regra: criar campanha cria automaticamente `CampaignMember(role=dm)` para o criador — `CampaignService.create_campaign`
+  - [x] Testes de service + router (criação, DM automático, unique `(campaign_id, user_id)`, criação exige autenticação) — `tests/campaigns/test_service.py`, `tests/campaigns/test_router.py`
 
 - **Como DM, quero gerar um convite para um jogador entrar na minha campanha.**
   - [ ] `service.py`: gerar `invite_code` único, expiração

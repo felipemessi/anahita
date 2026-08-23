@@ -24,6 +24,7 @@ if database_url:
 # Import all domain models here so autogenerate detects them.
 from app.database import Base  # noqa: E402
 from app.auth import models as _auth_models # noqa: F401, E402
+from app.campaigns import models as _campaigns_models  # noqa: F401, E402
 from app.catalog import models as _catalog_models  # noqa: F401
 
 
