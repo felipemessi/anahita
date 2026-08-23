@@ -17,7 +17,7 @@
 | Fase | Domínio                          | Status                          | Última atualização |
 |------|-----------------------------------|----------------------------------|----------------------|
 | 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
-| 1    | Fundação (Auth, Campaigns, Characters) | Parcial (Auth + Storage prontos; auth confirmado com teste de integração) | 2026-08-23    |
+| 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
 | 2    | Sessão ao Vivo (Combat, WS)        | Não iniciado                     | —                    |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
@@ -169,11 +169,11 @@
   - [x] Teste: multiclass válido passa (Fighter→Wizard com INT 13+), inválido (INT insuficiente) é rejeitado (422), classe repetida rejeitada (409), personagem de outro jogador rejeitado (403), fluxo HTTP completo — `tests/characters/test_multiclass.py`, `tests/characters/test_router.py`
 
 - **Como DM, quero criar uma sessão de jogo com número sequencial e notas.**
-  - [ ] `app/sessions/models.py`: `Session`, `SessionNote` (seção 7.5 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Regra: `SessionNote.is_private=true` só visível para o DM
-  - [ ] Testes: jogador não vê notas privadas de outro autor; DM vê tudo
+  - [x] `app/sessions/models.py`: `Session`, `SessionNote` (seção 7.5 do PRD)
+  - [x] Migração Alembic — `alembic/versions/5faf7b3b9560_add_sessions_domain.py` (upgrade/downgrade/upgrade testados contra Postgres)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py` — `POST`/`GET /campaigns/{campaign_id}/sessions` (criação só DM, `session_number` sequencial automático por campanha), `POST`/`GET /sessions/{session_id}/notes`
+  - [x] Regra: `SessionNote.is_private=true` só visível para o DM (texto literal do PRD §7.5) — implementado como: só o DM pode *criar* nota privada (`app/sessions/domain.py::validate_note_author`, 403 se jogador tentar); listagem filtra notas privadas para quem não é DM. `Session.dm_notes` recebe a mesma regra (oculto na resposta para não-DM, construído no schema — nunca sobrescrevendo o valor persistido no ORM)
+  - [x] Testes: jogador não cria nota privada (403), jogador não vê notas privadas (nem `dm_notes`), DM vê tudo, não-membro da campanha é rejeitado, numeração sequencial, fluxo HTTP completo — `tests/sessions/test_service.py`, `tests/sessions/test_router.py`
 
 ---
 
