@@ -1,0 +1,158 @@
+[
+  {
+    "index": "weapon",
+    "name": "Weapon"
+  },
+  {
+    "index": "armor",
+    "name": "Armor"
+  },
+  {
+    "index": "adventuring-gear",
+    "name": "Adventuring Gear"
+  },
+  {
+    "index": "ammunition",
+    "name": "Ammunition"
+  },
+  {
+    "index": "tools",
+    "name": "Tools"
+  },
+  {
+    "index": "mounts-and-vehicles",
+    "name": "Mounts and Vehicles"
+  },
+  {
+    "index": "simple-weapons",
+    "name": "Simple Weapons"
+  },
+  {
+    "index": "martial-weapons",
+    "name": "Martial Weapons"
+  },
+  {
+    "index": "melee-weapons",
+    "name": "Melee Weapons"
+  },
+  {
+    "index": "ranged-weapons",
+    "name": "Ranged Weapons"
+  },
+  {
+    "index": "simple-melee-weapons",
+    "name": "Simple Melee Weapons"
+  },
+  {
+    "index": "simple-ranged-weapons",
+    "name": "Simple Ranged Weapons"
+  },
+  {
+    "index": "martial-melee-weapons",
+    "name": "Martial Melee Weapons"
+  },
+  {
+    "index": "martial-ranged-weapons",
+    "name": "Martial Ranged Weapons"
+  },
+  {
+    "index": "light-armor",
+    "name": "Light Armor"
+  },
+  {
+    "index": "medium-armor",
+    "name": "Medium Armor"
+  },
+  {
+    "index": "heavy-armor",
+    "name": "Heavy Armor"
+  },
+  {
+    "index": "shields",
+    "name": "Shields"
+  },
+  {
+    "index": "standard-gear",
+    "name": "Standard Gear"
+  },
+  {
+    "index": "kits",
+    "name": "Kits"
+  },
+  {
+    "index": "equipment-packs",
+    "name": "Equipment Packs"
+  },
+  {
+    "index": "artisans-tools",
+    "name": "Artisan's Tools"
+  },
+  {
+    "index": "gaming-sets",
+    "name": "Gaming Sets"
+  },
+  {
+    "index": "musical-instruments",
+    "name": "Musical Instruments"
+  },
+  {
+    "index": "other-tools",
+    "name": "Other Tools"
+  },
+  {
+    "index": "mounts-and-other-animals",
+    "name": "Mounts and Other Animals"
+  },
+  {
+    "index": "tack-harness-and-drawn-vehicles",
+    "name": "Tack, Harness, and Drawn Vehicles"
+  },
+  {
+    "index": "land-vehicles",
+    "name": "Land Vehicles"
+  },
+  {
+    "index": "waterborne-vehicles",
+    "name": "Waterborne Vehicles"
+  },
+  {
+    "index": "arcane-foci",
+    "name": "Arcane Foci"
+  },
+  {
+    "index": "druidic-foci",
+    "name": "Druidic Foci"
+  },
+  {
+    "index": "holy-symbols",
+    "name": "Holy Symbols"
+  },
+  {
+    "index": "wondrous-items",
+    "name": "Wondrous Items"
+  },
+  {
+    "index": "rod",
+    "name": "Rod"
+  },
+  {
+    "index": "potion",
+    "name": "Potion"
+  },
+  {
+    "index": "ring",
+    "name": "Ring"
+  },
+  {
+    "index": "scroll",
+    "name": "Scroll"
+  },
+  {
+    "index": "staff",
+    "name": "Staff"
+  },
+  {
+    "index": "wand",
+    "name": "Wand"
+  }
+]

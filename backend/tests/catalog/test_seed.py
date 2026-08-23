@@ -1,40 +1,100 @@
 """Tests for the catalog seed function."""
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
 from app.catalog.models import (
+    AbilityScoreDefinition,
+    Alignment,
     Background,
     ClassDefinition,
+    Condition,
+    DamageType,
+    EquipmentCategory,
     Feat,
     Item,
+    Language,
+    MagicItem,
+    MagicSchool,
     Monster,
+    Proficiency,
     Race,
     Rule,
+    RuleSection,
+    SkillDefinition,
     Spell,
+    WeaponProperty,
 )
 from app.catalog.seeds.seed import seed_catalog
+
+#: Row counts for the full SRD 2014 `en` seed — see PRD §7.4.1-7.4.9. These
+#: are the real published SRD sizes (not a subset), so any change here should
+#: be backed by a change to `_data/2014/en/*.json` or `convert_srd.py`, not a
+#: shortcut to make a test pass.
+_EXPECTED_COUNTS = {
+    AbilityScoreDefinition: 6,
+    SkillDefinition: 18,
+    Alignment: 9,
+    Condition: 15,
+    DamageType: 13,
+    MagicSchool: 8,
+    Language: 16,
+    WeaponProperty: 11,
+    EquipmentCategory: 39,
+    Proficiency: 117,
+    Race: 9,
+    ClassDefinition: 12,
+    Spell: 319,
+    Item: 237,
+    MagicItem: 362,
+    Background: 1,
+    Feat: 1,
+    Monster: 334,
+    RuleSection: 6,
+    Rule: 33,
+}
+
+
+@pytest.mark.asyncio
+async def test_seed_populates_every_category_with_srd_counts(db: AsyncSession) -> None:
+    """seed_catalog should insert the full SRD 2014 `en` row count per table."""
+    await seed_catalog(db)
+
+    for model, expected in _EXPECTED_COUNTS.items():
+        count = await db.scalar(select(func.count()).select_from(model))
+        assert count == expected, f"{model.__name__}: expected {expected}, got {count}"
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_races(db: AsyncSession) -> None:
-    """seed_catalog should insert all four SRD races."""
+    """seed_catalog should insert all 9 SRD races, translated."""
     await seed_catalog(db)
 
     races = (await db.execute(select(Race).order_by(Race.index))).scalars().all()
     indexes = {r.index for r in races}
-    assert indexes == {"dwarf", "elf", "halfling", "human"}
+    assert indexes == {
+        "dragonborn",
+        "dwarf",
+        "elf",
+        "gnome",
+        "half-elf",
+        "half-orc",
+        "halfling",
+        "human",
+        "tiefling",
+    }
 
     summaries = await service.list_races_translated(db)
     names = {r.name for r in summaries}
-    assert names == {"Dwarf", "Elf", "Halfling", "Human"}
+    assert "Human" in names
+    assert "Elf" in names
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_classes(db: AsyncSession) -> None:
-    """seed_catalog should insert the five SRD classes."""
+    """seed_catalog should insert all 12 SRD classes."""
     await seed_catalog(db)
 
     classes = (
@@ -43,34 +103,59 @@ async def test_seed_creates_classes(db: AsyncSession) -> None:
         .all()
     )
     indexes = {c.index for c in classes}
-    assert indexes == {"barbarian", "cleric", "fighter", "rogue", "wizard"}
+    assert indexes == {
+        "barbarian",
+        "bard",
+        "cleric",
+        "druid",
+        "fighter",
+        "monk",
+        "paladin",
+        "ranger",
+        "rogue",
+        "sorcerer",
+        "warlock",
+        "wizard",
+    }
 
     summaries = await service.list_classes_translated(db)
     names = {c.name for c in summaries}
-    assert names == {"Barbarian", "Cleric", "Fighter", "Rogue", "Wizard"}
+    assert "Fighter" in names
+    assert "Wizard" in names
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_spells(db: AsyncSession) -> None:
-    """seed_catalog should insert 20 SRD spells."""
+    """seed_catalog should insert the 319 SRD spells."""
     await seed_catalog(db)
 
     spells = (await db.execute(select(Spell))).scalars().all()
-    assert len(spells) == 20
+    assert len(spells) == 319
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_items(db: AsyncSession) -> None:
-    """seed_catalog should insert SRD items."""
+    """seed_catalog should insert the 237 SRD equipment items."""
     await seed_catalog(db)
 
     items = (await db.execute(select(Item))).scalars().all()
-    assert len(items) > 0
+    assert len(items) == 237
+
+
+@pytest.mark.asyncio
+async def test_seed_creates_magic_items_with_variants(db: AsyncSession) -> None:
+    """seed_catalog should insert the 362 SRD magic items, base + variants."""
+    await seed_catalog(db)
+
+    magic_items = (await db.execute(select(MagicItem))).scalars().all()
+    assert len(magic_items) == 362
+    assert any(mi.is_variant for mi in magic_items)
+    assert any(not mi.is_variant for mi in magic_items)
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_backgrounds(db: AsyncSession) -> None:
-    """seed_catalog should insert the two SRD backgrounds."""
+    """seed_catalog should insert the 1 SRD background (Acolyte)."""
     await seed_catalog(db)
 
     backgrounds = (
@@ -79,54 +164,69 @@ async def test_seed_creates_backgrounds(db: AsyncSession) -> None:
         .all()
     )
     indexes = {b.index for b in backgrounds}
-    assert indexes == {"acolyte", "soldier"}
+    assert indexes == {"acolyte"}
 
     summaries = await service.list_backgrounds_translated(db)
     names = {b.name for b in summaries}
-    assert names == {"Acolyte", "Soldier"}
+    assert names == {"Acolyte"}
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_feats(db: AsyncSession) -> None:
-    """seed_catalog should insert the three SRD feats."""
+    """seed_catalog should insert the 1 SRD feat (Grappler)."""
     await seed_catalog(db)
 
     feats = (await db.execute(select(Feat).order_by(Feat.index))).scalars().all()
     indexes = {f.index for f in feats}
-    assert indexes == {"alert", "grappler", "tough"}
+    assert indexes == {"grappler"}
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_monsters(db: AsyncSession) -> None:
-    """seed_catalog should insert the two SRD monsters."""
+    """seed_catalog should insert all 334 SRD monsters."""
     await seed_catalog(db)
 
     monsters = (
         (await db.execute(select(Monster).order_by(Monster.index))).scalars().all()
     )
+    assert len(monsters) == 334
     indexes = {m.index for m in monsters}
-    assert indexes == {"goblin", "young-red-dragon"}
+    assert "goblin" in indexes
+    assert "adult-red-dragon" in indexes
 
-    summaries = await service.list_monsters_translated(db)
+    summaries = await service.list_monsters_translated(db, search="Goblin")
     names = {m.name for m in summaries}
-    assert names == {"Goblin", "Young Red Dragon"}
+    assert "Goblin" in names
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_rules(db: AsyncSession) -> None:
-    """seed_catalog should insert the two SRD rules."""
+    """seed_catalog should insert the 33 rules across 6 rule sections."""
     await seed_catalog(db)
 
     rules = (await db.execute(select(Rule).order_by(Rule.index))).scalars().all()
-    indexes = {r.index for r in rules}
-    assert indexes == {"cover", "difficult-terrain"}
+    assert len(rules) == 33
+    sections = (
+        (await db.execute(select(RuleSection).order_by(RuleSection.index)))
+        .scalars()
+        .all()
+    )
+    assert {s.index for s in sections} == {
+        "adventuring",
+        "appendix",
+        "combat",
+        "equipment",
+        "spellcasting",
+        "using-ability-scores",
+    }
 
 
 @pytest.mark.asyncio
 async def test_seed_is_idempotent(db: AsyncSession) -> None:
-    """Running seed_catalog twice should not duplicate rows."""
+    """Running seed_catalog twice should not duplicate rows in any category."""
     await seed_catalog(db)
     await seed_catalog(db)
 
-    spells = (await db.execute(select(Spell))).scalars().all()
-    assert len(spells) == 20
+    for model, expected in _EXPECTED_COUNTS.items():
+        count = await db.scalar(select(func.count()).select_from(model))
+        assert count == expected, f"{model.__name__}: expected {expected}, got {count}"

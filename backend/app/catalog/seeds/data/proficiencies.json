@@ -1,0 +1,1306 @@
+[
+  {
+    "index": "light-armor",
+    "name": "Light Armor",
+    "proficiency_type": "armor",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "light-armor",
+    "class_indexes": [
+      "barbarian",
+      "bard",
+      "cleric",
+      "druid",
+      "ranger",
+      "rogue",
+      "warlock"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "medium-armor",
+    "name": "Medium Armor",
+    "proficiency_type": "armor",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "medium-armor",
+    "class_indexes": [
+      "barbarian",
+      "cleric",
+      "druid",
+      "ranger"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "heavy-armor",
+    "name": "Heavy Armor",
+    "proficiency_type": "armor",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "heavy-armor",
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "all-armor",
+    "name": "All armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "fighter",
+      "paladin"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "padded-armor",
+    "name": "Padded Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "leather-armor",
+    "name": "Leather Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "studded-leather-armor",
+    "name": "Studded Leather Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "hide-armor",
+    "name": "Hide Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "chain-shirt",
+    "name": "Chain Shirt",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "scale-mail",
+    "name": "Scale Mail",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "breastplate",
+    "name": "Breastplate",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "half-plate-armor",
+    "name": "Half Plate Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "ring-mail",
+    "name": "Ring Mail",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "chain-mail",
+    "name": "Chain Mail",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "splint-armor",
+    "name": "Splint Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "plate-armor",
+    "name": "Plate Armor",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "shields",
+    "name": "Shields",
+    "proficiency_type": "armor",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "shields",
+    "class_indexes": [
+      "barbarian",
+      "cleric",
+      "druid",
+      "fighter",
+      "paladin",
+      "ranger"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "simple-weapons",
+    "name": "Simple Weapons",
+    "proficiency_type": "weapon",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "simple-weapons",
+    "class_indexes": [
+      "barbarian",
+      "bard",
+      "cleric",
+      "fighter",
+      "monk",
+      "paladin",
+      "ranger",
+      "rogue",
+      "warlock"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "martial-weapons",
+    "name": "Martial Weapons",
+    "proficiency_type": "weapon",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "martial-weapons",
+    "class_indexes": [
+      "barbarian",
+      "fighter",
+      "paladin",
+      "ranger"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "clubs",
+    "name": "Clubs",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "daggers",
+    "name": "Daggers",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid",
+      "sorcerer",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "greatclubs",
+    "name": "Greatclubs",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "handaxes",
+    "name": "Handaxes",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "dwarf"
+    ]
+  },
+  {
+    "index": "javelins",
+    "name": "Javelins",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "light-hammers",
+    "name": "Light hammers",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "dwarf"
+    ]
+  },
+  {
+    "index": "maces",
+    "name": "Maces",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "quarterstaffs",
+    "name": "Quarterstaffs",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid",
+      "sorcerer",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "sickles",
+    "name": "Sickles",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "spears",
+    "name": "Spears",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "crossbows-light",
+    "name": "Crossbows, light",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "sorcerer",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "darts",
+    "name": "Darts",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid",
+      "sorcerer",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "shortbows",
+    "name": "Shortbows",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "high-elf"
+    ]
+  },
+  {
+    "index": "slings",
+    "name": "Slings",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid",
+      "sorcerer",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "battleaxes",
+    "name": "Battleaxes",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "dwarf"
+    ]
+  },
+  {
+    "index": "flails",
+    "name": "Flails",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "glaives",
+    "name": "Glaives",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "greataxes",
+    "name": "Greataxes",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "greatswords",
+    "name": "Greatswords",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "halberds",
+    "name": "Halberds",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "lances",
+    "name": "Lances",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "longswords",
+    "name": "Longswords",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "bard",
+      "rogue"
+    ],
+    "race_indexes": [
+      "high-elf"
+    ]
+  },
+  {
+    "index": "mauls",
+    "name": "Mauls",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "morningstars",
+    "name": "Morningstars",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "pikes",
+    "name": "Pikes",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "rapiers",
+    "name": "Rapiers",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "bard",
+      "rogue"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "scimitars",
+    "name": "Scimitars",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "shortswords",
+    "name": "Shortswords",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "bard",
+      "monk",
+      "rogue"
+    ],
+    "race_indexes": [
+      "high-elf"
+    ]
+  },
+  {
+    "index": "tridents",
+    "name": "Tridents",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "war-picks",
+    "name": "War picks",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "warhammers",
+    "name": "Warhammers",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "dwarf"
+    ]
+  },
+  {
+    "index": "whips",
+    "name": "Whips",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "blowguns",
+    "name": "Blowguns",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "hand-crossbows",
+    "name": "Hand crossbows",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "bard",
+      "rogue"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "crossbows-heavy",
+    "name": "Crossbows, heavy",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "longbows",
+    "name": "Longbows",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "high-elf"
+    ]
+  },
+  {
+    "index": "nets",
+    "name": "Nets",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "alchemists-supplies",
+    "name": "Alchemist's Supplies",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "brewers-supplies",
+    "name": "Brewer's Supplies",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "calligraphers-supplies",
+    "name": "Calligrapher's Supplies",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "carpenters-tools",
+    "name": "Carpenter's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "cartographers-tools",
+    "name": "Cartographer's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "cobblers-tools",
+    "name": "Cobbler's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "cooks-utensils",
+    "name": "Cook's utensils",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "glassblowers-tools",
+    "name": "Glassblower's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "jewelers-tools",
+    "name": "Jeweler's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "leatherworkers-tools",
+    "name": "Leatherworker's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "masons-tools",
+    "name": "Mason's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "painters-supplies",
+    "name": "Painter's Supplies",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "potters-tools",
+    "name": "Potter's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "smiths-tools",
+    "name": "Smith's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "tinkers-tools",
+    "name": "Tinker's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "weavers-tools",
+    "name": "Weaver's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "woodcarvers-tools",
+    "name": "Woodcarver's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "disguise-kit",
+    "name": "Disguise Kit",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "forgery-kit",
+    "name": "Forgery Kit",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "dice-set",
+    "name": "Dice Set",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "playing-card-set",
+    "name": "Playing Card Set",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "bagpipes",
+    "name": "Bagpipes",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "drum",
+    "name": "Drum",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "dulcimer",
+    "name": "Dulcimer",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "flute",
+    "name": "Flute",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "lute",
+    "name": "Lute",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "lyre",
+    "name": "Lyre",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "horn",
+    "name": "Horn",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "pan-flute",
+    "name": "Pan flute",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "shawm",
+    "name": "Shawm",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "viol",
+    "name": "Viol",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "herbalism-kit",
+    "name": "Herbalism Kit",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "navigators-tools",
+    "name": "Navigator's Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "poisoners-kit",
+    "name": "Poisoner's Kit",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "thieves-tools",
+    "name": "Thieves' Tools",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [
+      "rogue"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "land-vehicles",
+    "name": "Land Vehicles",
+    "proficiency_type": "tool",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": "land-vehicles",
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "water-vehicles",
+    "name": "Water Vehicles",
+    "proficiency_type": "other",
+    "skill_index": null,
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "saving-throw-str",
+    "name": "Saving Throw: STR",
+    "proficiency_type": "saving_throw",
+    "skill_index": null,
+    "ability_score_index": "str",
+    "equipment_category_index": null,
+    "class_indexes": [
+      "barbarian",
+      "fighter",
+      "monk",
+      "ranger"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "saving-throw-dex",
+    "name": "Saving Throw: DEX",
+    "proficiency_type": "saving_throw",
+    "skill_index": null,
+    "ability_score_index": "dex",
+    "equipment_category_index": null,
+    "class_indexes": [
+      "bard",
+      "monk",
+      "ranger",
+      "rogue"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "saving-throw-con",
+    "name": "Saving Throw: CON",
+    "proficiency_type": "saving_throw",
+    "skill_index": null,
+    "ability_score_index": "con",
+    "equipment_category_index": null,
+    "class_indexes": [
+      "barbarian",
+      "fighter",
+      "sorcerer"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "saving-throw-int",
+    "name": "Saving Throw: INT",
+    "proficiency_type": "saving_throw",
+    "skill_index": null,
+    "ability_score_index": "int",
+    "equipment_category_index": null,
+    "class_indexes": [
+      "druid",
+      "rogue",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "saving-throw-wis",
+    "name": "Saving Throw: WIS",
+    "proficiency_type": "saving_throw",
+    "skill_index": null,
+    "ability_score_index": "wis",
+    "equipment_category_index": null,
+    "class_indexes": [
+      "cleric",
+      "druid",
+      "paladin",
+      "warlock",
+      "wizard"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "saving-throw-cha",
+    "name": "Saving Throw: CHA",
+    "proficiency_type": "saving_throw",
+    "skill_index": null,
+    "ability_score_index": "cha",
+    "equipment_category_index": null,
+    "class_indexes": [
+      "bard",
+      "cleric",
+      "paladin",
+      "sorcerer",
+      "warlock"
+    ],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-acrobatics",
+    "name": "Skill: Acrobatics",
+    "proficiency_type": "skill",
+    "skill_index": "acrobatics",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-animal-handling",
+    "name": "Skill: Animal Handling",
+    "proficiency_type": "skill",
+    "skill_index": "animal-handling",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-arcana",
+    "name": "Skill: Arcana",
+    "proficiency_type": "skill",
+    "skill_index": "arcana",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-athletics",
+    "name": "Skill: Athletics",
+    "proficiency_type": "skill",
+    "skill_index": "athletics",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-deception",
+    "name": "Skill: Deception",
+    "proficiency_type": "skill",
+    "skill_index": "deception",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-history",
+    "name": "Skill: History",
+    "proficiency_type": "skill",
+    "skill_index": "history",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-insight",
+    "name": "Skill: Insight",
+    "proficiency_type": "skill",
+    "skill_index": "insight",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-intimidation",
+    "name": "Skill: Intimidation",
+    "proficiency_type": "skill",
+    "skill_index": "intimidation",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-investigation",
+    "name": "Skill: Investigation",
+    "proficiency_type": "skill",
+    "skill_index": "investigation",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-medicine",
+    "name": "Skill: Medicine",
+    "proficiency_type": "skill",
+    "skill_index": "medicine",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-nature",
+    "name": "Skill: Nature",
+    "proficiency_type": "skill",
+    "skill_index": "nature",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-perception",
+    "name": "Skill: Perception",
+    "proficiency_type": "skill",
+    "skill_index": "perception",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": [
+      "elf"
+    ]
+  },
+  {
+    "index": "skill-performance",
+    "name": "Skill: Performance",
+    "proficiency_type": "skill",
+    "skill_index": "performance",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-persuasion",
+    "name": "Skill: Persuasion",
+    "proficiency_type": "skill",
+    "skill_index": "persuasion",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-religion",
+    "name": "Skill: Religion",
+    "proficiency_type": "skill",
+    "skill_index": "religion",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-sleight-of-hand",
+    "name": "Skill: Sleight of Hand",
+    "proficiency_type": "skill",
+    "skill_index": "sleight-of-hand",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-stealth",
+    "name": "Skill: Stealth",
+    "proficiency_type": "skill",
+    "skill_index": "stealth",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  },
+  {
+    "index": "skill-survival",
+    "name": "Skill: Survival",
+    "proficiency_type": "skill",
+    "skill_index": "survival",
+    "ability_score_index": null,
+    "equipment_category_index": null,
+    "class_indexes": [],
+    "race_indexes": []
+  }
+]

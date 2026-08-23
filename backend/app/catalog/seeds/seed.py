@@ -1,4 +1,10 @@
-"""Seed function to populate catalog tables from SRD JSON data."""
+"""Seed function to populate catalog tables from SRD JSON data.
+
+Data files under `data/` are the normalized output of `convert_srd.py` (run
+once against `_data/2014/en/*.json` and committed) — see that module's
+docstring for why conversion is a pre-generation step rather than something
+`seed_catalog` does at runtime.
+"""
 
 import json
 import uuid
@@ -11,18 +17,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.catalog.models import (
     AbilityScoreDefinition,
     AbilityScoreDefinitionI18n,
+    Alignment,
+    AlignmentI18n,
     ArmorDetail,
     Background,
     BackgroundEquipment,
     BackgroundFeature,
     BackgroundFeatureI18n,
     BackgroundI18n,
+    BackgroundProficiency,
     ClassDefinition,
     ClassDefinitionI18n,
     ClassLevel,
     ClassLevelFeature,
     ClassLevelResource,
     ClassLevelSpellSlot,
+    Condition,
+    ConditionI18n,
     DamageType,
     DamageTypeI18n,
     EquipmentCategory,
@@ -36,6 +47,8 @@ from app.catalog.models import (
     Item,
     ItemI18n,
     ItemProperty,
+    Language,
+    LanguageI18n,
     MagicItem,
     MagicItemI18n,
     MagicSchool,
@@ -44,16 +57,22 @@ from app.catalog.models import (
     MonsterAction,
     MonsterActionDamage,
     MonsterArmorClass,
+    MonsterConditionImmunity,
     MonsterDamageModifier,
     MonsterI18n,
     MonsterLegendaryAction,
     MonsterLegendaryActionDamage,
+    MonsterProficiency,
     MonsterReaction,
     MonsterReactionDamage,
     MonsterSense,
     MonsterSpecialAbility,
     MonsterSpecialAbilityDamage,
     MonsterSpeed,
+    Proficiency,
+    ProficiencyClass,
+    ProficiencyI18n,
+    ProficiencyRace,
     Race,
     RaceAbilityBonus,
     RaceI18n,
@@ -64,6 +83,8 @@ from app.catalog.models import (
     RuleRuleSection,
     RuleSection,
     RuleSectionI18n,
+    SkillDefinition,
+    SkillDefinitionI18n,
     Spell,
     SpellClass,
     SpellI18n,
@@ -78,100 +99,11 @@ from app.catalog.models import (
     WeaponPropertyI18n,
 )
 
-#: Fixed vocabulary (PRD §7.4.1) has no seed of its own yet (a later backlog
-#: story covers all 24 categories from `_data/2014`), but several catalogs
-#: added in later stories reference it via FK. `_ensure_fixed_vocab` below
-#: seeds just what each story's data actually references, idempotently by
-#: `index` — these dicts are the `index` -> English display name for each.
-_MAGIC_SCHOOL_NAMES = {
-    "abjuration": "Abjuration",
-    "conjuration": "Conjuration",
-    "divination": "Divination",
-    "enchantment": "Enchantment",
-    "evocation": "Evocation",
-    "illusion": "Illusion",
-    "necromancy": "Necromancy",
-    "transmutation": "Transmutation",
-}
-_WEAPON_PROPERTY_NAMES = {
-    "versatile": "Versatile",
-    "finesse": "Finesse",
-    "light": "Light",
-    "thrown": "Thrown",
-    "heavy": "Heavy",
-    "two-handed": "Two-Handed",
-    "ammunition": "Ammunition",
-}
-_DAMAGE_TYPE_NAMES = {
-    "slashing": "Slashing",
-    "piercing": "Piercing",
-    "bludgeoning": "Bludgeoning",
-    "fire": "Fire",
-}
-_EQUIPMENT_CATEGORY_NAMES = {
-    "simple-weapons": "Simple Weapons",
-    "martial-weapons": "Martial Weapons",
-    "light-armor": "Light Armor",
-    "medium-armor": "Medium Armor",
-    "heavy-armor": "Heavy Armor",
-    "shields": "Shields",
-    "adventuring-gear": "Adventuring Gear",
-}
-#: AbilityScoreDefinitionI18n has a required `full_name` beyond the generic
-#: `_ensure_fixed_vocab` shape, so it gets its own get-or-create helper below.
-_ABILITY_SCORE_NAMES = {
-    "str": ("STR", "Strength"),
-    "dex": ("DEX", "Dexterity"),
-    "con": ("CON", "Constitution"),
-    "int": ("INT", "Intelligence"),
-    "wis": ("WIS", "Wisdom"),
-    "cha": ("CHA", "Charisma"),
-}
-
-
-async def _ensure_ability_scores(session: AsyncSession) -> dict[str, uuid.UUID]:
-    """Get-or-create the 6 SRD ability scores, returning `index` -> id."""
-    result = await session.execute(select(AbilityScoreDefinition))
-    by_index = {a.index: a.id for a in result.scalars().all() if a.index}
-    for index, (name, full_name) in _ABILITY_SCORE_NAMES.items():
-        if index in by_index:
-            continue
-        ability = AbilityScoreDefinition(id=uuid.uuid4(), index=index, is_custom=False)
-        session.add(ability)
-        await _seed_i18n(
-            session,
-            AbilityScoreDefinitionI18n,
-            ability.id,
-            {"en": {"name": name, "full_name": full_name, "desc": ""}},
-        )
-        by_index[index] = ability.id
-    return by_index
-
-
-async def _ensure_fixed_vocab(
-    session: AsyncSession,
-    model: Any,
-    i18n_model: Any,
-    names: dict[str, str],
-) -> dict[str, uuid.UUID]:
-    """Get-or-create fixed-vocabulary rows by `index`, returning `index` -> id.
-
-    Shared by every later-story seed that needs a §7.4.1 category as an FK
-    target (magic schools, weapon properties, damage types, equipment
-    categories) before that category has its own seed story.
-    """
-    result = await session.execute(select(model))
-    by_index = {row.index: row.id for row in result.scalars().all() if row.index}
-    for index, name in names.items():
-        if index in by_index:
-            continue
-        row = model(id=uuid.uuid4(), index=index, is_custom=False)
-        session.add(row)
-        await _seed_i18n(session, i18n_model, row.id, {"en": {"name": name}})
-        by_index[index] = row.id
-    return by_index
-
 _DATA_DIR = Path(__file__).parent / "data"
+
+
+def _load(name: str) -> Any:
+    return json.loads((_DATA_DIR / f"{name}.json").read_text())
 
 
 async def _seed_i18n(
@@ -198,8 +130,24 @@ async def _seed_i18n(
         )
 
 
+async def _index_map(session: AsyncSession, model: Any) -> dict[str, uuid.UUID]:
+    """`index` -> `id` for every row of `model` that has one set."""
+    result = await session.execute(select(model))
+    return {row.index: row.id for row in result.scalars().all() if row.index}
+
+
 async def seed_catalog(session: AsyncSession) -> None:
     """Populate catalog tables from JSON files if they are empty."""
+    await _seed_ability_scores(session)
+    await _seed_skills(session)
+    await _seed_alignments(session)
+    await _seed_conditions(session)
+    await _seed_damage_types(session)
+    await _seed_magic_schools(session)
+    await _seed_languages(session)
+    await _seed_weapon_properties(session)
+    await _seed_equipment_categories(session)
+    await _seed_proficiencies(session)
     await _seed_races(session)
     await _seed_classes(session)
     await _seed_spells(session)
@@ -212,12 +160,234 @@ async def seed_catalog(session: AsyncSession) -> None:
     await session.commit()
 
 
+# --- Fixed vocabulary (PRD §7.4.1) ------------------------------------------
+
+
+async def _seed_ability_scores(session: AsyncSession) -> None:
+    if await session.scalar(select(AbilityScoreDefinition).limit(1)) is not None:
+        return
+    for entry in _load("ability_scores"):
+        row = AbilityScoreDefinition(
+            id=uuid.uuid4(), index=entry["index"], is_custom=False
+        )
+        session.add(row)
+        await _seed_i18n(
+            session,
+            AbilityScoreDefinitionI18n,
+            row.id,
+            {
+                "en": {
+                    "name": entry["name"],
+                    "full_name": entry["full_name"],
+                    "desc": entry["desc"],
+                }
+            },
+        )
+
+
+async def _seed_skills(session: AsyncSession) -> None:
+    if await session.scalar(select(SkillDefinition).limit(1)) is not None:
+        return
+    ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+    for entry in _load("skills"):
+        row = SkillDefinition(
+            id=uuid.uuid4(),
+            index=entry["index"],
+            ability_score_id=ability_scores_by_index[entry["ability_score_index"]],
+            is_custom=False,
+        )
+        session.add(row)
+        await _seed_i18n(
+            session,
+            SkillDefinitionI18n,
+            row.id,
+            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+        )
+
+
+async def _seed_alignments(session: AsyncSession) -> None:
+    if await session.scalar(select(Alignment).limit(1)) is not None:
+        return
+    for entry in _load("alignments"):
+        row = Alignment(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(row)
+        await _seed_i18n(
+            session,
+            AlignmentI18n,
+            row.id,
+            {
+                "en": {
+                    "name": entry["name"],
+                    "abbreviation": entry["abbreviation"],
+                    "desc": entry["desc"],
+                }
+            },
+        )
+
+
+async def _seed_conditions(session: AsyncSession) -> None:
+    if await session.scalar(select(Condition).limit(1)) is not None:
+        return
+    for entry in _load("conditions"):
+        row = Condition(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(row)
+        await _seed_i18n(
+            session,
+            ConditionI18n,
+            row.id,
+            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+        )
+
+
+async def _seed_damage_types(session: AsyncSession) -> None:
+    if await session.scalar(select(DamageType).limit(1)) is not None:
+        return
+    for entry in _load("damage_types"):
+        row = DamageType(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(row)
+        await _seed_i18n(
+            session,
+            DamageTypeI18n,
+            row.id,
+            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+        )
+
+
+async def _seed_magic_schools(session: AsyncSession) -> None:
+    if await session.scalar(select(MagicSchool).limit(1)) is not None:
+        return
+    for entry in _load("magic_schools"):
+        row = MagicSchool(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(row)
+        await _seed_i18n(
+            session,
+            MagicSchoolI18n,
+            row.id,
+            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+        )
+
+
+async def _seed_languages(session: AsyncSession) -> None:
+    if await session.scalar(select(Language).limit(1)) is not None:
+        return
+    for entry in _load("languages"):
+        row = Language(
+            id=uuid.uuid4(),
+            index=entry["index"],
+            language_type=entry["language_type"],
+            is_custom=False,
+        )
+        session.add(row)
+        await _seed_i18n(
+            session,
+            LanguageI18n,
+            row.id,
+            {
+                "en": {
+                    "name": entry["name"],
+                    "desc": entry["desc"],
+                    "script": entry.get("script"),
+                    "typical_speakers": entry.get("typical_speakers"),
+                }
+            },
+        )
+
+
+async def _seed_weapon_properties(session: AsyncSession) -> None:
+    if await session.scalar(select(WeaponProperty).limit(1)) is not None:
+        return
+    for entry in _load("weapon_properties"):
+        row = WeaponProperty(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(row)
+        await _seed_i18n(
+            session,
+            WeaponPropertyI18n,
+            row.id,
+            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+        )
+
+
+async def _seed_equipment_categories(session: AsyncSession) -> None:
+    if await session.scalar(select(EquipmentCategory).limit(1)) is not None:
+        return
+    for entry in _load("equipment_categories"):
+        row = EquipmentCategory(id=uuid.uuid4(), index=entry["index"], is_custom=False)
+        session.add(row)
+        await _seed_i18n(
+            session, EquipmentCategoryI18n, row.id, {"en": {"name": entry["name"]}}
+        )
+
+
+async def _seed_proficiencies(session: AsyncSession) -> None:
+    """Seed Proficiency rows.
+
+    ProficiencyClass/ProficiencyRace junctions wait for `_seed_classes`/
+    `_seed_races` (they need ClassDefinition/Race ids).
+    """
+    if await session.scalar(select(Proficiency).limit(1)) is not None:
+        return
+    skills_by_index = await _index_map(session, SkillDefinition)
+    ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+    categories_by_index = await _index_map(session, EquipmentCategory)
+    for entry in _load("proficiencies"):
+        row = Proficiency(
+            id=uuid.uuid4(),
+            index=entry["index"],
+            proficiency_type=entry["proficiency_type"],
+            skill_id=(
+                skills_by_index[entry["skill_index"]] if entry["skill_index"] else None
+            ),
+            ability_score_id=(
+                ability_scores_by_index[entry["ability_score_index"]]
+                if entry["ability_score_index"]
+                else None
+            ),
+            equipment_category_id=(
+                categories_by_index[entry["equipment_category_index"]]
+                if entry["equipment_category_index"]
+                else None
+            ),
+            is_custom=False,
+        )
+        session.add(row)
+        await _seed_i18n(
+            session, ProficiencyI18n, row.id, {"en": {"name": entry["name"]}}
+        )
+
+
+async def _seed_proficiency_grants(
+    session: AsyncSession,
+    proficiencies_by_index: dict[str, uuid.UUID],
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Class/race index -> list of Proficiency indexes granted by default.
+
+    Read once from `proficiencies.json` (each entry lists the classes/races
+    that grant it) and inverted here, since `_seed_races`/`_seed_classes`
+    iterate per-race/per-class.
+    """
+    class_indexes: dict[str, list[str]] = {}
+    race_indexes: dict[str, list[str]] = {}
+    for entry in _load("proficiencies"):
+        if entry["index"] not in proficiencies_by_index:
+            continue
+        for class_index in entry["class_indexes"]:
+            class_indexes.setdefault(class_index, []).append(entry["index"])
+        for race_index in entry["race_indexes"]:
+            race_indexes.setdefault(race_index, []).append(entry["index"])
+    return class_indexes, race_indexes
+
+
+# --- Races (PRD §7.4.2) -----------------------------------------------------
+
+
 async def _seed_races(session: AsyncSession) -> None:
-    count = await session.scalar(select(Race).limit(1))
-    if count is not None:
+    if await session.scalar(select(Race).limit(1)) is not None:
         return
 
-    data = json.loads((_DATA_DIR / "races.json").read_text())
+    proficiencies_by_index = await _index_map(session, Proficiency)
+    _, race_grants = await _seed_proficiency_grants(session, proficiencies_by_index)
+
+    data = _load("races")
     for entry in data:
         race = Race(
             id=uuid.uuid4(),
@@ -249,6 +419,15 @@ async def _seed_races(session: AsyncSession) -> None:
             session.add(trait)
             await _seed_i18n(session, RaceTraitI18n, trait.id, t["i18n"])
 
+        for prof_index in race_grants.get(entry["index"], []):
+            session.add(
+                ProficiencyRace(
+                    id=uuid.uuid4(),
+                    proficiency_id=proficiencies_by_index[prof_index],
+                    race_id=race.id,
+                )
+            )
+
         for sr_data in entry.get("subraces", []):
             subrace = Subrace(
                 id=uuid.uuid4(),
@@ -276,6 +455,9 @@ async def _seed_races(session: AsyncSession) -> None:
                 )
                 session.add(subrace_trait)
                 await _seed_i18n(session, SubraceTraitI18n, subrace_trait.id, t["i18n"])
+
+
+# --- Classes (PRD §7.4.4) ---------------------------------------------------
 
 
 async def _seed_class_feature(
@@ -328,11 +510,13 @@ async def _seed_class_feature(
 
 
 async def _seed_classes(session: AsyncSession) -> None:
-    count = await session.scalar(select(ClassDefinition).limit(1))
-    if count is not None:
+    if await session.scalar(select(ClassDefinition).limit(1)) is not None:
         return
 
-    data = json.loads((_DATA_DIR / "classes.json").read_text())
+    proficiencies_by_index = await _index_map(session, Proficiency)
+    class_grants, _ = await _seed_proficiency_grants(session, proficiencies_by_index)
+
+    data = _load("classes")
     for entry in data:
         cls = ClassDefinition(
             id=uuid.uuid4(),
@@ -344,6 +528,15 @@ async def _seed_classes(session: AsyncSession) -> None:
         )
         session.add(cls)
         await _seed_i18n(session, ClassDefinitionI18n, cls.id, entry["i18n"])
+
+        for prof_index in class_grants.get(entry["index"], []):
+            session.add(
+                ProficiencyClass(
+                    id=uuid.uuid4(),
+                    proficiency_id=proficiencies_by_index[prof_index],
+                    class_definition_id=cls.id,
+                )
+            )
 
         base_levels: dict[int, ClassLevel] = {}
         for lvl in entry["class_levels"]:
@@ -427,20 +620,17 @@ async def _seed_classes(session: AsyncSession) -> None:
                 )
 
 
+# --- Spells (PRD §7.4.5) ----------------------------------------------------
+
+
 async def _seed_spells(session: AsyncSession) -> None:
-    count = await session.scalar(select(Spell).limit(1))
-    if count is not None:
+    if await session.scalar(select(Spell).limit(1)) is not None:
         return
 
-    schools_by_index = await _ensure_fixed_vocab(
-        session, MagicSchool, MagicSchoolI18n, _MAGIC_SCHOOL_NAMES
-    )
-    classes_result = await session.execute(select(ClassDefinition))
-    classes_by_index = {
-        c.index: c.id for c in classes_result.scalars().all() if c.index
-    }
+    schools_by_index = await _index_map(session, MagicSchool)
+    classes_by_index = await _index_map(session, ClassDefinition)
 
-    data = json.loads((_DATA_DIR / "spells.json").read_text())
+    data = _load("spells")
     for entry in data:
         spell = Spell(
             id=uuid.uuid4(),
@@ -470,22 +660,18 @@ async def _seed_spells(session: AsyncSession) -> None:
                 )
 
 
+# --- Items / equipment (PRD §7.4.6) -----------------------------------------
+
+
 async def _seed_items(session: AsyncSession) -> None:
-    count = await session.scalar(select(Item).limit(1))
-    if count is not None:
+    if await session.scalar(select(Item).limit(1)) is not None:
         return
 
-    categories_by_index = await _ensure_fixed_vocab(
-        session, EquipmentCategory, EquipmentCategoryI18n, _EQUIPMENT_CATEGORY_NAMES
-    )
-    properties_by_index = await _ensure_fixed_vocab(
-        session, WeaponProperty, WeaponPropertyI18n, _WEAPON_PROPERTY_NAMES
-    )
-    damage_types_by_index = await _ensure_fixed_vocab(
-        session, DamageType, DamageTypeI18n, _DAMAGE_TYPE_NAMES
-    )
+    categories_by_index = await _index_map(session, EquipmentCategory)
+    properties_by_index = await _index_map(session, WeaponProperty)
+    damage_types_by_index = await _index_map(session, DamageType)
 
-    data = json.loads((_DATA_DIR / "items.json").read_text())
+    data = _load("items")
     for entry in data:
         item = Item(
             id=uuid.uuid4(),
@@ -532,72 +718,77 @@ async def _seed_items(session: AsyncSession) -> None:
                 )
             )
 
-async def _seed_magic_item_entry(
-    session: AsyncSession,
-    entry: dict[str, Any],
-    *,
-    equipment_category_id: uuid.UUID,
-    variant_of_id: uuid.UUID | None,
-) -> None:
-    """Create one MagicItem row (+ i18n) and recurse into its `variants`, if any.
-
-    A variant (e.g. a +2 version) shares its base item's equipment category —
-    `variants.json` entries don't repeat `equipment_category_index`, so the
-    resolved id is threaded down through the recursion instead.
-    """
-    magic_item = MagicItem(
-        id=uuid.uuid4(),
-        index=entry["index"],
-        equipment_category_id=equipment_category_id,
-        rarity=entry["rarity"],
-        is_custom=False,
-        is_variant=variant_of_id is not None,
-        variant_of_id=variant_of_id,
-    )
-    session.add(magic_item)
-    await _seed_i18n(session, MagicItemI18n, magic_item.id, entry["i18n"])
-
-    for variant in entry.get("variants", []):
-        await _seed_magic_item_entry(
-            session,
-            variant,
-            equipment_category_id=equipment_category_id,
-            variant_of_id=magic_item.id,
-        )
-
 
 async def _seed_magic_items(session: AsyncSession) -> None:
-    count = await session.scalar(select(MagicItem).limit(1))
-    if count is not None:
+    if await session.scalar(select(MagicItem).limit(1)) is not None:
         return
 
-    categories_by_index = await _ensure_fixed_vocab(
-        session, EquipmentCategory, EquipmentCategoryI18n, _EQUIPMENT_CATEGORY_NAMES
-    )
+    categories_by_index = await _index_map(session, EquipmentCategory)
 
-    data = json.loads((_DATA_DIR / "magic_items.json").read_text())
+    data = _load("magic_items")
+    #: Every entry (base or variant) is a top-level row in `magic_items.json`
+    #: already (see `convert_srd.convert_magic_items`) — two passes so a
+    #: variant's `variant_of_id` can resolve against its already-created base.
+    by_index: dict[str, uuid.UUID] = {}
     for entry in data:
-        await _seed_magic_item_entry(
-            session,
-            entry,
+        if entry["is_variant"]:
+            continue
+        magic_item = MagicItem(
+            id=uuid.uuid4(),
+            index=entry["index"],
             equipment_category_id=categories_by_index[entry["equipment_category_index"]],
+            rarity=entry["rarity"],
+            is_custom=False,
+            is_variant=False,
             variant_of_id=None,
         )
+        session.add(magic_item)
+        by_index[entry["index"]] = magic_item.id
+        await _seed_i18n(session, MagicItemI18n, magic_item.id, entry["i18n"])
+
+    for entry in data:
+        if not entry["is_variant"]:
+            continue
+        base_id = by_index.get(entry["variant_of_index"] or "")
+        magic_item = MagicItem(
+            id=uuid.uuid4(),
+            index=entry["index"],
+            equipment_category_id=categories_by_index[entry["equipment_category_index"]],
+            rarity=entry["rarity"],
+            is_custom=False,
+            is_variant=True,
+            variant_of_id=base_id,
+        )
+        session.add(magic_item)
+        await _seed_i18n(session, MagicItemI18n, magic_item.id, entry["i18n"])
+
+
+# --- Backgrounds / feats (PRD §7.4.7) ---------------------------------------
 
 
 async def _seed_backgrounds(session: AsyncSession) -> None:
-    count = await session.scalar(select(Background).limit(1))
-    if count is not None:
+    if await session.scalar(select(Background).limit(1)) is not None:
         return
 
-    items_result = await session.execute(select(Item))
-    items_by_index = {i.index: i.id for i in items_result.scalars().all() if i.index}
+    items_by_index = await _index_map(session, Item)
+    proficiencies_by_index = await _index_map(session, Proficiency)
 
-    data = json.loads((_DATA_DIR / "backgrounds.json").read_text())
+    data = _load("backgrounds")
     for entry in data:
         background = Background(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(background)
         await _seed_i18n(session, BackgroundI18n, background.id, entry["i18n"])
+
+        for prof_index in entry.get("proficiency_indexes", []):
+            proficiency_id = proficiencies_by_index.get(prof_index)
+            if proficiency_id is not None:
+                session.add(
+                    BackgroundProficiency(
+                        id=uuid.uuid4(),
+                        background_id=background.id,
+                        proficiency_id=proficiency_id,
+                    )
+                )
 
         for grant in entry.get("equipment", []):
             item_id = items_by_index.get(grant["item_index"])
@@ -618,11 +809,12 @@ async def _seed_backgrounds(session: AsyncSession) -> None:
 
 
 async def _seed_feats(session: AsyncSession) -> None:
-    count = await session.scalar(select(Feat).limit(1))
-    if count is not None:
+    if await session.scalar(select(Feat).limit(1)) is not None:
         return
 
-    data = json.loads((_DATA_DIR / "feats.json").read_text())
+    ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+
+    data = _load("feats")
     for entry in data:
         feat = Feat(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(feat)
@@ -633,10 +825,15 @@ async def _seed_feats(session: AsyncSession) -> None:
                 FeatPrerequisite(
                     id=uuid.uuid4(),
                     feat_id=feat.id,
-                    ability_score_id=None,
+                    ability_score_id=ability_scores_by_index.get(
+                        prereq["ability_score_index"]
+                    ),
                     minimum_score=prereq["minimum_score"],
                 )
             )
+
+
+# --- Monsters (PRD §7.4.8) --------------------------------------------------
 
 
 def _seed_monster_actions(
@@ -683,16 +880,15 @@ def _seed_monster_actions(
 
 
 async def _seed_monsters(session: AsyncSession) -> None:
-    count = await session.scalar(select(Monster).limit(1))
-    if count is not None:
+    if await session.scalar(select(Monster).limit(1)) is not None:
         return
 
-    ability_scores_by_index = await _ensure_ability_scores(session)
-    damage_types_by_index = await _ensure_fixed_vocab(
-        session, DamageType, DamageTypeI18n, _DAMAGE_TYPE_NAMES
-    )
+    ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+    damage_types_by_index = await _index_map(session, DamageType)
+    proficiencies_by_index = await _index_map(session, Proficiency)
+    conditions_by_index = await _index_map(session, Condition)
 
-    data = json.loads((_DATA_DIR / "monsters.json").read_text())
+    data = _load("monsters")
     for entry in data:
         monster = Monster(
             id=uuid.uuid4(),
@@ -757,6 +953,18 @@ async def _seed_monsters(session: AsyncSession) -> None:
                 )
             )
 
+        for prof in entry.get("proficiencies", []):
+            proficiency_id = proficiencies_by_index.get(prof["proficiency_index"])
+            if proficiency_id is not None:
+                session.add(
+                    MonsterProficiency(
+                        id=uuid.uuid4(),
+                        monster_id=monster.id,
+                        proficiency_id=proficiency_id,
+                        value=prof["value"],
+                    )
+                )
+
         for dm in entry.get("damage_modifiers", []):
             session.add(
                 MonsterDamageModifier(
@@ -766,6 +974,17 @@ async def _seed_monsters(session: AsyncSession) -> None:
                     modifier_type=dm["modifier_type"],
                 )
             )
+
+        for condition_index in entry.get("condition_immunities", []):
+            condition_id = conditions_by_index.get(condition_index)
+            if condition_id is not None:
+                session.add(
+                    MonsterConditionImmunity(
+                        id=uuid.uuid4(),
+                        monster_id=monster.id,
+                        condition_id=condition_id,
+                    )
+                )
 
         for list_key, action_model, damage_model in (
             ("actions", MonsterAction, MonsterActionDamage),
@@ -784,12 +1003,14 @@ async def _seed_monsters(session: AsyncSession) -> None:
             )
 
 
+# --- Rules (PRD §7.4.9) -----------------------------------------------------
+
+
 async def _seed_rules(session: AsyncSession) -> None:
-    count = await session.scalar(select(RuleSection).limit(1))
-    if count is not None:
+    if await session.scalar(select(RuleSection).limit(1)) is not None:
         return
 
-    data = json.loads((_DATA_DIR / "rules.json").read_text())
+    data = _load("rules")
 
     sections_by_index: dict[str, uuid.UUID] = {}
     for entry in data["sections"]:
