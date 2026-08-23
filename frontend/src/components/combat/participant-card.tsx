@@ -1,22 +1,5 @@
+import { CONDITION_LABEL } from "@/lib/utils/conditions";
 import type { EncounterParticipant } from "@/types/combat";
-
-const CONDITION_LABEL: Record<string, string> = {
-  blinded: "Cego",
-  charmed: "Enfeitiçado",
-  deafened: "Surdo",
-  exhaustion: "Exaustão",
-  frightened: "Amedrontado",
-  grappled: "Agarrado",
-  incapacitated: "Incapacitado",
-  invisible: "Invisível",
-  paralyzed: "Paralisado",
-  petrified: "Petrificado",
-  poisoned: "Envenenado",
-  prone: "Caído",
-  restrained: "Contido",
-  stunned: "Atordoado",
-  unconscious: "Inconsciente",
-};
 
 /**
  * One combatant's card: name, HP bar, AC badge, condition badges, and a
