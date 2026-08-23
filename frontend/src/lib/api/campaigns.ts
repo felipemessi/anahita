@@ -1,5 +1,4 @@
 import { apiFetch } from "@/lib/api/client";
-import { serverApiFetch } from "@/lib/api/server";
 import type {
   Campaign,
   CampaignCreate,
@@ -11,14 +10,9 @@ import type {
 
 /** Calls the campaigns endpoints exposed by backend/app/campaigns/router.py. */
 
-/** List every campaign the authenticated user belongs to (client-side). */
+/** List every campaign the authenticated user belongs to. */
 export function listCampaigns(): Promise<Campaign[]> {
   return apiFetch<Campaign[]>("/campaigns");
-}
-
-/** List every campaign the authenticated user belongs to (server-side). */
-export function listCampaignsServer(): Promise<Campaign[]> {
-  return serverApiFetch<Campaign[]>("/campaigns");
 }
 
 /** Create a campaign; the authenticated user becomes its DM. */
