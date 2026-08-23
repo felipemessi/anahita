@@ -1,0 +1,1 @@
+"""Characters domain test suite."""

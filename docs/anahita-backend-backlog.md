@@ -16,8 +16,8 @@
 
 | Fase | Domínio                          | Status                          | Última atualização |
 |------|-----------------------------------|----------------------------------|----------------------|
-| 0    | Catálogo SRD                      | Parcial (fundação i18n/custom-scope + vocabulário fixo + raças + classes prontos) | 2026-08-22    |
-| 1    | Fundação (Auth, Campaigns, Characters) | Parcial (Auth + Storage prontos) | 2026-08-22    |
+| 0    | Catálogo SRD                      | Completo (24 categorias modeladas, migradas, seed en completo + pt-BR parcial) | 2026-08-22    |
+| 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
 | 2    | Sessão ao Vivo (Combat, WS)        | Não iniciado                     | —                    |
 | 3    | World-building                    | Não iniciado                     | —                    |
 | 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
@@ -131,48 +131,49 @@
 ### Pendente
 
 - **Como usuário, quero me registrar e fazer login para acessar minhas campanhas.** *(verificar se já coberto pelos endpoints de auth existentes — se sim, marcar como feito e pular)*
-  - [ ] Confirmar que `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` existem e têm teste de integração cobrindo o fluxo completo
+  - [x] Confirmar que `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` existem e têm teste de integração cobrindo o fluxo completo — endpoints já existiam; adicionado teste de integração HTTP end-to-end (`TestClient`/`httpx.AsyncClient` contra a app real, com `get_db` sobrescrito para SQLite em memória) em `tests/auth/test_router.py`, cobrindo registro → login → refresh (rotação de cookie) → refresh do token antigo rejeitado, e-mail duplicado, senha errada, refresh sem cookie, logout
 
 - **Como usuário, quero criar uma campanha e ser automaticamente seu DM.**
-  - [ ] `app/campaigns/models.py`: `Campaign`, `CampaignMember`, `CampaignInvite` (seção 7.2 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Regra: criar campanha cria automaticamente `CampaignMember(role=dm)` para o criador
-  - [ ] Testes de service + router (criação, unique `(campaign_id, user_id)`)
+  - [x] `app/campaigns/models.py`: `Campaign`, `CampaignMember`, `CampaignInvite` (seção 7.2 do PRD)
+  - [x] Migração Alembic — `alembic/versions/8045f11d1dfb_add_campaigns_domain.py` (upgrade/downgrade/upgrade testados contra Postgres; downgrade dropa explicitamente os enums `campaignrole`/`campaignstatus`, já que `DROP TABLE` não os remove)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py` — `POST /campaigns` (autenticado via `get_current_user`)
+  - [x] Regra: criar campanha cria automaticamente `CampaignMember(role=dm)` para o criador — `CampaignService.create_campaign`
+  - [x] Testes de service + router (criação, DM automático, unique `(campaign_id, user_id)`, criação exige autenticação) — `tests/campaigns/test_service.py`, `tests/campaigns/test_router.py`
 
 - **Como DM, quero gerar um convite para um jogador entrar na minha campanha.**
-  - [ ] `service.py`: gerar `invite_code` único, expiração
-  - [ ] `router.py`: endpoint de criação de convite (só DM) e de resgate (`used_by`)
-  - [ ] Testes: convite expirado não pode ser resgatado, convite usado não pode ser reusado
+  - [x] `service.py`: gerar `invite_code` único (`secrets.token_urlsafe`), expiração configurável (`expires_in_hours`) — `CampaignService.create_invite`/`_require_dm`
+  - [x] `router.py`: `POST /campaigns/{campaign_id}/invites` (só DM, 403 caso contrário) e `POST /campaigns/invites/redeem` (resgate, seta `used_by`)
+  - [x] Testes: convite expirado não pode ser resgatado (410), convite usado não pode ser reusado (409), código inexistente (404), não-DM não pode criar convite (403), fluxo HTTP completo DM cria → jogador resgata — `tests/campaigns/test_invites.py`, `tests/campaigns/test_router.py`
 
 - **Como usuário, quero ver todas as campanhas em que participo (como DM ou jogador).**
-  - [ ] Query em `app/queries/` (cross-domain: User → CampaignMember → Campaign)
-  - [ ] `router.py`: `GET /campaigns` filtrado pelo usuário autenticado
-  - [ ] Teste: usuário vê só suas campanhas, não as de outros
+  - [x] Query em `app/queries/` (cross-domain: User → CampaignMember → Campaign) — `app/queries/campaign_queries.py::list_campaigns_for_user`
+  - [x] `router.py`: `GET /campaigns` filtrado pelo usuário autenticado
+  - [x] Teste: usuário vê só suas campanhas (dono ou jogador via convite resgatado), não as de outros; lista vazia quando não há vínculo — `tests/queries/test_campaign_queries.py`, `tests/campaigns/test_router.py`
 
 - **Como jogador, quero criar uma ficha de personagem vinculada à minha campanha.**
-  - [ ] `app/characters/models.py`: `Character`, `CharacterAbilityScore`, `CharacterSkill`, `CharacterClass`, `CharacterFeature`, `CharacterRaceChoice`, `CharacterSpell`, `CharacterEquipment` (seção 7.3 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Regra: `Character.race_id`/`class_definition_id`/`spell_id`/`item_id` só podem referenciar catálogo global (SRD) ou custom da própria campanha (reaproveitar a validação de "custom preso à campanha" da Fase 0)
-  - [ ] Testes: criação de personagem simples (1 classe, 1 raça), rejeição de referência a catálogo custom de outra campanha
+  - [x] `app/characters/models.py`: `Character`, `CharacterAbilityScore`, `CharacterSkill`, `CharacterClass`, `CharacterFeature`, `CharacterRaceChoice`, `CharacterSpell`, `CharacterEquipment` (seção 7.3 do PRD)
+  - [x] Migração Alembic — `alembic/versions/8b62d1294f95_add_characters_domain.py` (upgrade/downgrade/upgrade testados contra Postgres)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py` — `POST /characters` (autenticado); adicionado também `GET /campaigns/{campaign_id}/members/me` (necessário para o cliente descobrir seu próprio `campaign_member_id` ao criar campanha como DM, já que `POST /campaigns` não o retornava)
+  - [x] Regra: `Character.race_id`/`class_definition_id` só podem referenciar catálogo global (SRD) ou custom da própria campanha — `app/characters/domain.py::validate_catalog_reference`, mesmo padrão de `validate_custom_campaign_scope` da Fase 0 (`spell_id`/`item_id` ficam para quando spells/equipamento de personagem forem implementados)
+  - [x] Testes: criação de personagem simples (1 classe, 1 raça) com HP/CA/bônus de proficiência calculados via `engine/`, rejeição de referência a catálogo custom de outra campanha, criação para membership de outro usuário rejeitada, ability scores incompletos rejeitados, fluxo HTTP completo — `tests/characters/test_service.py`, `tests/characters/test_router.py`
 
 - **Como jogador, quero ver os atributos calculados da minha ficha (modificadores, bônus de perícia, CA, PV) sem calcular na mão.**
-  - [ ] Conectar `service.py` de characters à `engine/` (ability modifiers, skill bonus, armor class, hit points)
-  - [ ] `schemas.py`: response inclui campos calculados (não persistidos)
-  - [ ] Testes: ficha de exemplo com valores conhecidos → conferir modificadores calculados batem com as regras do 5e
+  - [x] Conectar `service.py` de characters à `engine/` (ability modifiers, skill bonus — CA/PV já calculados na criação, seção anterior) — `CharacterService._to_read` recalcula `modifier` (`engine.abilities.calculate_modifier`) e `bonus` de cada uma das 18 skills (`engine.abilities.calculate_skill_bonus`) a cada leitura, nunca confiando em valor persistido; criação agora também inicializa as 18 `CharacterSkill` (não proficientes por padrão)
+  - [x] `schemas.py`: response inclui campos calculados (não persistidos) — `CharacterAbilityScoreRead.modifier`, `CharacterSkillRead.ability`/`bonus`
+  - [x] `GET /characters/{id}` (novo endpoint), visível ao dono da ficha e ao DM da campanha, 403 para outros jogadores
+  - [x] Testes: ficha de exemplo com valores conhecidos → modificadores batem com as regras do 5e; bônus de perícia recalculado após marcar proficiência direto no banco (prova que não é confiado o valor persistido); controle de acesso (dono vê, DM vê, outro jogador não vê) — `tests/characters/test_calculated_fields.py`, `tests/characters/test_router.py`
 
 - **Como jogador multiclasse, quero adicionar uma segunda classe ao meu personagem.**
-  - [ ] `service.py`: validação de multiclass via `engine/validation.py` (prerequisitos de ability score)
-  - [ ] `router.py`: endpoint de adicionar classe
-  - [ ] Teste: multiclass válido passa, inválido (ability score insuficiente) é rejeitado
+  - [x] `service.py`: validação de multiclass via `engine/validation.py::validate_multiclass` (prerequisitos de ability score) — `CharacterService.add_class`; tabela de pré-requisitos por classe SRD em `app/characters/domain.py::MULTICLASS_ABILITY_REQUIREMENTS` (nota: `validate_multiclass` só expressa AND-de-habilidades; o pré-requisito real do Fighter é STR13 *ou* DEX13 — simplificado para STR13 só, documentado no código)
+  - [x] `router.py`: `POST /characters/{id}/classes` (só o dono da ficha; rejeita classe repetida com 409; recalcula `level`/`proficiency_bonus`)
+  - [x] Teste: multiclass válido passa (Fighter→Wizard com INT 13+), inválido (INT insuficiente) é rejeitado (422), classe repetida rejeitada (409), personagem de outro jogador rejeitado (403), fluxo HTTP completo — `tests/characters/test_multiclass.py`, `tests/characters/test_router.py`
 
 - **Como DM, quero criar uma sessão de jogo com número sequencial e notas.**
-  - [ ] `app/sessions/models.py`: `Session`, `SessionNote` (seção 7.5 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Regra: `SessionNote.is_private=true` só visível para o DM
-  - [ ] Testes: jogador não vê notas privadas de outro autor; DM vê tudo
+  - [x] `app/sessions/models.py`: `Session`, `SessionNote` (seção 7.5 do PRD)
+  - [x] Migração Alembic — `alembic/versions/5faf7b3b9560_add_sessions_domain.py` (upgrade/downgrade/upgrade testados contra Postgres)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py` — `POST`/`GET /campaigns/{campaign_id}/sessions` (criação só DM, `session_number` sequencial automático por campanha), `POST`/`GET /sessions/{session_id}/notes`
+  - [x] Regra: `SessionNote.is_private=true` só visível para o DM (texto literal do PRD §7.5) — implementado como: só o DM pode *criar* nota privada (`app/sessions/domain.py::validate_note_author`, 403 se jogador tentar); listagem filtra notas privadas para quem não é DM. `Session.dm_notes` recebe a mesma regra (oculto na resposta para não-DM, construído no schema — nunca sobrescrevendo o valor persistido no ORM)
+  - [x] Testes: jogador não cria nota privada (403), jogador não vê notas privadas (nem `dm_notes`), DM vê tudo, não-membro da campanha é rejeitado, numeração sequencial, fluxo HTTP completo — `tests/sessions/test_service.py`, `tests/sessions/test_router.py`
 
 ---
 
