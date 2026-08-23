@@ -89,10 +89,10 @@
   - [x] Testes: item mágico com variantes (+1/+2/+3 Longsword, +1/+2 Shield), variante aponta de volta pro item base (`variant_of_id`), item mágico custom preso à campanha
 
 - **Como jogador, quero o catálogo de Backgrounds e Feats para completar a criação de personagem.**
-  - [ ] `models.py`: `Background`, `BackgroundI18n`, `BackgroundProficiency`, `BackgroundEquipment`, `BackgroundFeature`; `Feat`, `FeatI18n`, `FeatPrerequisite`
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py`
-  - [ ] Testes de cada entidade + seed
+  - [x] `models.py`: `Background`, `BackgroundI18n`, `BackgroundProficiency`, `BackgroundEquipment`, `BackgroundFeature` (+ `BackgroundFeatureI18n`); `Feat`, `FeatI18n`, `FeatPrerequisite`
+  - [x] Migração Alembic — `alembic/versions/e931ad0dbbbc_*.py` (upgrade/downgrade testados contra Postgres; puramente aditiva, sem dados antigos para migrar)
+  - [x] `schemas.py`/`service.py`/`router.py` — `list_backgrounds_translated`/`get_background_translated` e `list_feats_translated`/`get_feat_translated` resolvem texto traduzido (fallback `en`) e as junções (proficiências/equipamento/feature; pré-requisitos)
+  - [x] Testes de cada entidade + seed (2 backgrounds, 3 feats). `BackgroundProficiency`/`FeatPrerequisite` testados via construção direta (não via seed) — dependem de `Proficiency`/`AbilityScoreDefinition`, cujo seed próprio ainda não existe (história de vocabulário fixo pendente abaixo); seed de backgrounds/feats não popula essas duas junções por ora
 
 - **Como DM, quero o catálogo de Monstros (stat blocks completos) para popular encontros e NPCs.**
   - [ ] `models.py`: `Monster`, `MonsterI18n`, `MonsterSpeed`, `MonsterSense`, `MonsterArmorClass`, `MonsterProficiency`, `MonsterDamageModifier`, `MonsterConditionImmunity`, `MonsterAction`/`MonsterLegendaryAction`/`MonsterReaction`/`MonsterSpecialAbility` + suas 4 tabelas `*Damage` filhas (seção 7.4.8 do PRD)
