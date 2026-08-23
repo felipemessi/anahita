@@ -107,11 +107,11 @@
   - [x] Testes básicos: listagem, leitura com seções vinculadas, fallback de locale, 404, idempotência do seed
 
 - **Como desenvolvedor, quero um seed completo em inglês (`en`) para todas as 24 categorias, substituindo os arquivos de placeholder atuais.**
-  - [ ] Escrever script(s) de conversão de `_data/2014/en/*.json` (formato SRD/APIReference) para o formato normalizado do banco (mapear `index` → FK real, resolver referências em ordem topológica: vocabulário fixo → raças/classes/proficiencies → spells/equipment → backgrounds/feats/monstros)
-  - [ ] Substituir `backend/app/catalog/seeds/data/{races,classes,spells,items}.json` por datasets completos (ou gerar em runtime a partir do JSON fonte — decidir e documentar a escolha)
-  - [ ] Estender `backend/app/catalog/seeds/seed.py` para popular as 20 categorias novas, idempotente por `index`
-  - [ ] Rodar seed local e conferir contagem de registros por tabela bate com a seção 7.4.1-7.4.9 do PRD (ex. 319 spells, 334 monsters, 362 magic items)
-  - [ ] Testes de idempotência do seed (rodar duas vezes não duplica)
+  - [x] Escrever script(s) de conversão de `_data/2014/en/*.json` (formato SRD/APIReference) para o formato normalizado do banco (mapear `index` → FK real, resolver referências em ordem topológica: vocabulário fixo → raças/classes/proficiencies → spells/equipment → backgrounds/feats/monstros) — `backend/app/catalog/seeds/convert_srd.py`, gera os `data/*.json` normalizados a partir do JSON fonte (decisão: pré-geração commitada, não runtime — ver docstring do script)
+  - [x] Substituir os JSONs placeholder em `backend/app/catalog/seeds/data/*.json` por datasets completos das 24 categorias (9 fixas + races/classes/spells/items/magic_items/backgrounds/feats/monsters/rules)
+  - [x] Estender `backend/app/catalog/seeds/seed.py` para popular as 24 categorias, idempotente por `index`
+  - [x] Seed rodado local (SQLite e Postgres real via docker compose) — contagem por tabela confere com a seção 7.4.1-7.4.9 do PRD: 319 spells, 334 monsters, 362 magic items, 237 items, 9 races, 12 classes, 1 background, 1 feat, 33 rules/6 rule sections
+  - [x] Testes de idempotência do seed (rodar duas vezes não duplica) — `test_seed_is_idempotent`, cobre todas as 20 categorias
 
 - **Como desenvolvedor, quero um seed parcial em pt-BR para as categorias que já têm tradução disponível.**
   - [ ] Mapear quais das 12 categorias com dado em `_data/2014/pt-BR` correspondem a quais tabelas `_i18n` já implementadas
