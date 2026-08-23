@@ -151,11 +151,11 @@
   - [x] Teste: usuário vê só suas campanhas (dono ou jogador via convite resgatado), não as de outros; lista vazia quando não há vínculo — `tests/queries/test_campaign_queries.py`, `tests/campaigns/test_router.py`
 
 - **Como jogador, quero criar uma ficha de personagem vinculada à minha campanha.**
-  - [ ] `app/characters/models.py`: `Character`, `CharacterAbilityScore`, `CharacterSkill`, `CharacterClass`, `CharacterFeature`, `CharacterRaceChoice`, `CharacterSpell`, `CharacterEquipment` (seção 7.3 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`domain.py`/`service.py`/`router.py`
-  - [ ] Regra: `Character.race_id`/`class_definition_id`/`spell_id`/`item_id` só podem referenciar catálogo global (SRD) ou custom da própria campanha (reaproveitar a validação de "custom preso à campanha" da Fase 0)
-  - [ ] Testes: criação de personagem simples (1 classe, 1 raça), rejeição de referência a catálogo custom de outra campanha
+  - [x] `app/characters/models.py`: `Character`, `CharacterAbilityScore`, `CharacterSkill`, `CharacterClass`, `CharacterFeature`, `CharacterRaceChoice`, `CharacterSpell`, `CharacterEquipment` (seção 7.3 do PRD)
+  - [x] Migração Alembic — `alembic/versions/8b62d1294f95_add_characters_domain.py` (upgrade/downgrade/upgrade testados contra Postgres)
+  - [x] `schemas.py`/`domain.py`/`service.py`/`router.py` — `POST /characters` (autenticado); adicionado também `GET /campaigns/{campaign_id}/members/me` (necessário para o cliente descobrir seu próprio `campaign_member_id` ao criar campanha como DM, já que `POST /campaigns` não o retornava)
+  - [x] Regra: `Character.race_id`/`class_definition_id` só podem referenciar catálogo global (SRD) ou custom da própria campanha — `app/characters/domain.py::validate_catalog_reference`, mesmo padrão de `validate_custom_campaign_scope` da Fase 0 (`spell_id`/`item_id` ficam para quando spells/equipamento de personagem forem implementados)
+  - [x] Testes: criação de personagem simples (1 classe, 1 raça) com HP/CA/bônus de proficiência calculados via `engine/`, rejeição de referência a catálogo custom de outra campanha, criação para membership de outro usuário rejeitada, ability scores incompletos rejeitados, fluxo HTTP completo — `tests/characters/test_service.py`, `tests/characters/test_router.py`
 
 - **Como jogador, quero ver os atributos calculados da minha ficha (modificadores, bônus de perícia, CA, PV) sem calcular na mão.**
   - [ ] Conectar `service.py` de characters à `engine/` (ability modifiers, skill bonus, armor class, hit points)

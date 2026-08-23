@@ -67,6 +67,18 @@ async def create_invite(
     return CampaignInviteRead.model_validate(invite)
 
 
+@router.get("/{campaign_id}/members/me", response_model=CampaignMemberRead)
+async def get_my_membership(
+    campaign_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CampaignService, Depends(get_campaign_service)],
+) -> CampaignMemberRead:
+    """Return the authenticated user's own membership in a campaign."""
+    member = await service.get_own_membership(campaign_id, user.id, db)
+    return CampaignMemberRead.model_validate(member)
+
+
 @router.post("/invites/redeem", response_model=CampaignMemberRead)
 async def redeem_invite(
     body: CampaignInviteRedeem,

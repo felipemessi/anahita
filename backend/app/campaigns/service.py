@@ -94,6 +94,28 @@ class CampaignService:
         await db.refresh(member)
         return member
 
+    async def get_own_membership(
+        self, campaign_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession
+    ) -> CampaignMember:
+        """Return the requester's own membership in `campaign_id`.
+
+        Lets a client discover its own `campaign_member_id` (e.g. to create a
+        character) without exposing other members' rows.
+        """
+        result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.campaign_id == campaign_id,
+                CampaignMember.user_id == user_id,
+            )
+        )
+        member = result.scalar_one_or_none()
+        if member is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="You are not a member of this campaign",
+            )
+        return member
+
     async def _require_dm(
         self, campaign_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession
     ) -> None:
