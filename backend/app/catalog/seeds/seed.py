@@ -106,6 +106,31 @@ def _load(name: str) -> Any:
     return json.loads((_DATA_DIR / f"{name}.json").read_text())
 
 
+def _load_pt_br(name: str) -> dict[str, dict[str, str | None]]:
+    """`index` -> translated fields for `name`, or `{}` if no pt-BR file exists.
+
+    Only 12 of the 24 categories have one (see `convert_srd`'s pt-BR section
+    for which, and why some nested text is left out even there) — the rest
+    simply have no `{name}_pt_br.json`, and every entity in them keeps
+    resolving to `en` via `get_translated`'s locale fallback.
+    """
+    path = _DATA_DIR / f"{name}_pt_br.json"
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
+def _translations(
+    en_fields: dict[str, str | None],
+    pt_br_by_index: dict[str, dict[str, str | None]],
+    index: str,
+) -> dict[str, dict[str, str | None]]:
+    """Build a `_seed_i18n` translations dict: `en` always, `pt-BR` when available."""
+    translations = {"en": en_fields}
+    pt_br = pt_br_by_index.get(index)
+    if pt_br:
+        translations["pt-BR"] = pt_br
+    return translations
+
+
 async def _seed_i18n(
     session: AsyncSession,
     # Typed loosely: every `_i18n` model shares id/entity_id/locale plus its
@@ -166,6 +191,7 @@ async def seed_catalog(session: AsyncSession) -> None:
 async def _seed_ability_scores(session: AsyncSession) -> None:
     if await session.scalar(select(AbilityScoreDefinition).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("ability_scores")
     for entry in _load("ability_scores"):
         row = AbilityScoreDefinition(
             id=uuid.uuid4(), index=entry["index"], is_custom=False
@@ -175,13 +201,15 @@ async def _seed_ability_scores(session: AsyncSession) -> None:
             session,
             AbilityScoreDefinitionI18n,
             row.id,
-            {
-                "en": {
+            _translations(
+                {
                     "name": entry["name"],
                     "full_name": entry["full_name"],
                     "desc": entry["desc"],
-                }
-            },
+                },
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
@@ -189,6 +217,7 @@ async def _seed_skills(session: AsyncSession) -> None:
     if await session.scalar(select(SkillDefinition).limit(1)) is not None:
         return
     ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+    pt_br_by_index = _load_pt_br("skills")
     for entry in _load("skills"):
         row = SkillDefinition(
             id=uuid.uuid4(),
@@ -201,13 +230,18 @@ async def _seed_skills(session: AsyncSession) -> None:
             session,
             SkillDefinitionI18n,
             row.id,
-            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+            _translations(
+                {"name": entry["name"], "desc": entry["desc"]},
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
 async def _seed_alignments(session: AsyncSession) -> None:
     if await session.scalar(select(Alignment).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("alignments")
     for entry in _load("alignments"):
         row = Alignment(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(row)
@@ -215,19 +249,22 @@ async def _seed_alignments(session: AsyncSession) -> None:
             session,
             AlignmentI18n,
             row.id,
-            {
-                "en": {
+            _translations(
+                {
                     "name": entry["name"],
                     "abbreviation": entry["abbreviation"],
                     "desc": entry["desc"],
-                }
-            },
+                },
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
 async def _seed_conditions(session: AsyncSession) -> None:
     if await session.scalar(select(Condition).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("conditions")
     for entry in _load("conditions"):
         row = Condition(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(row)
@@ -235,13 +272,18 @@ async def _seed_conditions(session: AsyncSession) -> None:
             session,
             ConditionI18n,
             row.id,
-            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+            _translations(
+                {"name": entry["name"], "desc": entry["desc"]},
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
 async def _seed_damage_types(session: AsyncSession) -> None:
     if await session.scalar(select(DamageType).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("damage_types")
     for entry in _load("damage_types"):
         row = DamageType(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(row)
@@ -249,13 +291,18 @@ async def _seed_damage_types(session: AsyncSession) -> None:
             session,
             DamageTypeI18n,
             row.id,
-            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+            _translations(
+                {"name": entry["name"], "desc": entry["desc"]},
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
 async def _seed_magic_schools(session: AsyncSession) -> None:
     if await session.scalar(select(MagicSchool).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("magic_schools")
     for entry in _load("magic_schools"):
         row = MagicSchool(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(row)
@@ -263,13 +310,18 @@ async def _seed_magic_schools(session: AsyncSession) -> None:
             session,
             MagicSchoolI18n,
             row.id,
-            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+            _translations(
+                {"name": entry["name"], "desc": entry["desc"]},
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
 async def _seed_languages(session: AsyncSession) -> None:
     if await session.scalar(select(Language).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("languages")
     for entry in _load("languages"):
         row = Language(
             id=uuid.uuid4(),
@@ -282,20 +334,23 @@ async def _seed_languages(session: AsyncSession) -> None:
             session,
             LanguageI18n,
             row.id,
-            {
-                "en": {
+            _translations(
+                {
                     "name": entry["name"],
                     "desc": entry["desc"],
                     "script": entry.get("script"),
                     "typical_speakers": entry.get("typical_speakers"),
-                }
-            },
+                },
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
 async def _seed_weapon_properties(session: AsyncSession) -> None:
     if await session.scalar(select(WeaponProperty).limit(1)) is not None:
         return
+    pt_br_by_index = _load_pt_br("weapon_properties")
     for entry in _load("weapon_properties"):
         row = WeaponProperty(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(row)
@@ -303,7 +358,11 @@ async def _seed_weapon_properties(session: AsyncSession) -> None:
             session,
             WeaponPropertyI18n,
             row.id,
-            {"en": {"name": entry["name"], "desc": entry["desc"]}},
+            _translations(
+                {"name": entry["name"], "desc": entry["desc"]},
+                pt_br_by_index,
+                entry["index"],
+            ),
         )
 
 
@@ -386,6 +445,7 @@ async def _seed_races(session: AsyncSession) -> None:
 
     proficiencies_by_index = await _index_map(session, Proficiency)
     _, race_grants = await _seed_proficiency_grants(session, proficiencies_by_index)
+    pt_br_by_index = _load_pt_br("races")
 
     data = _load("races")
     for entry in data:
@@ -398,7 +458,12 @@ async def _seed_races(session: AsyncSession) -> None:
             is_custom=False,
         )
         session.add(race)
-        await _seed_i18n(session, RaceI18n, race.id, entry["i18n"])
+        await _seed_i18n(
+            session,
+            RaceI18n,
+            race.id,
+            _translations(entry["i18n"]["en"], pt_br_by_index, entry["index"]),
+        )
 
         for ab in entry.get("ability_bonuses", []):
             session.add(
@@ -772,12 +837,27 @@ async def _seed_backgrounds(session: AsyncSession) -> None:
 
     items_by_index = await _index_map(session, Item)
     proficiencies_by_index = await _index_map(session, Proficiency)
+    pt_br_by_index = _load_pt_br("backgrounds")
+    #: `pt_br_by_index[index]` nests its own "feature" translation (matched
+    #: separately below, against `BackgroundFeatureI18n`) — excluded here so
+    #: it isn't passed as a `BackgroundI18n` constructor kwarg.
+    background_pt_br_by_index = {
+        index: {k: v for k, v in fields.items() if k != "feature"}
+        for index, fields in pt_br_by_index.items()
+    }
 
     data = _load("backgrounds")
     for entry in data:
         background = Background(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(background)
-        await _seed_i18n(session, BackgroundI18n, background.id, entry["i18n"])
+        await _seed_i18n(
+            session,
+            BackgroundI18n,
+            background.id,
+            _translations(
+                entry["i18n"]["en"], background_pt_br_by_index, entry["index"]
+            ),
+        )
 
         for prof_index in entry.get("proficiency_indexes", []):
             proficiency_id = proficiencies_by_index.get(prof_index)
@@ -805,7 +885,11 @@ async def _seed_backgrounds(session: AsyncSession) -> None:
         if feature_i18n := entry.get("feature"):
             feature = BackgroundFeature(id=uuid.uuid4(), background_id=background.id)
             session.add(feature)
-            await _seed_i18n(session, BackgroundFeatureI18n, feature.id, feature_i18n)
+            translations = dict(feature_i18n)
+            pt_br_feature = (pt_br_by_index.get(entry["index"]) or {}).get("feature")
+            if pt_br_feature:
+                translations["pt-BR"] = pt_br_feature
+            await _seed_i18n(session, BackgroundFeatureI18n, feature.id, translations)
 
 
 async def _seed_feats(session: AsyncSession) -> None:
@@ -813,12 +897,18 @@ async def _seed_feats(session: AsyncSession) -> None:
         return
 
     ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+    pt_br_by_index = _load_pt_br("feats")
 
     data = _load("feats")
     for entry in data:
         feat = Feat(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(feat)
-        await _seed_i18n(session, FeatI18n, feat.id, entry["i18n"])
+        await _seed_i18n(
+            session,
+            FeatI18n,
+            feat.id,
+            _translations(entry["i18n"]["en"], pt_br_by_index, entry["index"]),
+        )
 
         for prereq in entry.get("prerequisites", []):
             session.add(
@@ -1011,12 +1101,21 @@ async def _seed_rules(session: AsyncSession) -> None:
         return
 
     data = _load("rules")
+    #: Only the 6 top-level sections have a pt-BR translation — the 33
+    #: fine-grained `Rule` entries below have no `_data/2014/pt-BR` source
+    #: (see `convert_srd.convert_rules_pt_br`) and keep falling back to `en`.
+    pt_br_by_index = _load_pt_br("rules")
 
     sections_by_index: dict[str, uuid.UUID] = {}
     for entry in data["sections"]:
         section = RuleSection(id=uuid.uuid4(), index=entry["index"], is_custom=False)
         session.add(section)
-        await _seed_i18n(session, RuleSectionI18n, section.id, entry["i18n"])
+        await _seed_i18n(
+            session,
+            RuleSectionI18n,
+            section.id,
+            _translations(entry["i18n"]["en"], pt_br_by_index, entry["index"]),
+        )
         sections_by_index[entry["index"]] = section.id
 
     for entry in data["rules"]:

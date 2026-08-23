@@ -1,0 +1,98 @@
+{
+  "common": {
+    "name": "Comum",
+    "desc": "",
+    "script": "Comum",
+    "typical_speakers": "Humanos"
+  },
+  "dwarvish": {
+    "name": "Anão",
+    "desc": "Anão é repleto de consoantes fortes e sons guturais.",
+    "script": "Anão",
+    "typical_speakers": "Anões"
+  },
+  "elvish": {
+    "name": "Élfico",
+    "desc": "Élfico é uma língua fluida, com entonações sutis e gramática complexa. A literatura élfica é rica e variada, e suas canções e poemas são famosos entre outras raças. Muitos bardos aprendem o idioma para poderem adicionar baladas élficas aos seus repertórios.",
+    "script": "Élfico",
+    "typical_speakers": "Elfos"
+  },
+  "giant": {
+    "name": "Gigante",
+    "desc": "",
+    "script": "Anão",
+    "typical_speakers": "Ogros, Gigantes"
+  },
+  "gnomish": {
+    "name": "Gnômico",
+    "desc": "A língua gnômica, que utiliza a escrita anã, é renomada por seus tratados técnicos e seus catálogos de conhecimento sobre o mundo natural.",
+    "script": "Anão",
+    "typical_speakers": "Gnomos"
+  },
+  "goblin": {
+    "name": "Goblin",
+    "desc": "",
+    "script": "Anão",
+    "typical_speakers": "Goblinoides"
+  },
+  "halfling": {
+    "name": "Halfling",
+    "desc": "A língua dos halflings não é secreta, mas eles relutam em compartilhá-la com os outros. Eles escrevem muito pouco, então não possuem uma rica literatura. Sua tradição oral, no entanto, é muito forte.",
+    "script": "Comum",
+    "typical_speakers": "Halflings"
+  },
+  "orc": {
+    "name": "Orc",
+    "desc": "Orc é uma língua áspera e irritante, com consoantes duras. Não possui escrita própria, sendo escrita com a escrita anã.",
+    "script": "Anão",
+    "typical_speakers": "Orcs"
+  },
+  "abyssal": {
+    "name": "Abissal",
+    "desc": "",
+    "script": "Infernal",
+    "typical_speakers": "Demônios"
+  },
+  "celestial": {
+    "name": "Celestial",
+    "desc": "",
+    "script": "Celestial",
+    "typical_speakers": "Celestiais"
+  },
+  "draconic": {
+    "name": "Dracônico",
+    "desc": "Acredita-se que o dracônico seja uma das línguas mais antigas e é frequentemente usado no estudo da magia. A língua soa áspera para a maioria das outras criaturas e inclui numerosas consoantes duras e sibilantes.",
+    "script": "Dracônico",
+    "typical_speakers": "Dragões, Draconatos"
+  },
+  "deep-speech": {
+    "name": "Dialeto Subterrâneo",
+    "desc": "",
+    "script": null,
+    "typical_speakers": "Devoradores de mente, Observadores"
+  },
+  "infernal": {
+    "name": "Infernal",
+    "desc": "",
+    "script": "Infernal",
+    "typical_speakers": "Diabos"
+  },
+  "primordial": {
+    "name": "Primordial",
+    "desc": "",
+    "script": "Anão",
+    "typical_speakers": "Elementais"
+  },
+  "sylvan": {
+    "name": "Silvestre",
+    "desc": "",
+    "script": "Élfico",
+    "typical_speakers": "Criaturas feéricas"
+  },
+  "undercommon": {
+    "name": "Subcomum",
+    "desc": "",
+    "script": "Élfico",
+    "typical_speakers": "Comerciantes do Subterrâneo"
+  }
+}

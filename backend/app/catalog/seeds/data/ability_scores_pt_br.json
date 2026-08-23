@@ -1,0 +1,32 @@
+{
+  "str": {
+    "name": "FOR",
+    "full_name": "Força",
+    "desc": "A Força mede a potência física, treinamento atlético, e a extensão da força bruta que você pode exercer.\n\nUm teste de Força representa qualquer tentativa de levantar, empurrar, puxar ou quebrar alguma coisa, forçar seu corpo através de um espaço ou outra forma de aplicar a força bruta para resolver uma situação. A perícia Atletismo reflete aptidão em certos tipos de testes de Força"
+  },
+  "dex": {
+    "name": "DES",
+    "full_name": "Destreza",
+    "desc": "A Destreza mede a agilidade, os reflexos e o equilíbrio.\n\nUm teste de Destreza representa a tentativa de se mover com agilidade, rapidez ou em silêncio, ou para evitar cair quando você andar por uma estrada traiçoeira. As perícias Acrobacia, Furtividade e Prestidigitação, refletem aptidão em certos tipos de testes de Destreza."
+  },
+  "con": {
+    "name": "CON",
+    "full_name": "Constituição",
+    "desc": "A Constituição mede a saúde, a resistência e a força vital.\n\nTestes de Constituição são incomuns e nenhuma perícia se aplica a eles, porque a resistência representada por essa habilidade é, em grande parte, passiva em vez de envolver um esforço específico por parte de um personagem ou monstro."
+  },
+  "int": {
+    "name": "INT",
+    "full_name": "Inteligência",
+    "desc": "A Inteligência mede a acuidade mental, precisão da memória e a habilidade de raciocinar.\n\nUm teste de Inteligência entra em jogo quando você precisa usar a lógica, estudo, memória ou raciocínio dedutivo. As perícias Arcanismo, História, Investigação, Natureza e Religião refletem aptidão em certos tipos de testes de Inteligência."
+  },
+  "wis": {
+    "name": "SAB",
+    "full_name": "Sabedoria",
+    "desc": "A Sabedoria reflete como você está em sintonia com o mundo ao seu redor e representa percepção e intuição.\n\nUm teste de Sabedoria pode refletir um esforço para ler a linguagem corporal, entender os sentimentos de alguém, perceber coisas sobre o meio ambiente ou cuidar de uma pessoa ferida. As perícias Adestrar Animais, Intuição, Medicina, Percepção e Sobrevivência refletem aptidão em certos tipos de testes de Sabedoria."
+  },
+  "cha": {
+    "name": "CAR",
+    "full_name": "Carisma",
+    "desc": "O Carisma mede a capacidade de interagir eficazmente com os outros. Ele inclui fatores como confiança e eloquência, e pode representar uma personalidade encantadora ou dominadora.\n\nUm teste de Carisma pode surgir quando você tenta influenciar ou entreter os outros, quando tenta expor uma opinião ou dizer uma mentira convincente, ou quando estiver em uma situação social complicada. As perícias Atuação, Enganação, Intimidação, e Persuasão refletem aptidão em certos tipos de testes de Carisma."
+  }
+}

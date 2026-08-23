@@ -867,8 +867,176 @@ def convert_rules() -> None:
     _write("rules", out)
 
 
+# --- pt-BR partial translations ---------------------------------------------
+#
+# Only 12 of the 24 categories have a `_data/2014/pt-BR` file at all (no
+# Classes/Spells/Equipment/Magic-Items/Monsters/Proficiencies/Traits/
+# Subclasses/Subraces/Levels/Rule-Sections translation exists), and within a
+# translated category some nested text simply isn't available either (e.g.
+# Races.json lists each trait/subrace by `{index, name, url}` only — a
+# translated *name*, but no translated description, since there's no pt-BR
+# Traits.json/Subraces.json to source one from). `seed.py`'s i18n rows are
+# whole-row, not per-field, so a partial row (translated name, empty
+# description) would make a pt-BR reader see a blank description where `en`
+# fallback would have shown real text — worse than not seeding that row at
+# all. Each `convert_*_pt_br` below therefore only writes an index -> fields
+# dict for entities where every field it carries has real pt-BR content;
+# nested trait/subrace names present in `Races.json` but missing a
+# description are left out of `races_pt_br.json`, on purpose.
+
+_PT_BR_SRC_DIR = _REPO_ROOT / "_data" / "2014" / "pt-BR"
+
+
+def _load_pt_br(name: str) -> Any:
+    return json.loads((_PT_BR_SRC_DIR / f"5e-SRD-{name}.json").read_text())
+
+
+def convert_ability_scores_pt_br() -> None:
+    """Write `ability_scores_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {"name": e["name"], "full_name": e["full_name"], "desc": _desc(e)}
+        for e in _load_pt_br("Ability-Scores")
+    }
+    _write("ability_scores_pt_br", out)
+
+
+def convert_skills_pt_br() -> None:
+    """Write `skills_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {"name": e["name"], "desc": _desc(e)}
+        for e in _load_pt_br("Skills")
+    }
+    _write("skills_pt_br", out)
+
+
+def convert_alignments_pt_br() -> None:
+    """Write `alignments_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {
+            "name": e["name"],
+            "abbreviation": e["abbreviation"],
+            "desc": _desc(e),
+        }
+        for e in _load_pt_br("Alignments")
+    }
+    _write("alignments_pt_br", out)
+
+
+def convert_conditions_pt_br() -> None:
+    """Write `conditions_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {"name": e["name"], "desc": _desc(e)}
+        for e in _load_pt_br("Conditions")
+    }
+    _write("conditions_pt_br", out)
+
+
+def convert_damage_types_pt_br() -> None:
+    """Write `damage_types_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {"name": e["name"], "desc": _desc(e)}
+        for e in _load_pt_br("Damage-Types")
+    }
+    _write("damage_types_pt_br", out)
+
+
+def convert_magic_schools_pt_br() -> None:
+    """Write `magic_schools_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {"name": e["name"], "desc": _desc(e)}
+        for e in _load_pt_br("Magic-Schools")
+    }
+    _write("magic_schools_pt_br", out)
+
+
+def convert_languages_pt_br() -> None:
+    """Write `languages_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {
+            "name": e["name"],
+            "desc": _desc(e),
+            "script": e.get("script"),
+            "typical_speakers": ", ".join(e.get("typical_speakers", [])) or None,
+        }
+        for e in _load_pt_br("Languages")
+    }
+    _write("languages_pt_br", out)
+
+
+def convert_weapon_properties_pt_br() -> None:
+    """Write `weapon_properties_pt_br.json`: index -> translated fields."""
+    out = {
+        e["index"]: {"name": e["name"], "desc": _desc(e)}
+        for e in _load_pt_br("Weapon-Properties")
+    }
+    _write("weapon_properties_pt_br", out)
+
+
+def convert_races_pt_br() -> None:
+    """Write `races_pt_br.json`: index -> translated Race fields.
+
+    Trait/subrace names are also translated in the source file (see the
+    module docstring above) but are skipped here — no matching description.
+    """
+    out = {
+        e["index"]: {
+            "name": e["name"],
+            "description": "",
+            "age": e.get("age", ""),
+            "alignment_desc": e.get("alignment", ""),
+            "size_description": e.get("size_description", ""),
+            "language_desc": e.get("language_desc", ""),
+        }
+        for e in _load_pt_br("Races")
+    }
+    _write("races_pt_br", out)
+
+
+def convert_backgrounds_pt_br() -> None:
+    """Write `backgrounds_pt_br.json`: index -> translated Background fields."""
+    out = {}
+    for e in _load_pt_br("Backgrounds"):
+        feature = e.get("feature")
+        out[e["index"]] = {
+            "name": e["name"],
+            "personality_traits": _roll_table_text(e.get("personality_traits", {})),
+            "ideals": _roll_table_text(e.get("ideals", {})),
+            "bonds": _roll_table_text(e.get("bonds", {})),
+            "flaws": _roll_table_text(e.get("flaws", {})),
+            "feature": (
+                {"feature_name": feature["name"], "description": _desc(feature)}
+                if feature
+                else None
+            ),
+        }
+    _write("backgrounds_pt_br", out)
+
+
+def convert_feats_pt_br() -> None:
+    """Write `feats_pt_br.json`: index -> translated Feat fields."""
+    out = {
+        e["index"]: {"name": e["name"], "description": _desc(e)}
+        for e in _load_pt_br("Feats")
+    }
+    _write("feats_pt_br", out)
+
+
+def convert_rules_pt_br() -> None:
+    """Write `rules_pt_br.json`: index -> translated RuleSection fields.
+
+    Only the 6 top-level sections (`Rules.json`, per the naming mismatch
+    explained in `convert_rules`) have a pt-BR file — the 33 finer-grained
+    `Rule` entries have no translation and keep falling back to `en`.
+    """
+    out = {
+        e["index"]: {"name": e["name"], "desc": _desc(e)}
+        for e in _load_pt_br("Rules")
+    }
+    _write("rules_pt_br", out)
+
+
 def main() -> None:
-    """Run every `convert_*` step, writing all 18 normalized data files."""
+    """Run every `convert_*` step: 18 `en` data files + 12 `_pt_br` ones."""
     convert_ability_scores()
     convert_skills()
     convert_alignments()
@@ -888,6 +1056,19 @@ def main() -> None:
     convert_feats()
     convert_monsters()
     convert_rules()
+
+    convert_ability_scores_pt_br()
+    convert_skills_pt_br()
+    convert_alignments_pt_br()
+    convert_conditions_pt_br()
+    convert_damage_types_pt_br()
+    convert_magic_schools_pt_br()
+    convert_languages_pt_br()
+    convert_weapon_properties_pt_br()
+    convert_races_pt_br()
+    convert_backgrounds_pt_br()
+    convert_feats_pt_br()
+    convert_rules_pt_br()
     print("Converted SRD data into", _OUT_DIR)
 
 

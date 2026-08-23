@@ -75,14 +75,20 @@ async def test_get_race_translated_resolves_all_text_fields(db: AsyncSession) ->
 
 
 @pytest.mark.asyncio
-async def test_get_race_translated_falls_back_to_en(db: AsyncSession) -> None:
-    """get_race_translated falls back to `en` when the locale has no translation."""
+async def test_get_race_translated_resolves_pt_br(db: AsyncSession) -> None:
+    """get_race_translated resolves the seeded pt-BR translation when requested.
+
+    All 9 SRD races have a pt-BR source file (see `convert_srd`), so this is
+    real resolution, not the `en` fallback — that path is covered elsewhere
+    (e.g. `test_get_monster_translated_falls_back_to_en`) by a category with
+    no pt-BR data at all.
+    """
     await seed_catalog(db)
     results = await service.list_races_translated(db, search="Elf")
     elf = await service.get_race_translated(db, results[0].id, locale="pt-BR")
 
     assert elf is not None
-    assert elf.name == "Elf"
+    assert elf.name == "Elfo"
 
 
 @pytest.mark.asyncio
@@ -572,8 +578,8 @@ async def test_get_background_translated_resolves_proficiencies(
 
 
 @pytest.mark.asyncio
-async def test_get_background_translated_falls_back_to_en(db: AsyncSession) -> None:
-    """get_background_translated falls back to `en` when locale has no translation."""
+async def test_get_background_translated_resolves_pt_br(db: AsyncSession) -> None:
+    """get_background_translated resolves the seeded pt-BR translation."""
     await seed_catalog(db)
     results = await service.list_backgrounds_translated(db, search="Acolyte")
     acolyte = await service.get_background_translated(
@@ -581,7 +587,9 @@ async def test_get_background_translated_falls_back_to_en(db: AsyncSession) -> N
     )
 
     assert acolyte is not None
-    assert acolyte.name == "Acolyte"
+    assert acolyte.name == "Acólito"
+    assert acolyte.feature is not None
+    assert acolyte.feature.feature_name == "Abrigo dos Fiéis"
 
 
 @pytest.mark.asyncio
@@ -649,14 +657,14 @@ async def test_get_feat_translated_resolves_prerequisite(db: AsyncSession) -> No
 
 
 @pytest.mark.asyncio
-async def test_get_feat_translated_falls_back_to_en(db: AsyncSession) -> None:
-    """get_feat_translated falls back to `en` when locale has no translation."""
+async def test_get_feat_translated_resolves_pt_br(db: AsyncSession) -> None:
+    """get_feat_translated resolves the seeded pt-BR translation when requested."""
     await seed_catalog(db)
     results = await service.list_feats_translated(db, search="Grappler")
     grappler = await service.get_feat_translated(db, results[0].id, locale="pt-BR")
 
     assert grappler is not None
-    assert grappler.name == "Grappler"
+    assert grappler.name == "Imobilizador"
 
 
 @pytest.mark.asyncio
@@ -889,13 +897,36 @@ async def test_get_rule_translated_resolves_sections(db: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_get_rule_translated_falls_back_to_en(db: AsyncSession) -> None:
-    """get_rule_translated falls back to `en` when locale has no translation."""
+    """get_rule_translated falls back to `en` when locale has no translation.
+
+    `Rule` (the 33 fine-grained entries) has no pt-BR source at all — unlike
+    its linked `RuleSection`, which does (see
+    `test_get_rule_translated_resolves_section_pt_br` below) — so this
+    exercises the real per-row fallback, not a coincidence of missing data.
+    """
     await seed_catalog(db)
     results = await service.list_rules_translated(db, search="Cover")
     rule = await service.get_rule_translated(db, results[0].id, locale="pt-BR")
 
     assert rule is not None
     assert rule.name == "Cover"
+
+
+@pytest.mark.asyncio
+async def test_get_rule_translated_resolves_section_pt_br(db: AsyncSession) -> None:
+    """A Rule's linked RuleSection resolves its own pt-BR translation.
+
+    Only the 6 top-level `RuleSection`s have a pt-BR source (see
+    `convert_srd.convert_rules_pt_br`) — the `Rule` itself still falls back
+    to `en` (previous test), showing the partial-translation fallback is
+    per-row, not per-category.
+    """
+    await seed_catalog(db)
+    results = await service.list_rules_translated(db, search="Cover")
+    rule = await service.get_rule_translated(db, results[0].id, locale="pt-BR")
+
+    assert rule is not None
+    assert {s.name for s in rule.sections} == {"Combate"}
 
 
 @pytest.mark.asyncio
