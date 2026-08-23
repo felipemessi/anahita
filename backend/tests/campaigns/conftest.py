@@ -13,7 +13,7 @@ _TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture
-async def db() -> AsyncGenerator[AsyncSession, None]:
+async def db() -> AsyncGenerator[AsyncSession]:
     """Provide an isolated async SQLite session with all tables created."""
     engine = create_async_engine(_TEST_DB_URL, echo=False)
     async with engine.begin() as conn:

@@ -15,7 +15,7 @@ _TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture
-async def client() -> AsyncGenerator[AsyncClient, None]:
+async def client() -> AsyncGenerator[AsyncClient]:
     """Provide an httpx client wired to the FastAPI app with an isolated DB."""
     engine = create_async_engine(_TEST_DB_URL, echo=False)
     async with engine.begin() as conn:
@@ -72,3 +72,52 @@ async def test_create_campaign_returns_created_campaign(client: AsyncClient) -> 
     assert body["setting"] == "Sword Coast"
     assert body["status"] == "active"
     assert body["owner_id"]
+
+
+async def test_dm_can_invite_and_player_can_redeem(client: AsyncClient) -> None:
+    """The DM creates an invite over HTTP and a second user redeems it."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert invite_resp.status_code == 201
+    invite_code = invite_resp.json()["invite_code"]
+
+    player_token = await _register_and_login(client, "player@example.com")
+    redeem_resp = await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert redeem_resp.status_code == 200
+    body = redeem_resp.json()
+    assert body["campaign_id"] == campaign_id
+    assert body["role"] == "player"
+
+
+async def test_non_dm_cannot_create_invite_over_http(client: AsyncClient) -> None:
+    """A non-DM member is rejected with 403 when creating an invite."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    outsider_token = await _register_and_login(client, "outsider@example.com")
+    resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={},
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert resp.status_code == 403

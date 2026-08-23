@@ -141,9 +141,9 @@
   - [x] Testes de service + router (criação, DM automático, unique `(campaign_id, user_id)`, criação exige autenticação) — `tests/campaigns/test_service.py`, `tests/campaigns/test_router.py`
 
 - **Como DM, quero gerar um convite para um jogador entrar na minha campanha.**
-  - [ ] `service.py`: gerar `invite_code` único, expiração
-  - [ ] `router.py`: endpoint de criação de convite (só DM) e de resgate (`used_by`)
-  - [ ] Testes: convite expirado não pode ser resgatado, convite usado não pode ser reusado
+  - [x] `service.py`: gerar `invite_code` único (`secrets.token_urlsafe`), expiração configurável (`expires_in_hours`) — `CampaignService.create_invite`/`_require_dm`
+  - [x] `router.py`: `POST /campaigns/{campaign_id}/invites` (só DM, 403 caso contrário) e `POST /campaigns/invites/redeem` (resgate, seta `used_by`)
+  - [x] Testes: convite expirado não pode ser resgatado (410), convite usado não pode ser reusado (409), código inexistente (404), não-DM não pode criar convite (403), fluxo HTTP completo DM cria → jogador resgata — `tests/campaigns/test_invites.py`, `tests/campaigns/test_router.py`
 
 - **Como usuário, quero ver todas as campanhas em que participo (como DM ou jogador).**
   - [ ] Query em `app/queries/` (cross-domain: User → CampaignMember → Campaign)
