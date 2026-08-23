@@ -47,7 +47,7 @@
   - [x] Testes unitários (SQLite) cobrindo criação + leitura traduzida de cada uma das 8 entidades — `tests/catalog/test_fixed_vocabulary.py`
 
 - **Como desenvolvedor, quero Proficiencies modeladas e ligadas a skills/abilities/equipamento para que raças, classes e backgrounds possam referenciá-las.**
-  - [x] `models.py`: `Proficiency` (FKs nullable e mutuamente exclusivos por `proficiency_type`), `ProficiencyI18n`, `ProficiencyClass`, `ProficiencyRace` — `equipment_category_id` ainda é UUID solto (sem FK), como `campaign_id`, até a história de Equipamento criar `EquipmentCategory`
+  - [x] `models.py`: `Proficiency` (FKs nullable e mutuamente exclusivos por `proficiency_type`), `ProficiencyI18n`, `ProficiencyClass`, `ProficiencyRace` — `equipment_category_id` ganhou a FK real para `catalog_equipment_categories` na história de Equipamento (abaixo); até lá era UUID solto, como `campaign_id` ainda é
   - [x] Migração Alembic — `alembic/versions/1b5ef8883035_*.py` (upgrade/downgrade testados contra Postgres)
   - [x] `schemas.py` + `service.py` (leitura)
   - [x] Teste garantindo que exatamente um FK de referência está preenchido conforme `proficiency_type` — `tests/catalog/test_proficiencies.py`
@@ -75,11 +75,12 @@
   - **Nota:** o PRD (§7.4.5) não define dano estruturado para `Spell` (diferente de `WeaponDetail`) — dano de magia continua só na `description` em texto livre; título da história ficou mais amplo que o schema detalhado
 
 - **Como jogador, quero o catálogo de Equipamento completo (237 itens + categorias + propriedades de arma) em vez do MVP mínimo atual.**
-  - [ ] Criar `EquipmentCategory` (+ i18n), estender `Item` com `is_custom`/`campaign_id`/`index`/`equipment_category_id`, criar `ItemI18n`, `ItemProperty` (junção com `WeaponProperty`)
-  - [ ] Ajustar `WeaponDetail` (`damage_type_id` FK em vez de string) e manter `ArmorDetail`
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py` atualizados
-  - [ ] Testes: item arma com propriedades múltiplas, item custom
+  - [x] Criar `EquipmentCategory` (+ i18n), estender `Item` com `is_custom`/`campaign_id`/`index`/`equipment_category_id`, criar `ItemI18n`, `ItemProperty` (junção com `WeaponProperty`)
+  - [x] Ajustar `WeaponDetail` (`damage_type_id` FK em vez de string) e manter `ArmorDetail`
+  - [x] Migração Alembic — `alembic/versions/e6a9cb74db4e_*.py` (upgrade/downgrade testados contra Postgres, duas vezes cada; limpa os dados antigos de `catalog_items` — inclusive o item de tipo `magic_item`, que não existe mais no enum `ItemType`, reseedados do zero conforme permitido pela história). `Proficiency.equipment_category_id` também ganhou a FK real prometida na história de Proficiencies. Seed garante (get-or-create idempotente) `EquipmentCategory`/`WeaponProperty`/`DamageType` referenciados, já que o vocabulário fixo ainda não tem seed próprio (história pendente abaixo)
+  - [x] `schemas.py`/`service.py`/`router.py` atualizados — `list_items_translated`/`get_item_translated` resolvem nome/descrição, categoria e propriedades traduzidas, e `damage_type` resolvido no `WeaponDetail`
+  - [x] Testes: item arma com propriedades múltiplas (Dagger: Finesse+Light+Thrown), item custom presa à campanha
+  - **Nota:** removido o item placeholder `+1 Longsword` (`item_type=magic_item`) do seed — itens mágicos passam a ser modelados na história de Itens Mágicos (`MagicItem`) a seguir, não em `Item`
 
 - **Como jogador, quero o catálogo de Itens Mágicos (362 itens) para poder distribuir loot mágico nas campanhas.**
   - [ ] `models.py`: `MagicItem` (+ `variant_of_id` auto-FK), `MagicItemI18n`
