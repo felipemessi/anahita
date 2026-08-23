@@ -13,7 +13,7 @@ const ENTITY_TYPE_LABEL: Record<WorldSearchResult["entity_type"], string> = {
   faction: "Facção",
 };
 
-/** Where a search hit's entity type is browsable — there's no per-entity detail route yet. */
+/** The detail route segment for each search hit's entity type. */
 const ENTITY_TYPE_PATH: Record<WorldSearchResult["entity_type"], string> = {
   npc: "npcs",
   location: "locations",
@@ -64,7 +64,7 @@ export default function WorldHubPage() {
               {results.map((result) => (
                 <li key={`${result.entity_type}-${result.id}`}>
                   <Link
-                    href={`/campaigns/${campaignId}/world/${ENTITY_TYPE_PATH[result.entity_type]}`}
+                    href={`/campaigns/${campaignId}/world/${ENTITY_TYPE_PATH[result.entity_type]}/${result.id}`}
                     className="block rounded-lg border border-border bg-card p-3 transition-colors hover:bg-secondary/40"
                   >
                     <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">

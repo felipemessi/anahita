@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useFactionRelationships } from "@/hooks/use-world";
 import type { Faction, FactionRelationshipType } from "@/types/world";
 
@@ -41,7 +43,13 @@ function FactionRelationships({
 }
 
 /** Per-faction relationship list (PRD calls for "lista de relações ou grafo simples"). */
-export function FactionGraph({ factions }: { factions: Faction[] }) {
+export function FactionGraph({
+  factions,
+  campaignId,
+}: {
+  factions: Faction[];
+  campaignId: string;
+}) {
   if (factions.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -56,7 +64,14 @@ export function FactionGraph({ factions }: { factions: Faction[] }) {
     <ul className="space-y-3">
       {factions.map((faction) => (
         <li key={faction.id} className="rounded-lg border border-border bg-card p-3">
-          <p className="font-medium">{faction.name}</p>
+          <p className="font-medium">
+            <Link
+              href={`/campaigns/${campaignId}/world/factions/${faction.id}`}
+              className="hover:underline"
+            >
+              {faction.name}
+            </Link>
+          </p>
           {faction.description ? (
             <p className="text-sm text-muted-foreground">{faction.description}</p>
           ) : null}

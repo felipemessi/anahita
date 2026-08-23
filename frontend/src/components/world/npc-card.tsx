@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { MonsterStatBlock } from "@/components/catalog/monster-stat-block";
 import { EntityLinkBadge } from "@/components/world/entity-link-badge";
@@ -48,7 +49,12 @@ export function NpcCard({
       <header className="flex items-center justify-between gap-2">
         <div>
           <p className="font-medium">
-            {npc.name}
+            <Link
+              href={`/campaigns/${campaignId}/world/npcs/${npc.id}`}
+              className="hover:underline"
+            >
+              {npc.name}
+            </Link>
             {!npc.is_alive ? (
               <span className="ml-2 text-xs text-destructive">(falecido)</span>
             ) : null}

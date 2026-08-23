@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { LocationTreeNode } from "@/types/world";
 
 const LOCATION_TYPE_LABEL: Record<string, string> = {
@@ -10,10 +12,21 @@ const LOCATION_TYPE_LABEL: Record<string, string> = {
   plane: "Plano",
 };
 
-function LocationTreeItem({ node }: { node: LocationTreeNode }) {
+function LocationTreeItem({
+  node,
+  campaignId,
+}: {
+  node: LocationTreeNode;
+  campaignId: string;
+}) {
   const label = (
     <span>
-      {node.name}{" "}
+      <Link
+        href={`/campaigns/${campaignId}/world/locations/${node.id}`}
+        className="hover:underline"
+      >
+        {node.name}
+      </Link>{" "}
       <span className="text-xs text-muted-foreground">
         ({LOCATION_TYPE_LABEL[node.location_type] ?? node.location_type})
       </span>
@@ -30,7 +43,7 @@ function LocationTreeItem({ node }: { node: LocationTreeNode }) {
         <summary className="cursor-pointer">{label}</summary>
         <ul className="ml-4 mt-1 space-y-1 border-l border-border pl-3">
           {node.children.map((child) => (
-            <LocationTreeItem key={child.id} node={child} />
+            <LocationTreeItem key={child.id} node={child} campaignId={campaignId} />
           ))}
         </ul>
       </details>
@@ -39,7 +52,13 @@ function LocationTreeItem({ node }: { node: LocationTreeNode }) {
 }
 
 /** Expandable region → city → tavern tree (backend GET .../locations/tree). */
-export function LocationTree({ tree }: { tree: LocationTreeNode[] }) {
+export function LocationTree({
+  tree,
+  campaignId,
+}: {
+  tree: LocationTreeNode[];
+  campaignId: string;
+}) {
   if (tree.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -50,7 +69,7 @@ export function LocationTree({ tree }: { tree: LocationTreeNode[] }) {
   return (
     <ul className="space-y-1 text-sm">
       {tree.map((node) => (
-        <LocationTreeItem key={node.id} node={node} />
+        <LocationTreeItem key={node.id} node={node} campaignId={campaignId} />
       ))}
     </ul>
   );
