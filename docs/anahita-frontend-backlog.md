@@ -175,6 +175,11 @@
   - [x] Teste: busca retorna resultados combinando as três entidades — `app/campaigns/[campaignId]/world/page.test.tsx`
   - **Nota:** `searchWorld`/`useWorldSearch` já tinham sido criados na história anterior (API/hook prontos, só sem UI); esta história só adicionou o campo de busca e a renderização dos resultados no hub. Cada resultado linka para a página de lista da entidade (`/world/npcs`, `/world/locations`, `/world/factions`) — não há rota de detalhe por entidade ainda, então não dá pra linkar direto no item.
 
+- **Lacunas descobertas na Fase 3 (frontend) — pendentes de decisão.**
+  - [x] Criar NPC com stat block ✅ (2026-08-23): busca no catálogo de monstros (`useCatalogList("monsters", { search, campaign_id })`, mesmo padrão do `MonsterPicker` do combat tracker) embutida no formulário de `npcs/page.tsx`; seleciona um monstro da lista, mostra o nome escolhido com opção de remover, e envia `stat_block_id` em `POST .../npcs`. Testado em `npcs/page.test.tsx` (com e sem stat block).
+  - [ ] Vincular NPC a sessão / local a sessão: os endpoints `POST /npcs/{id}/sessions` e `POST /locations/{id}/sessions` existem no backend, mas não há formulário na UI para criar esses vínculos (só contagem via badge, que sempre mostra 0 hoje).
+  - [ ] Rotas de detalhe por entidade: NPCs/locais/facções não têm página própria (`/world/npcs/[npcId]`, etc.) — resultados de busca e badges de vínculo linkam para a lista da categoria, não para o item específico.
+
 ---
 
 ## Fase 4 — Loot, Inventário e Handouts
