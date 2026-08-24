@@ -13,6 +13,7 @@ from app.handouts.router import router as handouts_router
 from app.inventory.router import router as inventory_router
 from app.journal.router import router as journal_router
 from app.sessions.router import router as sessions_router
+from app.timeline.router import router as timeline_router
 from app.world.router import router as world_router
 
 app = FastAPI(title="Anahita", version="0.1.0")
@@ -36,6 +37,7 @@ app.include_router(world_router)
 app.include_router(handouts_router)
 app.include_router(inventory_router)
 app.include_router(journal_router)
+app.include_router(timeline_router)
 
 
 @app.get("/health")

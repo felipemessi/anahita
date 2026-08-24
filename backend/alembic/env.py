@@ -32,6 +32,7 @@ from app.handouts import models as _handouts_models  # noqa: F401, E402
 from app.inventory import models as _inventory_models  # noqa: F401, E402
 from app.journal import models as _journal_models  # noqa: F401, E402
 from app.sessions import models as _sessions_models  # noqa: F401, E402
+from app.timeline import models as _timeline_models  # noqa: F401, E402
 from app.world import models as _world_models  # noqa: F401, E402
 
 target_metadata = Base.metadata
