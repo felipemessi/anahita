@@ -298,11 +298,12 @@
 
 > Requisitos levantados e detalhados em `docs/anahita-backend-prd.md` §7.10 (2026-08-24) — decisões: IA de geração de resumo fica fora do escopo (v1 100% manual); Wiki é páginas livres linkáveis ao World; Diário é único e DM-only (sem diários por jogador); Timeline é híbrida (auto-seed de sessões + eventos manuais).
 
-- **Como DM, quero manter um diário privado da campanha, com ou sem vínculo a uma sessão específica.**
-  - [ ] `app/journal/models.py`: `JournalEntry` (seção 7.10 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `domain.py`/`schemas.py`/`service.py`/`router.py` — todo o domínio é DM only (create/list/get/update/delete), nunca visível a jogadores
-  - [ ] Testes: DM cria/lista/edita/apaga; jogador recebe 403 em qualquer rota do domínio
+- **Como DM, quero manter um diário privado da campanha, com ou sem vínculo a uma sessão específica.** ✅ (2026-08-24)
+  - [x] `app/journal/models.py`: `JournalEntry` (seção 7.10 do PRD)
+  - [x] Migração Alembic
+  - [x] `schemas.py`/`service.py`/`router.py` — todo o domínio é DM only (create/list/get/update/delete), nunca visível a jogadores
+  - [x] Testes: DM cria/lista/edita/apaga; jogador recebe 403 em qualquer rota do domínio
+  - Notas: sem `domain.py` — não há invariante não trivial a extrair (diferente do mutual-exclusion de `LootDrop`); a checagem "requester é DM" já cobre tudo. `_require_dm` retorna 403 tanto para não-membro quanto para membro não-DM, sem distinguir os dois casos (evita vazar pra um jogador se uma entrada existe).
 
 - **Como grupo, quero ver a história da campanha até agora, sessão por sessão.**
   - [ ] Nenhuma mudança de backend — reaproveita `GET /campaigns/{id}/sessions` (já retorna `summary`, PRD §7.5)
