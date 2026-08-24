@@ -17,6 +17,7 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.queries.world_queries import search_world_entities
+from app.wiki.models import WikiPage
 from app.world.models import NPC, Faction, Location
 
 pytestmark = pytest.mark.postgres
@@ -42,10 +43,10 @@ async def pg_db() -> AsyncGenerator[AsyncSession]:
     await engine.dispose()
 
 
-async def test_search_finds_matches_across_npc_location_and_faction(
+async def test_search_finds_matches_across_npc_location_faction_and_wiki_page(
     pg_db: AsyncSession,
 ) -> None:
-    """A query term matching all three entity types returns one hit each."""
+    """A query term matching all four entity types returns one hit each."""
     marker = f"Gloomhaven-{uuid.uuid4().hex[:8]}"
     user = User(email=f"{marker}@example.com", username=marker, hashed_password="x")
     pg_db.add(user)
@@ -79,11 +80,24 @@ async def test_search_finds_matches_across_npc_location_and_faction(
             description=f"Mapped every road into {marker}",
         )
     )
+    pg_db.add(
+        WikiPage(
+            campaign_id=campaign.id,
+            title=marker,
+            slug=marker.lower(),
+            content=f"Legends say {marker} was founded by a dragon.",
+        )
+    )
     await pg_db.commit()
 
     try:
         hits = await search_world_entities(campaign.id, marker, pg_db)
-        assert {hit.entity_type for hit in hits} == {"npc", "location", "faction"}
+        assert {hit.entity_type for hit in hits} == {
+            "npc",
+            "location",
+            "faction",
+            "wiki_page",
+        }
 
         no_match = await search_world_entities(campaign.id, "no-such-term", pg_db)
         assert no_match == []
@@ -91,6 +105,7 @@ async def test_search_finds_matches_across_npc_location_and_faction(
         await pg_db.execute(delete(NPC).where(NPC.campaign_id == campaign.id))
         await pg_db.execute(delete(Location).where(Location.campaign_id == campaign.id))
         await pg_db.execute(delete(Faction).where(Faction.campaign_id == campaign.id))
+        await pg_db.execute(delete(WikiPage).where(WikiPage.campaign_id == campaign.id))
         await pg_db.execute(
             delete(CampaignMember).where(CampaignMember.campaign_id == campaign.id)
         )
