@@ -224,3 +224,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   completo): páginas de wiki com lore livre em markdown, escritas pelo
   mestre e visíveis a todo o grupo, linkáveis a NPCs, locais e facções já
   cadastrados, e incluídas na busca cross-entidade da campanha.
+- Fase 5 do frontend, história 1: tela de diário privado do mestre, com
+  item de menu que só aparece para quem é mestre da campanha.
+- Fase 5 do frontend, história 2: tela de recap listando o resumo de cada
+  sessão em ordem cronológica, pulando sessões sem resumo ainda.
+- Fase 5 do frontend, história 3: tela de timeline combinando entradas
+  automáticas (resumo de cada sessão) com marcos manuais que o mestre cria
+  e ordena.
+- Fase 5 do frontend, história 4 (última da fase — Registro e Lore
+  completo): telas de wiki da campanha, com criação e edição pelo mestre
+  em markdown, ligação a NPCs/locais/facções existentes navegando direto
+  para a tela do World correspondente, e páginas de wiki entrando na busca
+  do hub de World.
