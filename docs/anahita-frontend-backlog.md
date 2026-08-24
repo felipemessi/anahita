@@ -221,11 +221,12 @@
   - [x] Teste: renderiza os resumos na ordem certa e omite sessões sem `summary`
   - Notas: item "Recap" adicionado ao `NAV_ITEMS` sem `dmOnly` (visível a todo o grupo). Ordenação e filtro (`summary` ausente) feitos no próprio componente sobre o resultado de `useSessions`, sem tocar o hook existente.
 
-- **Como grupo, quero ver uma timeline combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.**
-  - [ ] `lib/api/timeline.ts`, `hooks/use-timeline.ts`
-  - [ ] `app/campaigns/[campaignId]/timeline/page.tsx` + `components/timeline/timeline-event-card.tsx` (visual distinto pra automático vs. manual)
-  - [ ] Form do DM para criar evento manual (título, descrição, data in-game livre, sessão âncora opcional)
-  - [ ] Teste: renderiza entradas automáticas e manuais juntas, na ordem devolvida pelo backend; só DM vê o form de criação
+- **Como grupo, quero ver uma timeline combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.** ✅ (2026-08-24)
+  - [x] `lib/api/timeline.ts`, `hooks/use-timeline.ts`
+  - [x] `app/campaigns/[campaignId]/timeline/page.tsx` + `components/timeline/timeline-event-card.tsx` (visual distinto pra automático vs. manual)
+  - [x] Form do DM para criar evento manual (título, descrição, data in-game livre, sessão âncora opcional)
+  - [x] Teste: renderiza entradas automáticas e manuais juntas, na ordem devolvida pelo backend; só DM vê o form de criação
+  - Notas: form de criação embutido em `page.tsx` (sem arquivo próprio) já que o backlog só lista `timeline-event-card.tsx` como componente. `TimelineEventCard` só mostra "Apagar" pro DM e só em entradas manuais — entradas automáticas nunca são editáveis/apagáveis (refletem `Session.summary`).
 
 - **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções.**
   - [ ] `lib/api/wiki.ts`, `hooks/use-wiki.ts`

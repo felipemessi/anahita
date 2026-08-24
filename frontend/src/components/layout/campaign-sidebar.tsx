@@ -58,6 +58,11 @@ const NAV_ITEMS: NavItem[] = [
     implemented: true,
   },
   {
+    label: "Timeline",
+    href: (id) => `/campaigns/${id}/timeline`,
+    implemented: true,
+  },
+  {
     label: "Configurações",
     href: (id) => `/campaigns/${id}/settings`,
     implemented: true,
