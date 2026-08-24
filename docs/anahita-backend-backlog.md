@@ -265,28 +265,36 @@
 
 ## Fase 4 — Loot, Inventário e Compartilhamento
 
-- **Como DM, quero criar handouts (texto/imagem/mapa) e revelá-los para os jogadores quando quiser.**
-  - [ ] `app/handouts/models.py`: `Handout` (seção 7.8 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py` — upload via `StorageService` (reaproveitar `app/storage/`)
-  - [ ] Regra: `GET /handouts` para jogador só retorna `is_revealed=true`
-  - [ ] Testes: DM vê tudo, jogador só vê revelados
+- **Como DM, quero criar handouts (texto/imagem/mapa) e revelá-los para os jogadores quando quiser.** ✅ (2026-08-23)
+  - [x] `app/handouts/models.py`: `Handout` (seção 7.8 do PRD)
+  - [x] Migração Alembic
+  - [x] `schemas.py`/`service.py`/`router.py` — upload via `StorageService` (reaproveitar `app/storage/`)
+  - [x] Regra: `GET /campaigns/{id}/handouts` para jogador só retorna `is_revealed=true`
+  - [x] Testes: DM vê tudo, jogador só vê revelados
+  - Notas: criação é `multipart/form-data` (`title`/`handout_type`/`content`/`session_id` como campos de formulário + `file` opcional) para caber upload de imagem/mapa no mesmo POST; `HandoutRead.url` resolve `storage_key` via `StorageService.get_url` (nunca expõe o storage_key bruto).
 
-- **Como DM, quero revelar um handout em tempo real durante uma sessão ativa.**
-  - [ ] Evento `handout_revealed` no WebSocket de combat existente (seção 10.3 do PRD)
-  - [ ] Teste: broadcast chega para jogadores conectados
+- **Como DM, quero revelar um handout em tempo real durante uma sessão ativa.** ✅ (2026-08-23)
+  - [x] Evento `handout_revealed` no WebSocket de combat existente (seção 10.3 do PRD)
+  - [x] Teste: broadcast chega para jogadores conectados
+  - Notas: `HandoutService.reveal_handout` reaproveita `app.combat.ws_manager.manager` (mesmo registry do `ws_router` de combate) e faz broadcast para todo `Encounter` `active` da sessão do handout; sem sessão ou sem encontro ativo, a revelação só fica visível via REST (comportamento esperado pelo PRD §10.3).
 
-- **Como grupo, quero um inventário compartilhado da campanha.**
-  - [ ] `app/inventory/models.py`: `PartyInventory` (seção 7.9 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `schemas.py`/`service.py`/`router.py`
-  - [ ] Testes básicos de CRUD
+- **Como grupo, quero um inventário compartilhado da campanha.** ✅ (2026-08-23)
+  - [x] `app/inventory/models.py`: `PartyInventory` (seção 7.9 do PRD)
+  - [x] Migração Alembic
+  - [x] `schemas.py`/`service.py`/`router.py`
+  - [x] Testes básicos de CRUD
+  - Notas: mutação (add/update/remove) restrita ao DM, leitura liberada para qualquer membro da campanha — mesmo padrão de permissão usado em `app.world` para NPCs/locais/facções.
 
-- **Como DM, quero distribuir loot (itens do catálogo ou custom) após um combate, incluindo dinheiro.**
-  - [ ] `app/inventory/models.py`: `LootDrop` (item do catálogo, incluindo `MagicItem` da Fase 0, ou nome livre + moeda em copper)
-  - [ ] Migração Alembic
-  - [ ] `service.py`/`router.py`: distribuir para personagem (`claimed_by`)
-  - [ ] Testes: loot de item custom, loot de moeda pura, claim por personagem
+- **Como DM, quero distribuir loot (itens do catálogo ou custom) após um combate, incluindo dinheiro.** ✅ (2026-08-23)
+  - [x] `app/inventory/models.py`: `LootDrop` (item do catálogo ou nome livre + moeda em copper)
+  - [x] Migração Alembic
+  - [x] `service.py`/`router.py`: distribuir para personagem (`claimed_by`)
+  - [x] Testes: loot de item custom, loot de moeda pura, claim por personagem
+  - Notas: `item_id` referencia só `catalog_items` (não `catalog_magic_items`) — a tabela `LootDrop` do PRD §7.9 declara um único `item_id FK` sem indicar a qual catálogo; suportar também `MagicItem` exigiria um discriminador de tipo ou duas FKs opcionais, então foi deixado de fora deste corte (lacuna registrada abaixo). `claim_loot_drop` é permitido para o próprio jogador do personagem ou para o DM; validação de "não pode ser catálogo e nome custom ao mesmo tempo" e "precisa ter item ou moeda" vive em `app.inventory.domain.validate_loot_drop_kind`, mesmo padrão de `combat.domain.validate_participant_kind`.
+
+**Lacunas descobertas na Fase 4 — pendentes de decisão.**
+
+- [ ] `LootDrop.item_id` não suporta `MagicItem` (só `catalog_items`) — decidir se vale um discriminador de tipo (`item_kind`) ou uma segunda FK opcional `magic_item_id` antes de fechar a fase, ou se fica para quando magic items entrarem de fato no fluxo de loot.
 
 ---
 
