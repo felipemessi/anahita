@@ -21,7 +21,7 @@
 | 2    | Sessão ao Vivo (Combat Tracker)        | Concluída       | 2026-08-23           |
 | 3    | World-building                          | Concluída       | 2026-08-23           |
 | 4    | Loot, Inventário e Handouts             | Concluída       | 2026-08-24           |
-| 5    | Registro e Lore                         | Não iniciado    | —                    |
+| 5    | Registro e Lore                         | Requisitos levantados, não iniciada (ver PRD §6/§9.6) | 2026-08-24 |
 
 ---
 
@@ -206,6 +206,30 @@
 
 ## Fase 5 — Registro e Lore
 
-*(Ainda não detalhado — depende do backend Fase 5, também pendente de levantamento de requisitos.)*
+> Depende do backend Fase 5. Requisitos levantados e detalhados em `docs/anahita-frontend-prd.md` §6/§9.6 e `docs/anahita-backend-prd.md` §7.10 (2026-08-24). **Nota:** as pastas `app/.../journal/`, `app/.../recap/`, `app/.../timeline/`, `app/.../wiki/` e os componentes correspondentes ainda não existem no esqueleto atual — precisam ser criadas nesta fase.
 
-- [ ] Quebrar em histórias de usuário quando o backend definir o modelo de Diário/Recap/Timeline/Wiki
+- **Como DM, quero manter um diário privado da campanha.**
+  - [ ] `lib/api/journal.ts`, `hooks/use-journal.ts`
+  - [ ] `app/campaigns/[campaignId]/journal/page.tsx` + `components/journal/journal-entry-card.tsx`, `journal-editor.tsx`
+  - [ ] Rota não aparece no menu (`campaign-sidebar.tsx`/`mobile-nav.tsx`) para quem não é DM — nem como link desabilitado, some de vez
+  - [ ] Teste: jogador não vê o item de menu "Diário"; tentativa de acesso direto à rota trata o 403 do backend sem vazar conteúdo
+
+- **Como grupo, quero ver a história da campanha até agora.**
+  - [ ] `app/campaigns/[campaignId]/recap/page.tsx` — reaproveita `useSessions` (`hooks/use-session.ts`), sem novo arquivo em `lib/api/`
+  - [ ] Lista os `summary` de sessões em ordem, pulando sessões sem resumo ainda
+  - [ ] Teste: renderiza os resumos na ordem certa e omite sessões sem `summary`
+
+- **Como grupo, quero ver uma timeline combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.**
+  - [ ] `lib/api/timeline.ts`, `hooks/use-timeline.ts`
+  - [ ] `app/campaigns/[campaignId]/timeline/page.tsx` + `components/timeline/timeline-event-card.tsx` (visual distinto pra automático vs. manual)
+  - [ ] Form do DM para criar evento manual (título, descrição, data in-game livre, sessão âncora opcional)
+  - [ ] Teste: renderiza entradas automáticas e manuais juntas, na ordem devolvida pelo backend; só DM vê o form de criação
+
+- **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções.**
+  - [ ] `lib/api/wiki.ts`, `hooks/use-wiki.ts`
+  - [ ] `app/campaigns/[campaignId]/wiki/page.tsx` (lista) + `app/campaigns/[campaignId]/wiki/[pageId]/page.tsx` (detalhe)
+  - [ ] `components/wiki/wiki-page-card.tsx`, `wiki-page-editor.tsx` (markdown), `wiki-page-links.tsx`
+  - [ ] Renderização do markdown do `content` na página de detalhe
+  - [ ] Badges de link pra NPC/Local/Facção na página de detalhe, cada um navegando pra tela do World correspondente
+  - [ ] Estender a busca do hub de World (`useWorldSearch`) para incluir páginas de wiki nos resultados
+  - [ ] Teste: DM cria/edita página; jogador só lê (sem editor); busca do World encontra página de wiki por título
