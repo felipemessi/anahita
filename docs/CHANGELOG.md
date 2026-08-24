@@ -207,3 +207,8 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Handouts completo): distribuição de loot após um combate — item do
   catálogo, item mágico ou nome livre, com ou sem moeda — reivindicável
   pelo jogador dono do personagem ou pelo mestre.
+- Fase 4 do frontend, história 1 (última da fase — Loot, Inventário e
+  Handouts completo): tela de inventário compartilhado da campanha, com
+  gestão pelo mestre e reivindicação de loot pelo jogador; tela de
+  handouts com criação (texto, imagem ou mapa), revelação pelo mestre e
+  atualização em tempo real para os jogadores conectados.
