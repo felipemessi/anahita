@@ -13,6 +13,8 @@ from app.characters.schemas import (
     CharacterEquipmentCreate,
     CharacterFeatureCreate,
     CharacterRead,
+    CharacterRestRequest,
+    CharacterSpellCastRequest,
     CharacterSpellCreate,
     CharacterSpellUpdate,
     CharacterUpdate,
@@ -124,6 +126,31 @@ async def remove_spell(
 ) -> CharacterRead:
     """Forget a known spell. Owner only."""
     return await service.remove_spell(character_id, spell_id, user.id, db)
+
+
+@router.post("/{character_id}/spells/{spell_id}/cast", response_model=CharacterRead)
+async def cast_spell(
+    character_id: uuid.UUID,
+    spell_id: uuid.UUID,
+    body: CharacterSpellCastRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Cast a known spell, consuming a spell slot. Owner only."""
+    return await service.cast_spell(character_id, spell_id, user.id, body, db)
+
+
+@router.post("/{character_id}/rest", response_model=CharacterRead)
+async def rest(
+    character_id: uuid.UUID,
+    body: CharacterRestRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Take a short or long rest. Owner only."""
+    return await service.rest(character_id, user.id, body, db)
 
 
 @router.post("/{character_id}/equipment", response_model=CharacterRead)

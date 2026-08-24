@@ -29,6 +29,7 @@ from app.characters.models import (
     CharacterFeature,
     CharacterSkill,
     CharacterSpell,
+    CharacterSpellSlot,
 )
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
@@ -41,9 +42,12 @@ from app.characters.schemas import (
     CharacterFeatureCreate,
     CharacterFeatureRead,
     CharacterRead,
+    CharacterRestRequest,
     CharacterSkillRead,
+    CharacterSpellCastRequest,
     CharacterSpellCreate,
     CharacterSpellRead,
+    CharacterSpellSlotRead,
     CharacterSpellUpdate,
     CharacterUpdate,
 )
@@ -68,6 +72,7 @@ _CHARACTER_LOAD_OPTIONS = (
     selectinload(Character.skills),
     selectinload(Character.classes),
     selectinload(Character.spells),
+    selectinload(Character.spell_slots),
     selectinload(Character.equipment),
     selectinload(Character.features),
 )
@@ -199,7 +204,8 @@ class CharacterService:
             )
         await self._require_viewer(character, requester_id, db)
         spell_catalog = await self._resolve_spell_catalog(character, db)
-        return self._to_read(character, spell_catalog)
+        max_slots = await self._max_spell_slots(character, db)
+        return self._to_read(character, spell_catalog, max_slots)
 
     async def add_class(
         self,
@@ -304,7 +310,11 @@ class CharacterService:
         )
         spells = await catalog_service.get_spells_by_ids(db, all_spell_ids)
         spell_catalog = {s.id: s for s in spells}
-        return [self._to_read(c, spell_catalog) for c in characters]
+        reads = []
+        for c in characters:
+            max_slots = await self._max_spell_slots(c, db)
+            reads.append(self._to_read(c, spell_catalog, max_slots))
+        return reads
 
     async def update_character(
         self,
@@ -441,6 +451,113 @@ class CharacterService:
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
+    async def cast_spell(
+        self,
+        character_id: uuid.UUID,
+        spell_entry_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterSpellCastRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Cast a known spell, consuming a spell slot. Owner only.
+
+        Cantrips and rituals never consume a slot. Casting above the
+        spell's own level ("upcasting") consumes a slot of the level
+        requested via `cast_at_level`, and requires that slot to exist.
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        entry = self._require_spell_entry(character, spell_entry_id)
+        spell = await catalog_service.get_spell(db, entry.spell_id)
+        if spell is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Spell not found"
+            )
+
+        if data.as_ritual and not spell.ritual:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This spell cannot be cast as a ritual",
+            )
+
+        class_match = (
+            await self._find_class_by_index(character, entry.source_class, db)
+            if entry.source_class is not None
+            else None
+        )
+        requires_prepared = (
+            spell.level > 0
+            and not data.as_ritual
+            and class_match is not None
+            and class_match[1].index in PREPARED_CASTER_CLASSES
+        )
+        if requires_prepared and not entry.prepared:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Spell must be prepared to cast",
+            )
+
+        if spell.level == 0 or data.as_ritual:
+            return await self._reload_as_read(character.id, db)
+
+        cast_at_level = data.cast_at_level or spell.level
+        if cast_at_level < spell.level:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"Cannot cast a level {spell.level} spell using a level "
+                    f"{cast_at_level} slot"
+                ),
+            )
+
+        max_slots = await self._max_spell_slots(character, db)
+        limit = max_slots.get(cast_at_level, 0)
+        slot = next(
+            (s for s in character.spell_slots if s.spell_level == cast_at_level),
+            None,
+        )
+        used = slot.used if slot is not None else 0
+        if used >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"No level {cast_at_level} spell slots remaining "
+                    f"({used}/{limit} used)"
+                ),
+            )
+
+        if slot is None:
+            slot = CharacterSpellSlot(
+                character_id=character.id, spell_level=cast_at_level, used=0
+            )
+            db.add(slot)
+        slot.used += 1
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def rest(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterRestRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Take a short or long rest. Owner only.
+
+        A long rest resets every spell slot's `used` count to 0. A short
+        rest doesn't affect slots by default — Warlock's short-rest slot
+        recovery is a separate class rule, out of scope here.
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        if data.rest_type == "long":
+            for slot in character.spell_slots:
+                slot.used = 0
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
     async def add_equipment(
         self,
         character_id: uuid.UUID,
@@ -563,6 +680,32 @@ class CharacterService:
             ),
             None,
         )
+
+    async def _max_spell_slots(
+        self, character: Character, db: AsyncSession
+    ) -> dict[int, int]:
+        """Sum each casting class's own spell-slot maxima, keyed by level 1-9.
+
+        See `CharacterSpellSlot`'s docstring for the multiclass
+        simplification this sum makes.
+        """
+        totals: dict[int, int] = {}
+        for class_entry in character.classes:
+            class_def = await catalog_service.get_class(
+                db, class_entry.class_definition_id
+            )
+            if class_def is None:
+                continue
+            class_level = self._class_level_row(class_def, class_entry.level)
+            if class_level is None:
+                continue
+            for slot in class_level.spell_slots:
+                if slot.spell_level == 0:
+                    continue
+                totals[slot.spell_level] = (
+                    totals.get(slot.spell_level, 0) + slot.slot_count
+                )
+        return totals
 
     def _ability_modifier(self, character: Character, ability_code: str) -> int:
         """Return the character's modifier for a short ability code (e.g. `wis`)."""
@@ -768,7 +911,8 @@ class CharacterService:
         )
         character = result.scalar_one()
         spell_catalog = await self._resolve_spell_catalog(character, db)
-        return self._to_read(character, spell_catalog)
+        max_slots = await self._max_spell_slots(character, db)
+        return self._to_read(character, spell_catalog, max_slots)
 
     async def _resolve_spell_catalog(
         self, character: Character, db: AsyncSession
@@ -780,7 +924,10 @@ class CharacterService:
         return {s.id: s for s in spells}
 
     def _to_read(
-        self, character: Character, spell_catalog: dict[uuid.UUID, Spell]
+        self,
+        character: Character,
+        spell_catalog: dict[uuid.UUID, Spell],
+        max_slots: dict[int, int],
     ) -> CharacterRead:
         """Build the read schema, computing ability modifiers and skill bonuses."""
         modifier_by_ability = {
@@ -838,6 +985,17 @@ class CharacterService:
             )
             for s in character.spells
         ]
+        spell_slots = [
+            CharacterSpellSlotRead(
+                spell_level=level,
+                used=next(
+                    (s.used for s in character.spell_slots if s.spell_level == level),
+                    0,
+                ),
+                max=max_count,
+            )
+            for level, max_count in sorted(max_slots.items())
+        ]
         equipment = [
             CharacterEquipmentRead.model_validate(e) for e in character.equipment
         ]
@@ -865,6 +1023,7 @@ class CharacterService:
             skills=skills,
             classes=classes,
             spells=spells,
+            spell_slots=spell_slots,
             equipment=equipment,
             features=features,
         )
