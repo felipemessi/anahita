@@ -208,11 +208,12 @@
 
 > Depende do backend Fase 5. Requisitos levantados e detalhados em `docs/anahita-frontend-prd.md` §6/§9.6 e `docs/anahita-backend-prd.md` §7.10 (2026-08-24). **Nota:** as pastas `app/.../journal/`, `app/.../recap/`, `app/.../timeline/`, `app/.../wiki/` e os componentes correspondentes ainda não existem no esqueleto atual — precisam ser criadas nesta fase.
 
-- **Como DM, quero manter um diário privado da campanha.**
-  - [ ] `lib/api/journal.ts`, `hooks/use-journal.ts`
-  - [ ] `app/campaigns/[campaignId]/journal/page.tsx` + `components/journal/journal-entry-card.tsx`, `journal-editor.tsx`
-  - [ ] Rota não aparece no menu (`campaign-sidebar.tsx`/`mobile-nav.tsx`) para quem não é DM — nem como link desabilitado, some de vez
-  - [ ] Teste: jogador não vê o item de menu "Diário"; tentativa de acesso direto à rota trata o 403 do backend sem vazar conteúdo
+- **Como DM, quero manter um diário privado da campanha.** ✅ (2026-08-24)
+  - [x] `lib/api/journal.ts`, `hooks/use-journal.ts`
+  - [x] `app/campaigns/[campaignId]/journal/page.tsx` + `components/journal/journal-entry-card.tsx`, `journal-editor.tsx`
+  - [x] Rota não aparece no menu (`campaign-sidebar.tsx`/`mobile-nav.tsx`) para quem não é DM — nem como link desabilitado, some de vez
+  - [x] Teste: jogador não vê o item de menu "Diário"; tentativa de acesso direto à rota trata o 403 do backend sem vazar conteúdo
+  - Notas: `NAV_ITEMS` ganhou um campo `dmOnly?: boolean`; `CampaignSidebar`/`MobileNav` agora recebem `role` (vindo de `useMyMembership` no layout) e filtram itens `dmOnly` fora da lista renderizada, não só desabilitados. A página de Diário roda a query independente do papel local — se o backend responder 403 (acesso direto por URL), mostra uma mensagem genérica sem nunca montar o editor/lista.
 
 - **Como grupo, quero ver a história da campanha até agora.**
   - [ ] `app/campaigns/[campaignId]/recap/page.tsx` — reaproveita `useSessions` (`hooks/use-session.ts`), sem novo arquivo em `lib/api/`
