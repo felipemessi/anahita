@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
-from app.catalog.models import Item
+from app.catalog.models import Item, MagicItem
 from app.characters.models import Character
 from app.combat.models import Encounter
 from app.inventory.domain import LootDropKindError, validate_loot_drop_kind
@@ -98,13 +98,14 @@ class InventoryService:
         data: LootDropCreate,
         db: AsyncSession,
     ) -> LootDropRead:
-        """Record a loot drop (catalog/custom item and/or currency). DM only."""
+        """Record a loot drop (catalog/magic/custom item and/or currency). DM only."""
         encounter, session = await self._load_encounter_and_session(encounter_id, db)
         await self._require_dm(session.campaign_id, requester_id, db)
 
         try:
             validate_loot_drop_kind(
                 item_id=data.item_id,
+                magic_item_id=data.magic_item_id,
                 custom_item_name=data.custom_item_name,
                 currency_cp=data.currency_cp,
             )
@@ -114,10 +115,15 @@ class InventoryService:
             ) from exc
         if data.item_id is not None:
             await self._require_visible_item(session.campaign_id, data.item_id, db)
+        if data.magic_item_id is not None:
+            await self._require_visible_magic_item(
+                session.campaign_id, data.magic_item_id, db
+            )
 
         drop = LootDrop(
             encounter_id=encounter.id,
             item_id=data.item_id,
+            magic_item_id=data.magic_item_id,
             custom_item_name=data.custom_item_name,
             quantity=data.quantity,
             currency_cp=data.currency_cp,
@@ -262,6 +268,22 @@ class InventoryService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
             )
         return item
+
+    async def _require_visible_magic_item(
+        self, campaign_id: uuid.UUID, magic_item_id: uuid.UUID, db: AsyncSession
+    ) -> MagicItem:
+        """Fetch a magic item usable here: SRD, or this campaign's homebrew."""
+        result = await db.execute(
+            select(MagicItem).where(MagicItem.id == magic_item_id)
+        )
+        magic_item = result.scalar_one_or_none()
+        if magic_item is None or (
+            magic_item.is_custom and magic_item.campaign_id != campaign_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Magic item not found"
+            )
+        return magic_item
 
     async def _require_membership(
         self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession

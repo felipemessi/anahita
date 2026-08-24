@@ -285,16 +285,12 @@
   - [x] Testes básicos de CRUD
   - Notas: mutação (add/update/remove) restrita ao DM, leitura liberada para qualquer membro da campanha — mesmo padrão de permissão usado em `app.world` para NPCs/locais/facções.
 
-- **Como DM, quero distribuir loot (itens do catálogo ou custom) após um combate, incluindo dinheiro.** ✅ (2026-08-23)
-  - [x] `app/inventory/models.py`: `LootDrop` (item do catálogo ou nome livre + moeda em copper)
+- **Como DM, quero distribuir loot (itens do catálogo ou custom) após um combate, incluindo dinheiro.** ✅ (2026-08-24)
+  - [x] `app/inventory/models.py`: `LootDrop` (item do catálogo, `MagicItem`, ou nome livre + moeda em copper)
   - [x] Migração Alembic
   - [x] `service.py`/`router.py`: distribuir para personagem (`claimed_by`)
   - [x] Testes: loot de item custom, loot de moeda pura, claim por personagem
-  - Notas: `item_id` referencia só `catalog_items` (não `catalog_magic_items`) — a tabela `LootDrop` do PRD §7.9 declara um único `item_id FK` sem indicar a qual catálogo; suportar também `MagicItem` exigiria um discriminador de tipo ou duas FKs opcionais, então foi deixado de fora deste corte (lacuna registrada abaixo). `claim_loot_drop` é permitido para o próprio jogador do personagem ou para o DM; validação de "não pode ser catálogo e nome custom ao mesmo tempo" e "precisa ter item ou moeda" vive em `app.inventory.domain.validate_loot_drop_kind`, mesmo padrão de `combat.domain.validate_participant_kind`.
-
-**Lacunas descobertas na Fase 4 — pendentes de decisão.**
-
-- [ ] `LootDrop.item_id` não suporta `MagicItem` (só `catalog_items`) — decidir se vale um discriminador de tipo (`item_kind`) ou uma segunda FK opcional `magic_item_id` antes de fechar a fase, ou se fica para quando magic items entrarem de fato no fluxo de loot.
+  - Notas: `LootDrop` tem `item_id` (`catalog_items`), `magic_item_id` (`catalog_magic_items`) e `custom_item_name`, mutuamente exclusivos entre si — `claim_loot_drop` é permitido para o próprio jogador do personagem ou para o DM; validação de "no máximo um dos três" e "precisa ter item ou moeda" vive em `app.inventory.domain.validate_loot_drop_kind`, mesmo padrão de `combat.domain.validate_participant_kind`. Suporte a `MagicItem` foi adicionado numa segunda migração (`685472c3be8b`) depois da lacuna abaixo ter sido resolvida ainda dentro desta mesma sessão.
 
 ---
 
