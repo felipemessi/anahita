@@ -1,8 +1,5 @@
 /**
- * PROVISIONAL — the backend `handouts` domain (Fase 4) does not exist yet,
- * so there is no schemas.py to mirror. Shapes here follow
- * docs/anahita-backend-prd.md §7.8. Re-verify against the real Pydantic
- * schemas once the backend domain ships.
+ * Mirrors backend/app/handouts/schemas.py (PRD §7.8, §10.3).
  */
 
 export type HandoutType = "text" | "image" | "map";
@@ -16,9 +13,25 @@ export interface Handout {
   /** Text content for `handout_type: "text"`. */
   content: string | null;
   handout_type: HandoutType;
-  /** Abstract storage reference (e.g. `handouts/campaign_abc/map.png`), resolved by the StorageService. */
-  storage_key: string | null;
+  /** Resolved URL to the uploaded file, or null for a text handout. */
+  url: string | null;
   is_revealed: boolean;
   revealed_at: string | null;
   created_at: string;
+}
+
+/** Form fields for `POST /campaigns/{id}/handouts` — sent as `multipart/form-data`. */
+export interface HandoutCreateFields {
+  title: string;
+  handout_type: HandoutType;
+  content?: string;
+  session_id?: string;
+}
+
+/** Payload of the `handout_revealed` WebSocket event (PRD §10.3). */
+export interface HandoutRevealedPayload {
+  id: string;
+  title: string;
+  handout_type: HandoutType;
+  url: string | null;
 }

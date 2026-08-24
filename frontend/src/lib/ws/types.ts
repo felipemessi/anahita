@@ -11,6 +11,7 @@ import type {
   EncounterParticipantCreate,
   EncounterStatus,
 } from "@/types/combat";
+import type { HandoutRevealedPayload } from "@/types/handout";
 
 export interface TurnAdvancedPayload {
   round: number;
@@ -32,6 +33,10 @@ export type CombatServerEvent =
   | { event_type: "turn_advanced"; payload: TurnAdvancedPayload }
   | { event_type: "participant_updated"; payload: EncounterParticipant }
   | { event_type: "encounter_status_changed"; payload: EncounterStatusChangedPayload }
+  // Broadcast by app.handouts.service over this same combat socket (PRD §10.3),
+  // not by the combat domain itself — kept here rather than duplicating the
+  // socket/reconnect machinery in lib/ws/combat-socket.ts for a second event source.
+  | { event_type: "handout_revealed"; payload: HandoutRevealedPayload }
   | { event_type: "error"; payload: WSErrorPayload };
 
 /** Payload for the `update_participant` command — damage/heal/AC/condition. */

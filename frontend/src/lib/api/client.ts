@@ -84,12 +84,17 @@ export async function apiFetch<T>(
     ? `${path}${path.includes("?") ? "&" : "?"}locale=${encodeURIComponent(locale)}`
     : path;
 
+  // A FormData body (multipart file upload, e.g. handout creation) must not
+  // get a manual Content-Type — the browser sets one with the right
+  // boundary. Omitting it here is the only way to get that behavior.
+  const isFormData = init.body instanceof FormData;
+
   const request = () =>
     fetch(`${API_BASE_URL}${url}`, {
       ...init,
       credentials: "include",
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...init.headers,
       },
