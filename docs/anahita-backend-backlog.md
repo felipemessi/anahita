@@ -22,6 +22,8 @@
 | 3    | World-building                    | Completo (NPCs com stat block do catálogo, locais em hierarquia com prevenção de ciclo, facções, junções NPC↔facção/local/sessão e relações entre facções, busca cross-entidade via tsvector) | 2026-08-23 |
 | 4    | Loot, Inventário, Handouts         | Completo (handouts com upload/reveal em tempo real via WebSocket de combate, inventário compartilhado, loot com item de catálogo/magic item/custom e moeda, claim por personagem) | 2026-08-24 |
 | 5    | Registro e Lore                   | Completo (diário DM-only, recap via `summary` de sessão, timeline híbrida sessões+eventos manuais, wiki linkável a NPCs/locais/facções na busca cross-entidade) | 2026-08-24 |
+| 6    | Interatividade de Ficha e Combate | Pendente | 2026-08-24 |
+| 7    | Sobrevivência, Descanso e Recursos | Pendente | 2026-08-24 |
 
 ---
 
@@ -327,5 +329,100 @@
   - [x] Estender `app/queries/world_queries.py` (busca cross-entidade da Fase 3) com `wiki_page` como quarto `entity_type`
   - [x] Testes: CRUD de página, link mutuamente exclusivo rejeita mais de um alvo, busca cross-entidade encontra página de wiki por título/conteúdo
   - Notas: slug gerado por `slugify()` puro em `domain.py`, com desambiguação por sufixo numérico (`-2`, `-3`...) resolvida no service contra o banco; editar o título regenera o slug. `WikiPage.links` usa `cascade="all, delete-orphan"` (mesmo padrão de `SessionNote`/`Encounter`) em vez de delete manual. Respostas HTTP montam `WikiPageRead` a partir de linhas já carregadas (nunca acessam a relationship `links` preguiçosamente) pra evitar lazy-load fora de contexto async.
+
+---
+
+## Fase 6 — Interatividade de Ficha e Combate
+
+> Objetivo: fechar as lacunas de interação levantadas pelo grupo na ficha de personagem (magias por círculo com limites/slots, itens, moeda) e no fluxo de sessão/combate (abrir sessão, popular e iniciar combate com iniciativa, ações declaradas com resolução automática, rolagens do sistema com opção de digitar manualmente). Depende das Fases 1 (Characters) e 2 (Combat), já completas. Levantado em 2026-08-24 a partir de pedido do grupo — ver também `docs/anahita-frontend-backlog.md` Fase 6 para as telas correspondentes, e Fase 7 para os complementos de sobrevivência/descanso/recursos levantados na mesma sessão.
+
+- **Como jogador, quero gerenciar as magias conhecidas/preparadas da minha ficha, organizadas por círculo, respeitando os limites da minha classe.**
+  - [ ] `CharacterSpellRead` passa a incluir o círculo (nível) e a flag `ritual`, resolvidos do catálogo (`Spell.level`/`Spell.ritual`) na leitura, sem duplicar dado
+  - [ ] `PATCH /characters/{id}/spells/{spell_id}` (toggle `prepared`) e `DELETE /characters/{id}/spells/{spell_id}` (esquecer magia) — owner only
+  - [ ] `engine/spellcasting.py`: fórmula de magias conhecidas (classes com número fixo por nível, ex. Bard/Sorcerer/Warlock) e de magias preparadas (`ability_mod + nível de conjurador`, ex. Cleric/Druid/Paladin/Wizard), a partir da progressão já modelada em `ClassLevel`
+  - [ ] `service.py`: adicionar/preparar magia acima do limite calculado é rejeitado (422), com mensagem informando o limite atual e quantas já estão preparadas/conhecidas
+  - [ ] Testes: limite de preparadas/conhecidas por classe e nível, toggle `prepared` respeita o limite, remover magia libera espaço, dono errado rejeitado
+
+- **Como jogador, quero ver quantos slots de magia tenho disponíveis por nível e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.**
+  - [ ] `app/characters/models.py`: `CharacterSpellSlot` (`character_id`, `spell_level` 1-9, `used`) — o máximo por nível é derivado de `ClassLevelSpellSlot` na leitura, não persistido
+  - [ ] Migração Alembic
+  - [ ] `POST /characters/{id}/spells/{spell_id}/cast` (body: `cast_at_level`, `as_ritual`) — valida magia conhecida/preparada, `cast_at_level >= spell.level`, slot disponível no nível pedido; `as_ritual=true` só é aceito se `Spell.ritual=true` e não consome slot; upcast consome o slot do nível efetivamente escolhido
+  - [ ] `POST /characters/{id}/rest` (`short`/`long`) — long rest zera `CharacterSpellSlot.used`; short rest não mexe em slots por padrão (Warlock tem regra própria — fora do escopo desta história)
+  - [ ] Testes: consumo de slot correto, ritual não consome, upcast exige slot do nível maior, sem slot disponível é rejeitado (422), long rest restaura todos os slots
+
+- **Como jogador, quero editar e remover itens do meu inventário, e registrar ganho/gasto de moedas.**
+  - [ ] `PATCH /characters/{id}/equipment/{equipment_id}` (toggle `equipped`/`attunement`, ajustar `quantity`) e `DELETE /characters/{id}/equipment/{equipment_id}` — owner only
+  - [ ] `Character` ganha coluna(s) de moeda (decisão de implementação: uma única coluna normalizada em copper, ou cinco colunas cp/sp/ep/gp/pp — seção 7.3 do PRD a atualizar com a escolha)
+  - [ ] Migração Alembic
+  - [ ] `POST /characters/{id}/currency` (delta positivo=ganho, negativo=gasto; saldo não pode ficar negativo, 422 se ficaria)
+  - [ ] Testes: editar/remover item, saldo não fica negativo, ganho/gasto refletem na leitura da ficha
+
+- **Como DM, quero abrir uma sessão para ser jogada e iniciar um combate populado com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.**
+  - [ ] `Session` ganha `status` (`planned`/`open`/`closed`; seção 7.5 do PRD a atualizar) — `POST /sessions/{id}/open` (DM only)
+  - [ ] `POST /encounters/{id}/start`: além de mudar `preparing`→`active`, adiciona automaticamente como participante todo personagem (PC) da campanha ainda ausente do encontro (monstros/NPCs continuam adicionados manualmente, como hoje)
+  - [ ] Encontro só aceita `advance_turn` depois que **todo** participante tem `initiative` definida — novo comando WS `roll_initiative` (jogador rola a própria; DM rola pelas dele e pelos NPCs/monstros)
+  - [ ] Testes: abrir sessão sem ser DM rejeitado, `start` popula todos os PCs da campanha, `advance_turn` rejeitado enquanto falta iniciativa de algum participante, `roll_initiative` seta o valor e libera o encontro quando completo
+
+- **Como jogador/DM, quero declarar ações de combate (ataque com arma, magia, ações especiais) que resolvem automaticamente acerto e dano/efeito.**
+  - [ ] `ActionType` (`app/combat/domain.py`) ganha `attack_weapon`, `attack_spell`, `grapple`, `shove`, `search` (hoje cobertos genericamente por `attack`/`spell`/`other`)
+  - [ ] Novo comando WS `declare_action` — `attack_weapon`/`attack_spell`: rolagem de ataque (d20 + bônus do atacante) vs. `armor_class` do alvo; ao acertar, aplica a rolagem de dano da arma/magia; registra tudo (rolagens, alvo, resultado) no `CombatLog`
+  - [ ] `grapple`/`shove`: teste oposto (Athletics do atacante vs. Athletics/Acrobatics do alvo, à escolha do alvo) resolvido no servidor; aplica a condição `grappled` ou reposiciona o alvo conforme o resultado
+  - [ ] Testes: ataque acerta/erra conforme AC e aplica o dano certo, grapple/shove aplicam ou não o efeito conforme o teste oposto, ação declarada por quem não é dono do participante é rejeitada (403)
+
+- **Como jogador/DM, quero que toda rolagem do sistema (iniciativa, ataque, dano) seja feita automaticamente pelo servidor por padrão, mas possa digitar o resultado manualmente quando preferir.**
+  - [ ] `engine/dice.py`: parser/roller de expressões (`1d20+5`, `2d6`), RNG injetável para ser determinístico em teste
+  - [ ] Toda rolagem feita no backend (iniciativa, ataque, dano) aceita um `manual_result` opcional no payload — ausente, o servidor rola via `engine/dice.py`; presente, usa o valor informado (`CombatLog` registra `rolled_by_system=false` nesse caso)
+  - [ ] Regra: jogador só pode informar `manual_result` para rolagens do próprio personagem; DM pode para qualquer participante
+  - [ ] Testes: rolagem automática usa `engine/dice.py` com RNG controlado, `manual_result` sobrescreve corretamente e é auditado no log, jogador não pode informar resultado manual de outro participante (403)
+
+- **Lacuna de visibilidade: jogador deve ver apenas um resumo dos personagens de outros jogadores na campanha, não a ficha completa.**
+  - [ ] `GET /characters?campaign_id=` hoje retorna `CharacterRead` completo para qualquer membro — restringir: dono da ficha e DM continuam recebendo `CharacterRead` completo; para os demais membros, um `CharacterSummaryRead` (nome, raça, classe(s), nível — sem atributos/HP/spells/equipment)
+  - [ ] Testes: jogador A não recebe atributos/HP/spells de jogador B na listagem, só o resumo; DM e o próprio dono continuam vendo a ficha completa
+
+---
+
+## Fase 7 — Sobrevivência, Descanso e Recursos
+
+> Objetivo: itens de interatividade complementares levantados junto com a Fase 6, mas de escopo próprio (sobrevivência em combate, descanso, recursos de classe, progressão de nível) — separados em fase própria para não inflar a Fase 6 e para poderem ser priorizados/validados com o grupo independentemente dela. Depende da Fase 6 (spell slots e descanso já entram lá; esta fase estende o mesmo `POST /characters/{id}/rest`) e da Fase 2 (Combat). Levantado em 2026-08-24.
+
+- **Como jogador, quero gastar dados de vida num descanso curto para recuperar pontos de vida.**
+  - [ ] `Character` ganha `hit_dice_used` (dados de vida já gastos; o total disponível é `level`, o dado em si vem do `hit_die` da classe primária — multiclasse com dados de tipos diferentes fica registrado por classe, não só um total agregado)
+  - [ ] Migração Alembic
+  - [ ] `POST /characters/{id}/rest` (Fase 6) ganha, no modo `short`, um parâmetro `hit_dice_spent` — rola `hit_dice_spent` dados do tipo certo + modificador de CON cada, soma ao PV atual (capado em `hit_point_max`), marca os dados como usados
+  - [ ] Modo `long` (já existente da Fase 6) passa também a restaurar até metade do total de dados de vida do personagem (mínimo 1), regra padrão do PHB
+  - [ ] Testes: gasto de dado de vida cura o esperado e não ultrapassa `hit_point_max`, dados insuficientes disponíveis é rejeitado (422), descanso longo restaura a fração certa
+
+- **Como jogador, quero fazer testes de morte automaticamente quando meu personagem chega a 0 pontos de vida.**
+  - [ ] `Character` ganha `death_save_successes`/`death_save_failures` (0-3, resetados ao estabilizar/curar)
+  - [ ] `POST /characters/{id}/death-save` — só aceito com `hit_point_current == 0`; rola 1d20 via `engine/dice.py` (Fase 6): 1 conta como duas falhas, 20 restaura 1 PV e consciência, 10+ é sucesso, resto é falha; 3 falhas marca o personagem como morto (estado a definir — reaproveita `EncounterCondition`/campo próprio), 3 sucessos estabiliza
+  - [ ] Regra: qualquer cura ou dano recebido enquanto em 0 PV zera os contadores (dano quando já em 0 conta como falha adicional, e crítico conta como duas — regra do PHB)
+  - [ ] Testes: sequência de sucessos estabiliza, sequência de falhas mata, 20 natural restaura 1 PV, 1 natural conta duas falhas, dano em 0 PV zera e conta falha
+
+- **Como jogador, quero indicar quando estou concentrando numa magia e receber automaticamente a DC do teste de concentração ao sofrer dano em combate.**
+  - [ ] `Character` (ou `EncounterParticipant`, para o estado só valer durante o combate — decisão de implementação) ganha `concentrating_spell_id` nullable
+  - [ ] `POST /characters/{id}/concentration` (iniciar/encerrar concentração numa magia conhecida) e limpar automaticamente ao conjurar outra magia de concentração (só uma por vez, regra do PHB)
+  - [ ] Ao aplicar dano a um participante concentrando (via `update_participant`/`declare_action` da Fase 6), a resposta do evento inclui a DC do teste de concentração (`max(10, floor(dano/2))`) para o cliente resolver a rolagem de resistência de CON — o servidor não resolve o teste sozinho, só calcula e expõe a DC (o resultado da resistência já é coberto pelo fluxo de rolagem da Fase 6)
+  - [ ] Testes: dano com concentração ativa retorna a DC correta; dano sem concentração não retorna DC; conjurar nova magia de concentração encerra a anterior
+
+- **Como jogador, quero ver minhas perícias passivas (Percepção, Investigação, Intuição) na minha ficha.**
+  - [ ] `CharacterRead` ganha `passive_perception`/`passive_investigation`/`passive_insight` (`10 + bônus da perícia correspondente`, mesmo padrão de campo calculado de `CharacterSkillRead.bonus`)
+  - [ ] Testes: passiva bate com `10 + bonus` da perícia correspondente, inclusive com proficiência/expertise
+
+- **Como jogador, quero subir de nível meu personagem, ganhando pontos de vida e escolhendo melhoria de habilidade ou talento.**
+  - [ ] `POST /characters/{id}/level-up` (`class_definition_id`, incremento de 1 nível numa classe já possuída ou nova via multiclasse — reaproveita a validação de `add_class`) — recalcula `hit_point_max` (rolagem do dado de vida da classe + modificador de CON, ou média, a decidir) e `proficiency_bonus`
+  - [ ] Nos níveis de ASI da classe (dado por `ClassLevel`), o corpo aceita `ability_score_increases` (até dois pontos distribuídos) **ou** `feat_id` (mutuamente exclusivos, valida contra o catálogo de Feats e seus pré-requisitos)
+  - [ ] Testes: subir de nível soma PV corretamente, nível de ASI aceita distribuição de pontos ou talento (não os dois), talento com pré-requisito não satisfeito é rejeitado (422)
+
+- **Como DM, quero que monstros usem ações lendárias e reações do próprio stat block durante o combate.**
+  - [ ] Novo comando WS `use_legendary_action`/`trigger_reaction` (DM only, para participantes NPC/monstro) — resolve a partir de `MonsterLegendaryAction`/`MonsterReaction` do catálogo (via `npc_id`/`stat_block_id`), aplicando dano/efeito como uma ação declarada normal (reaproveita a resolução de ataque/dano da Fase 6)
+  - [ ] Regra: ações lendárias só disponíveis fora do próprio turno do monstro e limitadas ao número descrito no stat block por rodada (contador resetado a cada início de rodada do próprio monstro)
+  - [ ] Testes: ação lendária disponível só fora do turno do monstro e respeita o limite por rodada, reação dispara e aplica o efeito do stat block
+
+- **Como jogador, quero usar recursos de classe em combate (fúria, ki, etc.) com controle de uso e recarga em descanso.**
+  - [ ] `app/characters/models.py`: `CharacterResource` (`character_id`, `resource_key`, `used`) — o máximo por nível é derivado de `ClassLevelResource` na leitura, mesmo padrão de `CharacterSpellSlot` (Fase 6)
+  - [ ] Migração Alembic
+  - [ ] `POST /characters/{id}/resources/{resource_key}/use` — rejeita se já no limite (422)
+  - [ ] `POST /characters/{id}/rest` (Fase 6/7) restaura os recursos conforme a recarga de cada `resource_key` (curto ou longo — tabela de recarga por recurso, a mapear a partir do SRD)
+  - [ ] Testes: uso consome corretamente, uso acima do limite é rejeitado, descanso do tipo certo restaura o recurso, descanso do tipo errado não restaura
 
 ---

@@ -22,6 +22,8 @@
 | 3    | World-building                          | Concluída       | 2026-08-23           |
 | 4    | Loot, Inventário e Handouts             | Concluída       | 2026-08-24           |
 | 5    | Registro e Lore                         | Concluída (diário DM-only fora do menu pra jogador, recap cronológico, timeline híbrida com marcos manuais, wiki em markdown linkável ao World e incluída na busca) | 2026-08-24 |
+| 6    | Interatividade de Ficha e Combate       | Pendente (uma peça já entregue fora de ordem: click-to-roll em modificador/resistência/perícia/iniciativa — ver história 6 desta fase) | 2026-08-24 |
+| 7    | Sobrevivência, Descanso e Recursos      | Pendente | 2026-08-24 |
 
 ---
 
@@ -237,3 +239,90 @@
   - [x] Estender a busca do hub de World (`useWorldSearch`) para incluir páginas de wiki nos resultados
   - [x] Teste: DM cria/edita página; jogador só lê (sem editor); busca do World encontra página de wiki por título
   - Notas: dependência nova `react-markdown` (renderiza para elementos React, sem `dangerouslySetInnerHTML` — sem necessidade de sanitização extra). `WorldSearchResult.entity_type` ganhou `"wiki_page"`; o hub de World (`app/campaigns/[campaignId]/world/page.tsx`) roteia esse tipo pra `/campaigns/{id}/wiki/{id}` em vez de um subcaminho de `/world`. Sem plugin de tipografia do Tailwind instalado — o markdown é estilizado com utilitários `[&_tag]:` direto no container em vez de classes `prose`.
+
+---
+
+## Fase 6 — Interatividade de Ficha e Combate
+
+> Depende do backend Fase 6 (`docs/anahita-backend-backlog.md`), ainda pendente — cada história abaixo só pode integrar de verdade depois que o endpoint correspondente existir; até lá, trabalhar com mocks e marcar a tarefa de "integração real" como pendente. Levantado em 2026-08-24 a partir de pedido do grupo — ver Fase 7 para os complementos de sobrevivência/descanso/recursos levantados na mesma sessão.
+
+- **Como jogador, quero adicionar, remover, preparar/despreparar e ver detalhes das minhas magias, organizadas por círculo, com busca por classe/círculo/nome.**
+  - [ ] `lib/api/characters.ts`: `updateCharacterSpell` (toggle `prepared`), `removeCharacterSpell`, estender `hooks/use-character.ts`
+  - [ ] `components/characters/spell-list-by-circle.tsx` (substitui/estende `spell-slots.tsx`): agrupa magias conhecidas por círculo (0 = truques), toggle preparar/despreparar, botão remover, modal/expansível de detalhe (descrição, componentes, duração — reaproveita dados já resolvidos do catálogo)
+  - [ ] `components/characters/spell-search.tsx`: busca no catálogo de spells da campanha filtrando por classe do personagem, círculo e nome (reaproveita `useCatalogList("spells", { campaign_id, filters })`, mesmo padrão de `catalog-filter-bar.tsx`)
+  - [ ] Regra de UI: ao tentar preparar/adicionar acima do limite da classe, mostrar a mensagem de erro do backend (limite atual, quantas já preparadas/conhecidas) em vez de um erro genérico
+  - [ ] Teste: preparar acima do limite mostra o erro; remover magia libera espaço na lista; busca filtra por classe+círculo+nome
+
+- **Como jogador, quero ver meus slots de magia disponíveis/usados por círculo e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.**
+  - [ ] `components/characters/spell-slots.tsx`: indicador visual por círculo (ex. pontos preenchidos/vazios) refletindo `used`/`max`
+  - [ ] Botão "conjurar" em cada magia da lista por círculo: se a magia permite ritual, oferece a opção "conjurar como ritual" (não consome slot); se permite conjuração em nível maior, oferece um seletor de nível (só habilitado até o maior círculo com slot disponível)
+  - [ ] Botões de descanso curto/longo na ficha; longo restaura os slots (mutação otimista, reverte em erro)
+  - [ ] Teste: conjurar consome o slot certo; ritual não consome; upcast exige e consome o slot do nível escolhido; sem slot disponível o botão de conjurar fica desabilitado com tooltip explicando
+
+- **Como jogador, quero adicionar, editar, ver detalhes e remover itens do meu inventário, e registrar ganho/gasto de moedas.**
+  - [ ] `lib/api/characters.ts`: `updateCharacterEquipment`, `removeCharacterEquipment`, `updateCharacterCurrency`; estender `hooks/use-character.ts`
+  - [ ] `components/characters/equipment-list.tsx` (substitui a seção inline de equipamento em `character-sheet.tsx`): toggle equipado/attunement, editor de quantidade, botão remover, expansível de detalhe (descrição do item do catálogo)
+  - [ ] `components/characters/currency-tracker.tsx`: saldo atual por tipo de moeda + form rápido de ganho/gasto (mutação otimista, reverte em erro de saldo negativo)
+  - [ ] Teste: editar/remover item atualiza a lista; gasto acima do saldo mostra erro e reverte o otimismo
+
+- **Como DM, quero abrir uma sessão para ser jogada; como grupo, quero que o combate já comece com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.**
+  - [ ] `lib/api/sessions.ts`: `openSession`; botão "Abrir sessão" em `sessions/[sessionId]/page.tsx` (DM only)
+  - [ ] Ao iniciar um encontro (`useStartEncounter`), a UI reflete que todos os PCs da campanha já entraram como participantes (sem precisar adicionar manualmente); monstros continuam adicionados via `monster-picker.tsx`
+  - [ ] `components/combat/initiative-prompt.tsx`: tela/modal que aparece antes do primeiro turno pedindo a cada jogador (e ao DM, pelos NPCs/dele) rolar iniciativa; `advance_turn`/rodada só ficam disponíveis quando todos rolaram
+  - [ ] Teste: `initiative-prompt` bloqueia o avanço de turno até completar; jogador só rola a própria iniciativa, DM rola pelas dos NPCs
+
+- **Como jogador/DM, quero declarar ações de combate (ataque com arma, manualmente, com magia, e ações como agarrar/empurrar) com resolução automática de acerto e dano.**
+  - [ ] `components/combat/action-picker.tsx`: por participante no turno atual, opções de ação (Atacar com arma equipada, Atacar manualmente — digitar bônus/dano, Conjurar magia, Agarrar, Empurrar, Disparada, Esquivar, Desengajar, Ajudar, Esconder-se, Preparar, Procurar)
+  - [ ] Resultado da ação (acerto/erro, dano aplicado, condição imposta) aparece no log de combate em tempo real (reaproveita o WS de combate já existente)
+  - [ ] Teste: `action-picker` envia o comando WS correto por tipo de ação; resultado renderizado a partir do evento de resposta do servidor
+
+- **Como jogador, quero ver os outros personagens da campanha só com detalhes básicos, e ter o meu próprio personagem selecionado automaticamente.**
+  - [ ] `app/campaigns/[campaignId]/characters/page.tsx`: para um jogador, mostra os demais personagens com card resumido (nome/raça/classe/nível, sem link pra ficha completa); o próprio personagem continua linkando pra ficha completa
+  - [ ] Ao entrar em `characters/page.tsx` como jogador com exatamente um personagem na campanha, redirecionar automaticamente para a ficha desse personagem em vez de mostrar a lista
+  - [ ] Teste: jogador não consegue navegar pra ficha completa de outro personagem (rota direta trata o resumo/403 do backend sem vazar dados); auto-redirect só acontece pro jogador, nunca pro DM
+
+- **Como jogador/DM, quero que toda rolagem (ataque, dano, resistência, perícia, iniciativa) seja feita automaticamente pelo sistema por padrão, mas eu possa digitar o resultado manualmente quando preferir.** ⚠️ parcial (2026-08-24)
+  - [x] `lib/utils/dice.ts`, `components/characters/roll-log.tsx`/`roll-button.tsx`: rolagem client-side (1d20 + bônus) ao clicar em modificador de habilidade/resistência/perícia/iniciativa na ficha, com um log das últimas rolagens — feito nesta sessão, mas **puramente cosmético**: nada é enviado ao backend nem aparece pra outros jogadores/DM
+  - [ ] Estender `RollButton`/`roll-log` (ou componente equivalente) para as rolagens do combate (ataque/dano/resistência declaradas via `action-picker`, iniciativa), agora sim chamando o backend (Fase 6 do backend) — resultado visível a todos os participantes via WS, não só localmente
+  - [ ] Em cada ponto de rolagem do combate, oferecer um campo "digitar manualmente" como alternativa ao clique (que aciona a rolagem automática do servidor) — nunca o contrário: rolagem automática é sempre a ação padrão/primária
+  - [ ] Teste: rolagem automática chama o endpoint sem `manual_result`; digitar manualmente envia `manual_result` e o valor aparece igual pros outros participantes via WS
+  - Notas: a interatividade puramente client-side da ficha (modificadores/resistências/perícias/iniciativa) já está em produção — ver commit `feat: add click-to-roll interactivity to character sheet`. Ela cobre o "clique rola dado" pedido para a ficha, mas não é o sistema de rolagem desta história (que precisa ser servidor-autoritativo para combate, onde o resultado importa pra todos os participantes, não só pra quem clicou).
+
+---
+
+## Fase 7 — Sobrevivência, Descanso e Recursos
+
+> Depende do backend Fase 7 (`docs/anahita-backend-backlog.md`), ainda pendente. Itens complementares levantados junto com a Fase 6, separados em fase própria por terem escopo e prioridade próprios. Levantado em 2026-08-24.
+
+- **Como jogador, quero gastar dados de vida num descanso curto e ver quantos ainda tenho disponíveis.**
+  - [ ] `components/characters/hit-dice-tracker.tsx`: indicador de dados de vida disponíveis/gastos (mesmo padrão visual do `spell-slots.tsx` da Fase 6) + botão "gastar dado de vida" que informa quantos gastar
+  - [ ] Botão "descanso curto" na ficha aciona o gasto de dados de vida escolhido e atualiza PV (mutação otimista, reverte em erro)
+  - [ ] Teste: gastar dado de vida atualiza PV e o contador de dados restantes; botão desabilita quando não há dados disponíveis
+
+- **Como jogador, quero fazer testes de morte quando meu personagem chega a 0 PV, vendo sucessos/falhas acumulados.**
+  - [ ] `components/characters/death-save-tracker.tsx`: aparece automaticamente quando `hit_point_current === 0`, mostra 3 marcadores de sucesso/falha e um botão "rolar" (chama o endpoint de death save)
+  - [ ] Estados visuais claros para estável (3 sucessos) e morto (3 falhas)
+  - [ ] Teste: rolar preenche o marcador certo conforme o resultado; 3 falhas mostra estado "morto"; qualquer cura reseta os marcadores
+
+- **Como jogador, quero indicar que estou concentrando numa magia e ser avisado da DC do teste de concentração quando meu personagem tomar dano em combate.**
+  - [ ] Indicador de "concentrando em [magia]" na ficha e no `participant-card.tsx` do combat tracker
+  - [ ] Botão "iniciar concentração" ao conjurar uma magia de concentração (a partir da lista de magias da Fase 6); conjurar outra encerra a anterior automaticamente
+  - [ ] Quando um participante concentrando toma dano no combate, a UI mostra a DC do teste (vinda do evento WS) com um atalho pra rolar a resistência de CON correspondente
+  - [ ] Teste: dano em participante concentrando exibe a DC; indicador de concentração muda ao trocar de magia
+
+- **Como jogador, quero ver minhas perícias passivas na ficha.**
+  - [ ] `ability-scores.tsx`/nova seção `passive-scores.tsx`: exibe Percepção/Investigação/Intuição passivas (vindas de `CharacterRead`, sem cálculo client-side)
+  - [ ] Teste: renderiza os três valores vindos da API
+
+- **Como jogador, quero subir de nível meu personagem pela ficha, escolhendo melhoria de habilidade ou talento quando aplicável.**
+  - [ ] `components/characters/level-up-dialog.tsx`: fluxo guiado (escolher classe a subir, confirmar PV ganho, em nível de ASI escolher entre distribuir pontos ou talento do catálogo)
+  - [ ] Teste: fluxo completo gera o payload correto pro endpoint de level-up; nível sem ASI pula a etapa de escolha
+
+- **Como DM, quero disparar ações lendárias e reações de monstros pelo combat tracker.**
+  - [ ] `components/combat/legendary-action-picker.tsx`: para participantes NPC/monstro com stat block, lista as ações lendárias/reações disponíveis (via `monster-stat-block.tsx`, já usado no catálogo) com contador de uso por rodada
+  - [ ] Teste: ação lendária fica desabilitada quando o limite da rodada é atingido; resultado aparece no log de combate
+
+- **Como jogador, quero usar e acompanhar recursos de classe (fúria, ki, etc.) na ficha e no combate.**
+  - [ ] `components/characters/class-resources.tsx`: lista de recursos da classe (nome, usado/máximo) com botão "usar"; aparece também como atalho no `participant-card.tsx` durante o combate
+  - [ ] Descanso curto/longo (já construído na história de dados de vida desta fase) restaura os recursos conforme o tipo de recarga de cada um
+  - [ ] Teste: usar recurso decrementa e desabilita no limite; descanso do tipo certo restaura, do tipo errado não
