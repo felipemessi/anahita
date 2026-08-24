@@ -212,3 +212,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   gestão pelo mestre e reivindicação de loot pelo jogador; tela de
   handouts com criação (texto, imagem ou mapa), revelação pelo mestre e
   atualização em tempo real para os jogadores conectados.
+- Fase 5 do backend, história 1: diário privado da campanha, exclusivo do
+  mestre e nunca visível a jogadores, com vínculo opcional a uma sessão.
+- Fase 5 do backend, história 2: confirmação de que a listagem de sessões
+  já expõe o resumo de cada sessão a todo o grupo, base para o recap
+  ("a história até agora") do frontend.
+- Fase 5 do backend, história 3: timeline híbrida da campanha, combinando
+  entradas automáticas geradas a partir do resumo de cada sessão com
+  marcos manuais que o mestre adiciona e ordena livremente.
+- Fase 5 do backend, história 4 (última da fase — Registro e Lore
+  completo): páginas de wiki com lore livre em markdown, escritas pelo
+  mestre e visíveis a todo o grupo, linkáveis a NPCs, locais e facções já
+  cadastrados, e incluídas na busca cross-entidade da campanha.
