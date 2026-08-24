@@ -139,6 +139,11 @@ shadcn/ui como base. Componentes instalados sob `src/components/ui/`. Customizad
 /campaigns/[id]/world/factions → Facções (com relacionamentos)
 /campaigns/[id]/inventory      → Inventário do grupo
 /campaigns/[id]/handouts       → Handouts (DM: gerencia / Player: visualiza)
+/campaigns/[id]/journal        → Diário do mestre (DM only — não aparece pra jogador)
+/campaigns/[id]/recap          → História até agora (resumo de cada sessão, todo membro)
+/campaigns/[id]/timeline       → Timeline de eventos (auto por sessão + manual do DM)
+/campaigns/[id]/wiki           → Lista de páginas de wiki da campanha
+/campaigns/[id]/wiki/[pageId]  → Página de wiki (DM: edita / Player: lê)
 /campaigns/[id]/catalog        → Hub do catálogo (SRD + homebrew da campanha)
 /campaigns/[id]/catalog/[category]        → Lista de uma categoria (races, classes, spells,
                                               equipment, magic-items, monsters, backgrounds, feats, rules)
@@ -213,6 +218,16 @@ frontend/
 │   │   │       │   └── page.tsx
 │   │   │       ├── handouts/
 │   │   │       │   └── page.tsx
+│   │   │       ├── journal/
+│   │   │       │   └── page.tsx          # DM only
+│   │   │       ├── recap/
+│   │   │       │   └── page.tsx          # sem chamada de backend nova — agrega sessions.summary
+│   │   │       ├── timeline/
+│   │   │       │   └── page.tsx
+│   │   │       ├── wiki/
+│   │   │       │   ├── page.tsx          # lista
+│   │   │       │   └── [pageId]/
+│   │   │       │       └── page.tsx      # página individual
 │   │   │       └── settings/
 │   │   │           └── page.tsx
 │   │   └── join/
@@ -263,9 +278,18 @@ frontend/
 │   │   │   ├── handout-card.tsx
 │   │   │   ├── handout-reveal-button.tsx
 │   │   │   └── handout-viewer.tsx
-│   │   └── inventory/
-│   │       ├── loot-table.tsx
-│   │       └── item-card.tsx
+│   │   ├── inventory/
+│   │   │   ├── loot-table.tsx
+│   │   │   └── item-card.tsx
+│   │   ├── journal/
+│   │   │   ├── journal-entry-card.tsx
+│   │   │   └── journal-editor.tsx
+│   │   ├── timeline/
+│   │   │   └── timeline-event-card.tsx       # distingue visual automático vs. manual
+│   │   └── wiki/
+│   │       ├── wiki-page-card.tsx
+│   │       ├── wiki-page-editor.tsx          # markdown
+│   │       └── wiki-page-links.tsx           # badges de NPC/Local/Facção vinculados
 │   ├── lib/
 │   │   ├── api/
 │   │   │   ├── client.ts                 # Client-side fetch (access token em memória)
@@ -277,6 +301,9 @@ frontend/
 │   │   │   ├── world.ts
 │   │   │   ├── handouts.ts
 │   │   │   ├── inventory.ts
+│   │   │   ├── journal.ts
+│   │   │   ├── timeline.ts
+│   │   │   ├── wiki.ts
 │   │   │   └── catalog.ts                # 9 categorias com tela própria + locale param
 │   │   ├── ws/
 │   │   │   ├── combat-socket.ts          # WebSocket client
@@ -297,6 +324,9 @@ frontend/
 │   │   ├── use-world.ts
 │   │   ├── use-handouts.ts
 │   │   ├── use-inventory.ts
+│   │   ├── use-journal.ts
+│   │   ├── use-timeline.ts
+│   │   ├── use-wiki.ts
 │   │   └── use-catalog.ts                # lista/detalhe/create homebrew, aware de locale
 │   ├── providers/
 │   │   ├── query-provider.tsx            # TanStack Query
@@ -310,6 +340,9 @@ frontend/
 │   │   ├── world.ts
 │   │   ├── handout.ts
 │   │   ├── inventory.ts
+│   │   ├── journal.ts
+│   │   ├── timeline.ts
+│   │   ├── wiki.ts
 │   │   └── catalog.ts                    # espelha as 24 categorias do catálogo (PRD Backend 7.4),
 │   │                                      # cada entrada com campo `translations: {name, desc, ...}`
 │   └── styles/
@@ -423,6 +456,15 @@ Cada entidade mostra badges de links (em quais sessões apareceu, a que facção
 **Visão do DM:** lista de todos os handouts, com toggle reveal/hide. Upload de imagens/mapas. Editor de texto para handouts textuais. Filtro por sessão.
 
 **Visão do jogador:** apenas handouts revelados. Galeria com imagens em tamanho grande, textos formatados.
+
+### 9.6 Registro e Lore (`/campaigns/[id]/journal`, `/recap`, `/timeline`, `/wiki`)
+
+Quatro telas, escopos e permissões diferentes (PRD Backend §7.10):
+
+- **Diário (`/journal`, DM only):** não aparece no menu para jogador (mesmo padrão de "seção não implementada" que `campaign-sidebar.tsx` já usa, aqui é "seção não visível para este role" em vez de "ainda não implementada"). Lista cronológica de `journal-entry-card.tsx`, com `journal-editor.tsx` para criar/editar uma entrada, vínculo opcional a uma sessão.
+- **Recap (`/recap`, todo membro):** feed somente-leitura com o `summary` de cada sessão em ordem — não chama endpoint novo, reaproveita `useSessions` já existente (`hooks/use-session.ts`).
+- **Timeline (`/timeline`, todo membro; escrita é DM only):** lista cronológica de `timeline-event-card.tsx`, cada card distinguindo visualmente uma entrada automática (derivada de sessão) de uma manual. DM tem um form para adicionar evento manual (título, descrição, data in-game livre, sessão âncora opcional).
+- **Wiki (`/wiki` lista + `/wiki/[pageId]` detalhe, leitura pra todo membro, escrita DM only):** lista de `wiki-page-card.tsx` com título/tags; página de detalhe renderiza `content` (markdown) e `wiki-page-links.tsx` (badges pro NPC/Local/Facção vinculado, linkando pra tela do World). DM edita via `wiki-page-editor.tsx`. Páginas de wiki entram na busca cross-entidade já existente no hub de World (`useWorldSearch`, PRD Backend §10) como um resultado a mais.
 
 ---
 

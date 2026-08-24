@@ -21,7 +21,7 @@
 | 2    | Sessão ao Vivo (Combat, WS)        | Completo (encounter/participantes, WebSocket em tempo real, efeitos mecânicos de condições, log de combate) | 2026-08-23 |
 | 3    | World-building                    | Completo (NPCs com stat block do catálogo, locais em hierarquia com prevenção de ciclo, facções, junções NPC↔facção/local/sessão e relações entre facções, busca cross-entidade via tsvector) | 2026-08-23 |
 | 4    | Loot, Inventário, Handouts         | Completo (handouts com upload/reveal em tempo real via WebSocket de combate, inventário compartilhado, loot com item de catálogo/magic item/custom e moeda, claim por personagem) | 2026-08-24 |
-| 5    | Registro e Lore                   | Não iniciado                     | —                    |
+| 5    | Registro e Lore                   | Requisitos levantados, não iniciado (ver PRD §7.10) | 2026-08-24 |
 
 ---
 
@@ -296,6 +296,32 @@
 
 ## Fase 5 — Registro e Lore
 
-*(Ainda não detalhado — quebrar em histórias quando as Fases 1-4 estiverem concluídas e o formato de diário/wiki estiver definido com mais precisão no PRD.)*
+> Requisitos levantados e detalhados em `docs/anahita-backend-prd.md` §7.10 (2026-08-24) — decisões: IA de geração de resumo fica fora do escopo (v1 100% manual); Wiki é páginas livres linkáveis ao World; Diário é único e DM-only (sem diários por jogador); Timeline é híbrida (auto-seed de sessões + eventos manuais).
 
-- [ ] Levantar requisitos detalhados de Diário, Recap, Timeline e Wiki antes de quebrar em histórias de usuário
+- **Como DM, quero manter um diário privado da campanha, com ou sem vínculo a uma sessão específica.**
+  - [ ] `app/journal/models.py`: `JournalEntry` (seção 7.10 do PRD)
+  - [ ] Migração Alembic
+  - [ ] `domain.py`/`schemas.py`/`service.py`/`router.py` — todo o domínio é DM only (create/list/get/update/delete), nunca visível a jogadores
+  - [ ] Testes: DM cria/lista/edita/apaga; jogador recebe 403 em qualquer rota do domínio
+
+- **Como grupo, quero ver a história da campanha até agora, sessão por sessão.**
+  - [ ] Nenhuma mudança de backend — reaproveita `GET /campaigns/{id}/sessions` (já retorna `summary`, PRD §7.5)
+  - [ ] Teste: confirmar que a lista de sessões já expõe `summary` para todo membro da campanha (não só o DM) — se não expuser, é a lacuna a fechar aqui
+
+- **Como grupo, quero uma timeline de eventos da campanha, combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.**
+  - [ ] `app/timeline/models.py`: `TimelineEvent` (só eventos manuais são persistidos, seção 7.10 do PRD)
+  - [ ] Migração Alembic
+  - [ ] `app/queries/timeline_queries.py`: funde sessões com `summary` (entradas virtuais, `sort_order = session_number * 1000`) com `TimelineEvent` manuais, ordenado por `sort_order`
+  - [ ] `domain.py`/`schemas.py`/`service.py`/`router.py` — leitura para qualquer membro; criar/editar/apagar evento manual é DM only
+  - [ ] Testes: entrada automática aparece sem persistir nada; evento manual DM-only; ordenação mistura os dois conjuntos corretamente
+
+- **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções já cadastrados.**
+  - [ ] `app/wiki/models.py`: `WikiPage`, `WikiPageLink` (seção 7.10 do PRD)
+  - [ ] Migração Alembic
+  - [ ] `domain.py` (mutual exclusion de `npc_id`/`location_id`/`faction_id` no link, mesmo padrão de `LootDrop`) /`schemas.py`/`service.py`/`router.py`
+  - [ ] Slug único por campanha, gerado a partir do título
+  - [ ] Regra: leitura (`GET /campaigns/{id}/wiki`, `GET /wiki/{id}`) para qualquer membro; criar/editar/apagar página e link é DM only
+  - [ ] Estender `app/queries/world_queries.py` (busca cross-entidade da Fase 3) com `wiki_page` como quarto `entity_type`
+  - [ ] Testes: CRUD de página, link mutuamente exclusivo rejeita mais de um alvo, busca cross-entidade encontra página de wiki por título/conteúdo
+
+---

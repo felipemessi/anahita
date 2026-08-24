@@ -145,7 +145,7 @@ Inventário do grupo, distribuição de loot pós-combate, sistema de handouts (
 
 ### Fase 5 — Registro e Lore
 
-Diário de campanha, recaps, timeline de eventos, wiki da campanha. Potencial uso de IA para gerar resumos a partir das notas do DM.
+Diário privado do mestre, recap cronológico das sessões (reaproveita `Session.summary`, sem tabela nova), timeline de eventos híbrida (sessões geram entradas automáticas + mestre adiciona eventos manuais), e wiki da campanha (páginas de lore livre, linkáveis a NPCs/Locais/Facções, entrando na busca cross-entidade da Fase 3). Detalhamento completo em §7.10. Geração de resumo por IA foi cogitada mas fica fora do escopo desta fase — v1 é inteiramente manual.
 
 O suporte i18n do catálogo (seção 2.1) é transversal a todas as fases: qualquer tela que exiba conteúdo de catálogo lê a tradução do locale ativo, com fallback para `en`.
 
@@ -983,6 +983,87 @@ O `storage_key` é uma referência abstrata (ex: `handouts/campaign_abc/map.png`
 | quantity         | Integer   |                                |
 | currency_cp      | Integer   | tudo convertido pra copper     |
 | claimed_by       | FK        | nullable (Character)           |
+
+### 7.10 Registro e Lore
+
+Quatro recursos, com escopos deliberadamente diferentes — nem tudo aqui é uma tabela nova:
+
+- **Diário (`JournalEntry`)**: log privado e cronológico do mestre. Não é visível a jogadores em nenhuma hipótese (não reaproveita o padrão `is_private` de `SessionNote` porque não há caso em que fique público — é sempre DM-only, então a checagem de permissão é simplesmente "requester é o DM da campanha").
+- **Recap**: **não introduz tabela nova.** `Session.summary` (PRD §7.5) já existe e já é visível a jogadores — o recap é uma tela de frontend que agrega os `summary` de todas as sessões da campanha em ordem cronológica ("a história até agora"). Nenhuma mudança de backend é necessária além do que `GET /campaigns/{id}/sessions` já retorna.
+- **Timeline (`TimelineEvent`)**: híbrida. Cada sessão com `summary` preenchido vira uma entrada *virtual* automática (computada na leitura, nunca persistida — evita duplicar dado e problema de sincronização); o mestre também pode criar eventos manuais (`TimelineEvent`), com data in-game livre e uma posição de ordenação explícita. A leitura funde os dois conjuntos em uma única lista cronológica.
+- **Wiki (`WikiPage` + `WikiPageLink`)**: páginas de lore livre em markdown, autoria do mestre, visíveis a todos os membros. Uma página pode linkar a um NPC, Local, ou Facção existente (nunca mais de um por link, mesmo padrão de mutual-exclusion de `LootDrop.item_id`/`magic_item_id`/`custom_item_name`, PRD §7.9) — isso alimenta backlinks ("essa página menciona este NPC") e entra na busca cross-entidade já existente (PRD §10, `app/queries/world_queries.py`), que ganha `wiki_page` como um quarto `entity_type`.
+
+**IA para gerar resumos automaticamente (mencionada na visão da Fase 5, seção 6) fica fora do escopo desta leva** — v1 é 100% manual. Fica registrado como evolução futura possível (ex: um botão "gerar rascunho" no editor de Diário/Recap que chama um LLM sobre as notas de sessão existentes), sem compromisso de quando/se será construído.
+
+**JournalEntry**
+
+| Coluna      | Tipo      | Notas                                          |
+|-------------|-----------|-------------------------------------------------|
+| id          | UUID (PK) |                                                  |
+| campaign_id | FK        |                                                  |
+| author_id   | FK User   | sempre o DM da campanha (validado no service)   |
+| title       | String    |                                                  |
+| content     | Text      |                                                  |
+| session_id  | FK        | nullable — vínculo opcional a uma sessão        |
+| created_at  | Timestamp |                                                  |
+
+**TimelineEvent** (só os eventos manuais são persistidos — os automáticos são computados a partir de `Session` na leitura, ver acima)
+
+| Coluna       | Tipo      | Notas                                                        |
+|--------------|-----------|---------------------------------------------------------------|
+| id           | UUID (PK) |                                                                |
+| campaign_id  | FK        |                                                                |
+| title        | String    |                                                                |
+| description  | Text      | nullable                                                      |
+| session_id   | FK        | nullable — ancora o evento perto de uma sessão na ordenação   |
+| in_game_date | String    | nullable — data livre do calendário da campanha, só exibição  |
+| sort_order   | Integer   | posição explícita; eventos automáticos usam `session_number * 1000`, deixando espaço para eventos manuais entre sessões |
+| created_at   | Timestamp |                                                                |
+
+**WikiPage**
+
+| Coluna         | Tipo      | Notas                                          |
+|----------------|-----------|--------------------------------------------------|
+| id             | UUID (PK) |                                                  |
+| campaign_id    | FK        |                                                  |
+| title          | String    |                                                  |
+| slug           | String    | único por campanha, gerado do título, usado na URL |
+| content        | Text      | markdown                                        |
+| tags           | String    | nullable, lista livre separada por vírgula      |
+| created_by_id  | FK User   | nullable                                        |
+| created_at     | Timestamp |                                                  |
+
+**WikiPageLink**
+
+| Coluna       | Tipo      | Notas                                                    |
+|--------------|-----------|------------------------------------------------------------|
+| id           | UUID (PK) |                                                              |
+| wiki_page_id | FK        |                                                              |
+| npc_id       | FK        | nullable — mutuamente exclusivo com `location_id`/`faction_id` |
+| location_id  | FK        | nullable                                                     |
+| faction_id   | FK        | nullable                                                     |
+
+### 7.10.1 Endpoints
+
+| Método/Rota                                    | Permissão      | Notas                                             |
+|-------------------------------------------------|----------------|----------------------------------------------------|
+| `POST /campaigns/{id}/journal`                  | DM only        |                                                      |
+| `GET /campaigns/{id}/journal`                   | DM only        | mais recente primeiro                               |
+| `PATCH /journal/{entryId}`                      | DM only        |                                                      |
+| `DELETE /journal/{entryId}`                     | DM only        |                                                      |
+| `GET /campaigns/{id}/timeline`                  | qualquer membro| funde eventos automáticos (sessões) e manuais       |
+| `POST /campaigns/{id}/timeline`                 | DM only        | evento manual                                       |
+| `PATCH /timeline/{eventId}`                     | DM only        | só eventos manuais                                  |
+| `DELETE /timeline/{eventId}`                    | DM only        | só eventos manuais                                  |
+| `GET /campaigns/{id}/wiki`                      | qualquer membro| lista resumida (id/title/tags)                      |
+| `GET /wiki/{pageId}`                            | qualquer membro| página completa + links                             |
+| `POST /campaigns/{id}/wiki`                     | DM only        |                                                      |
+| `PATCH /wiki/{pageId}`                          | DM only        |                                                      |
+| `DELETE /wiki/{pageId}`                         | DM only        |                                                      |
+| `POST /wiki/{pageId}/links`                     | DM only        | vincula a um NPC/Local/Facção                       |
+| `DELETE /wiki/{pageId}/links/{linkId}`          | DM only        |                                                      |
+
+O recap não tem endpoint próprio — consome `GET /campaigns/{id}/sessions` (PRD §7.5), já existente.
 
 ---
 
