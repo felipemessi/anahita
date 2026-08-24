@@ -63,6 +63,11 @@ const NAV_ITEMS: NavItem[] = [
     implemented: true,
   },
   {
+    label: "Wiki",
+    href: (id) => `/campaigns/${id}/wiki`,
+    implemented: true,
+  },
+  {
     label: "Configurações",
     href: (id) => `/campaigns/${id}/settings`,
     implemented: true,

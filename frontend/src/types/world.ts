@@ -148,7 +148,7 @@ export interface FactionRelationshipCreate {
 
 /** One cross-entity search hit (GET /campaigns/{id}/world/search?q=). */
 export interface WorldSearchResult {
-  entity_type: "npc" | "location" | "faction";
+  entity_type: "npc" | "location" | "faction" | "wiki_page";
   id: string;
   name: string;
   snippet: string;
