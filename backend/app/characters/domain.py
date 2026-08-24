@@ -40,6 +40,33 @@ class FeatureSourceType(enum.StrEnum):
     feat = "feat"
 
 
+#: Maps the SRD's full ability names (as used in
+#: `ClassDefinition.saving_throw_proficiencies`, e.g. "Strength, Constitution")
+#: to our short `AbilityScore` codes.
+ABILITY_FULL_NAME_TO_CODE: dict[str, AbilityScore] = {
+    "Strength": AbilityScore.str,
+    "Dexterity": AbilityScore.dex,
+    "Constitution": AbilityScore.con,
+    "Intelligence": AbilityScore.int,
+    "Wisdom": AbilityScore.wis,
+    "Charisma": AbilityScore.cha,
+}
+
+
+def parse_saving_throw_proficiencies(text: str) -> set[AbilityScore]:
+    """Parse a `ClassDefinition.saving_throw_proficiencies` string (PHB rules).
+
+    Only a character's starting class grants saving throw proficiencies —
+    multiclassing never adds more (PHB multiclassing rules) — so callers
+    should only parse the primary class's string.
+    """
+    return {
+        ABILITY_FULL_NAME_TO_CODE[name.strip()]
+        for name in text.split(",")
+        if name.strip() in ABILITY_FULL_NAME_TO_CODE
+    }
+
+
 #: The ability score that governs each skill check (PRD §7.3, standard 5e rules).
 SKILL_ABILITY: dict[Skill, AbilityScore] = {
     Skill.acrobatics: AbilityScore.dex,

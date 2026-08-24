@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 
 import { AbilityScores } from "@/components/characters/ability-scores";
+import { RollButton } from "@/components/characters/roll-button";
+import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
 import { SpellSlots } from "@/components/characters/spell-slots";
 import { useCatalogList } from "@/hooks/use-catalog";
@@ -47,78 +49,81 @@ export function CharacterSheet({
   }
 
   return (
-    <article className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">{character.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Nível {character.level}
-          {character.background ? ` · ${character.background}` : ""}
-          {character.alignment ? ` · ${character.alignment}` : ""}
-        </p>
-      </header>
+    <RollLogProvider>
+      <article className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold">{character.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Nível {character.level}
+            {character.background ? ` · ${character.background}` : ""}
+            {character.alignment ? ` · ${character.alignment}` : ""}
+          </p>
+        </header>
 
-      <AbilityScores scores={character.ability_scores} />
+        <AbilityScores scores={character.ability_scores} />
 
-      <section aria-label="Combate" className="rounded-lg border border-border bg-card p-4">
-        <h2 className="font-semibold">Combate</h2>
-        <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div>
-            <p className="text-xs text-muted-foreground">CA</p>
-            <p className="font-mono text-lg">{character.armor_class}</p>
-          </div>
-          <div>
-            <label htmlFor="hp-current" className="text-xs text-muted-foreground">
-              PV atual
-            </label>
-            <div className="flex items-center gap-1">
-              <input
-                id="hp-current"
-                type="number"
-                value={hpDraft}
-                onChange={(e) => setHpDraft(e.target.value)}
-                onBlur={handleHpSubmit}
-                className="w-16 rounded-md border border-input bg-background px-2 py-1 font-mono text-lg"
+        <section aria-label="Combate" className="rounded-lg border border-border bg-card p-4">
+          <h2 className="font-semibold">Combate</h2>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">CA</p>
+              <p className="font-mono text-lg">{character.armor_class}</p>
+            </div>
+            <div>
+              <label htmlFor="hp-current" className="text-xs text-muted-foreground">
+                PV atual
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  id="hp-current"
+                  type="number"
+                  value={hpDraft}
+                  onChange={(e) => setHpDraft(e.target.value)}
+                  onBlur={handleHpSubmit}
+                  className="w-16 rounded-md border border-input bg-background px-2 py-1 font-mono text-lg"
+                />
+                <span className="font-mono text-sm text-muted-foreground">
+                  / {character.hit_point_max}
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Deslocamento</p>
+              <p className="font-mono text-lg">{character.speed} ft</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Iniciativa</p>
+              <RollButton
+                label="Iniciativa"
+                modifier={initiative}
+                className="font-mono text-lg hover:text-primary hover:underline"
               />
-              <span className="font-mono text-sm text-muted-foreground">
-                / {character.hit_point_max}
-              </span>
             </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Deslocamento</p>
-            <p className="font-mono text-lg">{character.speed} ft</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Iniciativa</p>
-            <p className="font-mono text-lg">
-              {initiative >= 0 ? "+" : ""}
-              {initiative}
+          {hpError ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {hpError}
             </p>
-          </div>
-        </div>
-        {hpError ? (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {hpError}
-          </p>
-        ) : null}
-      </section>
+          ) : null}
+        </section>
 
-      <SkillList skills={character.skills} />
+        <SkillList skills={character.skills} />
 
-      <SpellSlots
-        characterId={character.id}
-        campaignId={campaignId}
-        spells={character.spells}
-      />
+        <SpellSlots
+          characterId={character.id}
+          campaignId={campaignId}
+          spells={character.spells}
+        />
 
-      <EquipmentSection
-        characterId={character.id}
-        campaignId={campaignId}
-        equipment={character.equipment}
-      />
+        <EquipmentSection
+          characterId={character.id}
+          campaignId={campaignId}
+          equipment={character.equipment}
+        />
 
-      <FeaturesSection characterId={character.id} features={character.features} />
-    </article>
+        <FeaturesSection characterId={character.id} features={character.features} />
+      </article>
+    </RollLogProvider>
   );
 }
 

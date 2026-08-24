@@ -25,3 +25,10 @@ def calculate_skill_bonus(
         if has_expertise:
             bonus += prof_bonus
     return bonus
+
+
+def calculate_saving_throw_bonus(
+    ability_mod: int, is_proficient: bool, prof_bonus: int
+) -> int:
+    """Calculate the total bonus for a saving throw."""
+    return ability_mod + prof_bonus if is_proficient else ability_mod

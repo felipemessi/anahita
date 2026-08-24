@@ -86,6 +86,7 @@ class CharacterAbilityScore(Base):
     base_score: Mapped[int] = mapped_column(Integer)
     asi_bonus: Mapped[int] = mapped_column(Integer, default=0)
     misc_bonus: Mapped[int] = mapped_column(Integer, default=0)
+    save_proficient: Mapped[bool] = mapped_column(Boolean, default=False)
 
     character: Mapped[Character] = relationship(back_populates="ability_scores")
 

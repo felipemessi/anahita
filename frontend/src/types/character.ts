@@ -32,7 +32,11 @@ export interface CharacterAbilityScoreCreate {
   misc_bonus?: number;
 }
 
-/** `modifier` is computed by the backend rules engine — never persisted, only derived on read. */
+/**
+ * `modifier`, `save_bonus` are computed by the backend rules engine — never
+ * persisted, only derived on read. `save_proficient` is set once at
+ * character creation from the starting class's saving throw proficiencies.
+ */
 export interface CharacterAbilityScore {
   id: string;
   ability: AbilityScore;
@@ -40,6 +44,8 @@ export interface CharacterAbilityScore {
   asi_bonus: number;
   misc_bonus: number;
   modifier: number;
+  save_proficient: boolean;
+  save_bonus: number;
 }
 
 /** `ability` and `bonus` are computed by the backend rules engine, never persisted. */

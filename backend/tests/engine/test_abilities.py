@@ -1,6 +1,7 @@
 from engine.abilities import (
     calculate_modifier,
     calculate_proficiency_bonus,
+    calculate_saving_throw_bonus,
     calculate_skill_bonus,
 )
 
@@ -45,3 +46,13 @@ def test_calculate_skill_bonus() -> None:
     assert calculate_skill_bonus(mod, True, False, prof) == 6
     # Expertise
     assert calculate_skill_bonus(mod, True, True, prof) == 9
+
+
+def test_calculate_saving_throw_bonus() -> None:
+    """Ensure the saving throw bonus adds proficiency only when proficient."""
+    # Str=16 (mod +3), Level=5 (prof +3)
+    mod = 3
+    prof = 3
+
+    assert calculate_saving_throw_bonus(mod, False, prof) == 3
+    assert calculate_saving_throw_bonus(mod, True, prof) == 6

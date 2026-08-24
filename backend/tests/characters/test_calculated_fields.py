@@ -137,6 +137,41 @@ async def test_skill_bonus_reflects_proficiency_and_governing_ability(
     assert refreshed_athletics.bonus == 5  # STR modifier (+3) + proficiency (+2)
 
 
+async def test_saving_throw_proficiency_and_bonus_from_starting_class(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Fighter grants STR/CON save proficiency (PHB); bonus adds prof. bonus."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    service = CharacterService()
+
+    character = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Rowan",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+        ),
+        db,
+    )
+    assert character.proficiency_bonus == 2
+
+    by_ability = {s.ability: s for s in character.ability_scores}
+    assert by_ability[AbilityScore.str].save_proficient
+    assert by_ability[AbilityScore.str].save_bonus == 5  # STR mod (+3) + prof (+2)
+    assert by_ability[AbilityScore.con].save_proficient
+    assert by_ability[AbilityScore.con].save_bonus == 3  # CON mod (+1) + prof (+2)
+
+    assert not by_ability[AbilityScore.dex].save_proficient
+    assert by_ability[AbilityScore.dex].save_bonus == 2  # just the DEX modifier
+    assert not by_ability[AbilityScore.wis].save_proficient
+    assert by_ability[AbilityScore.wis].save_bonus == -1  # just the WIS modifier
+
+
 async def test_get_character_visible_to_owner_and_campaign_dm(
     db: AsyncSession, human_race_id: str, fighter_class_id: str
 ) -> None:

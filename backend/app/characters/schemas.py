@@ -21,7 +21,10 @@ class CharacterAbilityScoreRead(BaseModel):
     """Response schema for a character's ability score.
 
     `modifier` is computed by `engine.abilities.calculate_modifier` — it is
-    never persisted, only derived on read.
+    never persisted, only derived on read. `save_proficient` is set once at
+    character creation from the starting class's SRD saving throw
+    proficiencies (PHB multiclassing rules — never granted again by later
+    classes); `save_bonus` is computed from it, never persisted.
     """
 
     id: uuid.UUID
@@ -30,6 +33,8 @@ class CharacterAbilityScoreRead(BaseModel):
     asi_bonus: int
     misc_bonus: int
     modifier: int
+    save_proficient: bool
+    save_bonus: int
 
 
 class CharacterSkillRead(BaseModel):

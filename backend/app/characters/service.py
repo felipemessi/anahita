@@ -17,6 +17,7 @@ from app.characters.domain import (
     SKILL_ABILITY,
     CrossCampaignCatalogReferenceError,
     Skill,
+    parse_saving_throw_proficiencies,
     validate_catalog_reference,
 )
 from app.characters.models import (
@@ -47,6 +48,7 @@ from app.characters.schemas import (
 from engine.abilities import (
     calculate_modifier,
     calculate_proficiency_bonus,
+    calculate_saving_throw_bonus,
     calculate_skill_bonus,
 )
 from engine.armor_class import calculate_ac
@@ -119,6 +121,11 @@ class CharacterService:
         )
         primary_class_hit_die = classes[0][1].hit_die
         hit_point_max = calculate_max_hp(primary_class_hit_die, data.level, con_mod)
+        # Only the starting (first) class grants saving throw proficiencies —
+        # multiclassing never adds more (PHB multiclassing rules).
+        save_proficiencies = parse_saving_throw_proficiencies(
+            classes[0][1].saving_throw_proficiencies
+        )
 
         character = Character(
             campaign_member_id=member.id,
@@ -148,6 +155,7 @@ class CharacterService:
                     base_score=score.base_score,
                     asi_bonus=score.asi_bonus,
                     misc_bonus=score.misc_bonus,
+                    save_proficient=score.ability in save_proficiencies,
                 )
             )
         for class_entry, _class_def in classes:
@@ -520,6 +528,12 @@ class CharacterService:
                 asi_bonus=score.asi_bonus,
                 misc_bonus=score.misc_bonus,
                 modifier=modifier_by_ability[score.ability],
+                save_proficient=score.save_proficient,
+                save_bonus=calculate_saving_throw_bonus(
+                    modifier_by_ability[score.ability],
+                    score.save_proficient,
+                    character.proficiency_bonus,
+                ),
             )
             for score in character.ability_scores
         ]
