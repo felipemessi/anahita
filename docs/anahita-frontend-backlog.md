@@ -21,7 +21,7 @@
 | 2    | Sessão ao Vivo (Combat Tracker)        | Concluída       | 2026-08-23           |
 | 3    | World-building                          | Concluída       | 2026-08-23           |
 | 4    | Loot, Inventário e Handouts             | Concluída       | 2026-08-24           |
-| 5    | Registro e Lore                         | Requisitos levantados, não iniciada (ver PRD §6/§9.6) | 2026-08-24 |
+| 5    | Registro e Lore                         | Concluída (diário DM-only fora do menu pra jogador, recap cronológico, timeline híbrida com marcos manuais, wiki em markdown linkável ao World e incluída na busca) | 2026-08-24 |
 
 ---
 
