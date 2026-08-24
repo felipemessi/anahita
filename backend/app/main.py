@@ -9,6 +9,8 @@ from app.catalog.router import router as catalog_router
 from app.characters.router import router as characters_router
 from app.combat.router import router as combat_router
 from app.combat.ws_router import router as combat_ws_router
+from app.handouts.router import router as handouts_router
+from app.inventory.router import router as inventory_router
 from app.sessions.router import router as sessions_router
 from app.world.router import router as world_router
 
@@ -30,6 +32,8 @@ app.include_router(sessions_router)
 app.include_router(combat_router)
 app.include_router(combat_ws_router)
 app.include_router(world_router)
+app.include_router(handouts_router)
+app.include_router(inventory_router)
 
 
 @app.get("/health")
