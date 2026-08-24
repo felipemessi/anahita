@@ -195,3 +195,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Vínculo de NPCs e locais a aparições/visitas de sessão pela UI, e páginas
   de detalhe dedicadas para NPC, local e facção (com sublocais, papéis em
   facções, presença em locais e relações entre facções).
+- Fase 4 do backend, história 1: handouts (texto, imagem ou mapa) criados
+  pelo mestre com upload de arquivo, visíveis para jogadores só depois de
+  revelados.
+- Fase 4 do backend, história 2: revelação de handout em tempo real,
+  transmitida para jogadores conectados via o WebSocket de combate já
+  existente.
+- Fase 4 do backend, história 3: inventário compartilhado da campanha,
+  gerenciado pelo mestre e visível para todo o grupo.
+- Fase 4 do backend, história 4 (última da fase — Loot, Inventário e
+  Handouts completo): distribuição de loot após um combate — item do
+  catálogo, item mágico ou nome livre, com ou sem moeda — reivindicável
+  pelo jogador dono do personagem ou pelo mestre.
