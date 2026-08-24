@@ -589,6 +589,7 @@ async def _seed_classes(session: AsyncSession) -> None:
             hit_die=entry["hit_die"],
             primary_ability=entry["primary_ability"],
             saving_throw_proficiencies=entry["saving_throw_proficiencies"],
+            spellcasting_ability=entry.get("spellcasting_ability"),
             is_custom=False,
         )
         session.add(cls)

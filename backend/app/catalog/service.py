@@ -592,6 +592,21 @@ async def get_spell(session: AsyncSession, spell_id: uuid.UUID) -> Spell | None:
     return result.scalar_one_or_none()
 
 
+async def get_spells_by_ids(
+    session: AsyncSession, spell_ids: list[uuid.UUID]
+) -> list[Spell]:
+    """Bulk-fetch spells by id (untranslated).
+
+    Used to resolve e.g. `level`/`ritual` on a character sheet's known spells
+    without one query per spell.
+    """
+    if not spell_ids:
+        return []
+    stmt = select(Spell).where(Spell.id.in_(spell_ids))
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def _translate_spell_classes(
     session: AsyncSession, spell: Spell, locale: str
 ) -> list[SpellClassRead]:

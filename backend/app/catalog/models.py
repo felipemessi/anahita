@@ -284,6 +284,12 @@ class ClassDefinition(Base):
     hit_die: Mapped[int] = mapped_column(Integer, nullable=False)
     primary_ability: Mapped[str] = mapped_column(String(100), nullable=False)
     saving_throw_proficiencies: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Short ability code (`str`/`dex`/`con`/`int`/`wis`/`cha`) governing this
+    # class's spells, or NULL for non-caster classes (PRD §7.4.4 progression;
+    # consumed by `engine/spellcasting.py`).
+    spellcasting_ability: Mapped[str | None] = mapped_column(
+        String(3), nullable=True
+    )
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # FK to users.id / campaigns.id — enforced at DB level in migration.
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(

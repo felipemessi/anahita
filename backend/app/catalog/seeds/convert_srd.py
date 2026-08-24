@@ -401,6 +401,9 @@ def convert_classes() -> None:
         saving_throws = ", ".join(
             _ABILITY_FULL_NAME[st["index"]] for st in cls.get("saving_throws", [])
         )
+        spellcasting_ability = (cls.get("spellcasting") or {}).get(
+            "spellcasting_ability", {}
+        ).get("index")
         class_levels = []
         for lvl in sorted(base_levels_by_class.get(idx, []), key=lambda x: x["level"]):
             spell_slots = []
@@ -426,6 +429,18 @@ def convert_classes() -> None:
                 # truncated/misrepresented.
                 if not isinstance(value, list | dict)
             ]
+            if "spells_known" in spellcasting:
+                # Fixed-known casters (Bard/Ranger/Sorcerer/Warlock) learn a
+                # set number of 1st-level-and-higher spells per level, unlike
+                # prepared casters (Cleric/Druid/Paladin/Wizard) whose count
+                # is computed (ability mod + caster level) — see
+                # `engine/spellcasting.py`.
+                resources.append(
+                    {
+                        "resource_key": "spells_known",
+                        "value": str(spellcasting["spells_known"]),
+                    }
+                )
             class_levels.append(
                 {
                     "level": lvl["level"],
@@ -441,6 +456,7 @@ def convert_classes() -> None:
             "hit_die": cls["hit_die"],
             "primary_ability": _PRIMARY_ABILITY.get(idx, saving_throws),
             "saving_throw_proficiencies": saving_throws,
+            "spellcasting_ability": spellcasting_ability,
             "i18n": {"en": {"name": cls["name"]}},
             "class_levels": class_levels,
             "features": [_feature_entry(f) for f in features_by_class.get(idx, [])],

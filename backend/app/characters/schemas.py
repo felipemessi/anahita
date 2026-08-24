@@ -97,14 +97,25 @@ class CharacterSpellCreate(BaseModel):
 
 
 class CharacterSpellRead(BaseModel):
-    """Response schema for a character's known spell."""
+    """Response schema for a character's known spell.
 
-    model_config = ConfigDict(from_attributes=True)
+    `level` (spell circle, 0 = cantrip) and `ritual` are resolved from the
+    catalog `Spell` on read, never persisted on `CharacterSpell` — see
+    `CharacterService._to_read`.
+    """
 
     id: uuid.UUID
     spell_id: uuid.UUID
     prepared: bool
     source_class: str | None
+    level: int
+    ritual: bool
+
+
+class CharacterSpellUpdate(BaseModel):
+    """Request body to toggle a known spell's `prepared` flag."""
+
+    prepared: bool
 
 
 class CharacterEquipmentCreate(BaseModel):
