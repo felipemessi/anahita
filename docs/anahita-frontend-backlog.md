@@ -228,11 +228,12 @@
   - [x] Teste: renderiza entradas automáticas e manuais juntas, na ordem devolvida pelo backend; só DM vê o form de criação
   - Notas: form de criação embutido em `page.tsx` (sem arquivo próprio) já que o backlog só lista `timeline-event-card.tsx` como componente. `TimelineEventCard` só mostra "Apagar" pro DM e só em entradas manuais — entradas automáticas nunca são editáveis/apagáveis (refletem `Session.summary`).
 
-- **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções.**
-  - [ ] `lib/api/wiki.ts`, `hooks/use-wiki.ts`
-  - [ ] `app/campaigns/[campaignId]/wiki/page.tsx` (lista) + `app/campaigns/[campaignId]/wiki/[pageId]/page.tsx` (detalhe)
-  - [ ] `components/wiki/wiki-page-card.tsx`, `wiki-page-editor.tsx` (markdown), `wiki-page-links.tsx`
-  - [ ] Renderização do markdown do `content` na página de detalhe
-  - [ ] Badges de link pra NPC/Local/Facção na página de detalhe, cada um navegando pra tela do World correspondente
-  - [ ] Estender a busca do hub de World (`useWorldSearch`) para incluir páginas de wiki nos resultados
-  - [ ] Teste: DM cria/edita página; jogador só lê (sem editor); busca do World encontra página de wiki por título
+- **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções.** ✅ (2026-08-24)
+  - [x] `lib/api/wiki.ts`, `hooks/use-wiki.ts`
+  - [x] `app/campaigns/[campaignId]/wiki/page.tsx` (lista) + `app/campaigns/[campaignId]/wiki/[pageId]/page.tsx` (detalhe)
+  - [x] `components/wiki/wiki-page-card.tsx`, `wiki-page-editor.tsx` (markdown), `wiki-page-links.tsx`
+  - [x] Renderização do markdown do `content` na página de detalhe
+  - [x] Badges de link pra NPC/Local/Facção na página de detalhe, cada um navegando pra tela do World correspondente
+  - [x] Estender a busca do hub de World (`useWorldSearch`) para incluir páginas de wiki nos resultados
+  - [x] Teste: DM cria/edita página; jogador só lê (sem editor); busca do World encontra página de wiki por título
+  - Notas: dependência nova `react-markdown` (renderiza para elementos React, sem `dangerouslySetInnerHTML` — sem necessidade de sanitização extra). `WorldSearchResult.entity_type` ganhou `"wiki_page"`; o hub de World (`app/campaigns/[campaignId]/world/page.tsx`) roteia esse tipo pra `/campaigns/{id}/wiki/{id}` em vez de um subcaminho de `/world`. Sem plugin de tipografia do Tailwind instalado — o markdown é estilizado com utilitários `[&_tag]:` direto no container em vez de classes `prose`.

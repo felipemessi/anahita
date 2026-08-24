@@ -11,14 +11,25 @@ const ENTITY_TYPE_LABEL: Record<WorldSearchResult["entity_type"], string> = {
   npc: "NPC",
   location: "Local",
   faction: "Facção",
+  wiki_page: "Wiki",
 };
 
-/** The detail route segment for each search hit's entity type. */
-const ENTITY_TYPE_PATH: Record<WorldSearchResult["entity_type"], string> = {
-  npc: "npcs",
-  location: "locations",
-  faction: "factions",
-};
+/**
+ * The detail route for each search hit's entity type. Wiki pages live
+ * outside `/world` (`/campaigns/{id}/wiki/{id}`), everything else is a
+ * `/world/{segment}/{id}` route.
+ */
+function resultHref(campaignId: string, result: WorldSearchResult): string {
+  if (result.entity_type === "wiki_page") {
+    return `/campaigns/${campaignId}/wiki/${result.id}`;
+  }
+  const segment: Record<Exclude<WorldSearchResult["entity_type"], "wiki_page">, string> = {
+    npc: "npcs",
+    location: "locations",
+    faction: "factions",
+  };
+  return `/campaigns/${campaignId}/world/${segment[result.entity_type]}/${result.id}`;
+}
 
 export default function WorldHubPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -64,7 +75,7 @@ export default function WorldHubPage() {
               {results.map((result) => (
                 <li key={`${result.entity_type}-${result.id}`}>
                   <Link
-                    href={`/campaigns/${campaignId}/world/${ENTITY_TYPE_PATH[result.entity_type]}/${result.id}`}
+                    href={resultHref(campaignId, result)}
                     className="block rounded-lg border border-border bg-card p-3 transition-colors hover:bg-secondary/40"
                   >
                     <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">

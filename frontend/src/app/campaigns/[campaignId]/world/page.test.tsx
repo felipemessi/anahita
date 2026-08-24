@@ -34,7 +34,7 @@ describe("WorldHubPage", () => {
     expect(screen.getByText("Facções")).toBeInTheDocument();
   });
 
-  it("shows search results combining NPCs, locations, and factions", () => {
+  it("shows search results combining NPCs, locations, factions, and wiki pages", () => {
     useWorldSearch.mockReturnValue({
       data: [
         { entity_type: "npc", id: "npc-1", name: "Volo", snippet: "A wandering..." },
@@ -50,6 +50,12 @@ describe("WorldHubPage", () => {
           name: "Harpers",
           snippet: "Secret network",
         },
+        {
+          entity_type: "wiki_page",
+          id: "wiki-1",
+          name: "The Sunken Temple",
+          snippet: "Deep beneath the lake...",
+        },
       ],
       isFetching: false,
     });
@@ -62,8 +68,16 @@ describe("WorldHubPage", () => {
     expect(screen.getByText("Volo")).toBeInTheDocument();
     expect(screen.getByText("Waterdeep")).toBeInTheDocument();
     expect(screen.getByText("Harpers")).toBeInTheDocument();
+    expect(screen.getByText("The Sunken Temple")).toBeInTheDocument();
     expect(screen.getByText("NPC")).toBeInTheDocument();
     expect(screen.getByText("Local")).toBeInTheDocument();
     expect(screen.getByText("Facção")).toBeInTheDocument();
+    expect(screen.getByText("Wiki")).toBeInTheDocument();
+
+    const wikiLink = screen.getByText("The Sunken Temple").closest("a");
+    expect(wikiLink).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/wiki/wiki-1",
+    );
   });
 });
