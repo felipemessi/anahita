@@ -20,7 +20,7 @@
 | 1    | Fundação (Auth, Campaigns, Characters) | Completo (campanhas, convites, personagens com engine, multiclasse, sessões/notas) | 2026-08-23    |
 | 2    | Sessão ao Vivo (Combat, WS)        | Completo (encounter/participantes, WebSocket em tempo real, efeitos mecânicos de condições, log de combate) | 2026-08-23 |
 | 3    | World-building                    | Completo (NPCs com stat block do catálogo, locais em hierarquia com prevenção de ciclo, facções, junções NPC↔facção/local/sessão e relações entre facções, busca cross-entidade via tsvector) | 2026-08-23 |
-| 4    | Loot, Inventário, Handouts         | Não iniciado                     | —                    |
+| 4    | Loot, Inventário, Handouts         | Completo (handouts com upload/reveal em tempo real via WebSocket de combate, inventário compartilhado, loot com item de catálogo/magic item/custom e moeda, claim por personagem) | 2026-08-24 |
 | 5    | Registro e Lore                   | Não iniciado                     | —                    |
 
 ---
