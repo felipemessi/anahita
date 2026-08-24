@@ -53,6 +53,11 @@ const NAV_ITEMS: NavItem[] = [
     dmOnly: true,
   },
   {
+    label: "Recap",
+    href: (id) => `/campaigns/${id}/recap`,
+    implemented: true,
+  },
+  {
     label: "Configurações",
     href: (id) => `/campaigns/${id}/settings`,
     implemented: true,
