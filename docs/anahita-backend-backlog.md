@@ -310,12 +310,13 @@
   - [x] Teste: confirmar que a lista de sessões já expõe `summary` para todo membro da campanha (não só o DM) — se não expuser, é a lacuna a fechar aqui
   - Notas: sem lacuna — `SessionService.list_sessions` já retorna `summary` pra todo membro (só `dm_notes` é ocultado de não-DM). Teste `test_player_can_see_summary_for_recap` adicionado em `tests/sessions/test_service.py`.
 
-- **Como grupo, quero uma timeline de eventos da campanha, combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.**
-  - [ ] `app/timeline/models.py`: `TimelineEvent` (só eventos manuais são persistidos, seção 7.10 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `app/queries/timeline_queries.py`: funde sessões com `summary` (entradas virtuais, `sort_order = session_number * 1000`) com `TimelineEvent` manuais, ordenado por `sort_order`
-  - [ ] `domain.py`/`schemas.py`/`service.py`/`router.py` — leitura para qualquer membro; criar/editar/apagar evento manual é DM only
-  - [ ] Testes: entrada automática aparece sem persistir nada; evento manual DM-only; ordenação mistura os dois conjuntos corretamente
+- **Como grupo, quero uma timeline de eventos da campanha, combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.** ✅ (2026-08-24)
+  - [x] `app/timeline/models.py`: `TimelineEvent` (só eventos manuais são persistidos, seção 7.10 do PRD)
+  - [x] Migração Alembic
+  - [x] `app/queries/timeline_queries.py`: funde sessões com `summary` (entradas virtuais, `sort_order = session_number * 1000`) com `TimelineEvent` manuais, ordenado por `sort_order`
+  - [x] `schemas.py`/`service.py`/`router.py` — leitura para qualquer membro; criar/editar/apagar evento manual é DM only
+  - [x] Testes: entrada automática aparece sem persistir nada; evento manual DM-only; ordenação mistura os dois conjuntos corretamente
+  - Notas: sem `domain.py` — sem invariante não trivial a extrair, mesma razão do Diário. Entrada automática só é gerada para sessões com `summary` preenchido (sessão sem resumo não aparece na timeline). `PATCH`/`DELETE` de evento manual localizam o evento só pelo id (mesmo padrão de `_require_faction` no domínio de world) e então checam DM da campanha do evento.
 
 - **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções já cadastrados.**
   - [ ] `app/wiki/models.py`: `WikiPage`, `WikiPageLink` (seção 7.10 do PRD)
