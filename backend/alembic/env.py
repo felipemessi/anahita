@@ -30,6 +30,7 @@ from app.combat import models as _combat_models  # noqa: F401, E402
 from app.database import Base  # noqa: E402
 from app.handouts import models as _handouts_models  # noqa: F401, E402
 from app.inventory import models as _inventory_models  # noqa: F401, E402
+from app.journal import models as _journal_models  # noqa: F401, E402
 from app.sessions import models as _sessions_models  # noqa: F401, E402
 from app.world import models as _world_models  # noqa: F401, E402
 
