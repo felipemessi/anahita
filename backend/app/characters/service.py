@@ -4,7 +4,7 @@ import uuid
 from typing import Protocol
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +12,7 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
 from app.catalog.domain import AbilityScore
+from app.catalog.models import ClassDefinition, ClassLevel, Spell
 from app.characters.domain import (
     MULTICLASS_ABILITY_REQUIREMENTS,
     SKILL_ABILITY,
@@ -43,6 +44,7 @@ from app.characters.schemas import (
     CharacterSkillRead,
     CharacterSpellCreate,
     CharacterSpellRead,
+    CharacterSpellUpdate,
     CharacterUpdate,
 )
 from engine.abilities import (
@@ -53,6 +55,11 @@ from engine.abilities import (
 )
 from engine.armor_class import calculate_ac
 from engine.hit_points import calculate_max_hp
+from engine.spellcasting import (
+    KNOWN_CASTER_CLASSES,
+    PREPARED_CASTER_CLASSES,
+    prepared_spell_limit,
+)
 from engine.types import Ability as EngineAbility
 from engine.validation import validate_multiclass
 
@@ -191,7 +198,8 @@ class CharacterService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
             )
         await self._require_viewer(character, requester_id, db)
-        return self._to_read(character)
+        spell_catalog = await self._resolve_spell_catalog(character, db)
+        return self._to_read(character, spell_catalog)
 
     async def add_class(
         self,
@@ -290,7 +298,13 @@ class CharacterService:
             .where(CampaignMember.campaign_id == campaign_id)
             .options(*_CHARACTER_LOAD_OPTIONS)
         )
-        return [self._to_read(c) for c in result.scalars().all()]
+        characters = list(result.scalars().all())
+        all_spell_ids = list(
+            {s.spell_id for c in characters for s in c.spells}
+        )
+        spells = await catalog_service.get_spells_by_ids(db, all_spell_ids)
+        spell_catalog = {s.id: s for s in spells}
+        return [self._to_read(c, spell_catalog) for c in characters]
 
     async def update_character(
         self,
@@ -359,6 +373,10 @@ class CharacterService:
         member = member_result.scalar_one()
         self._validate_reference(spell, member.campaign_id)
 
+        await self._validate_spell_limit(
+            character, spell, data.source_class, data.prepared, db
+        )
+
         db.add(
             CharacterSpell(
                 character_id=character.id,
@@ -367,6 +385,59 @@ class CharacterService:
                 source_class=data.source_class,
             )
         )
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def update_spell(
+        self,
+        character_id: uuid.UUID,
+        spell_entry_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterSpellUpdate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Toggle a known spell's `prepared` flag. Owner only.
+
+        Preparing (not unpreparing) re-checks the prepared-caster limit —
+        see `_validate_spell_limit`.
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        entry = self._require_spell_entry(character, spell_entry_id)
+
+        if data.prepared:
+            spell = await catalog_service.get_spell(db, entry.spell_id)
+            if spell is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Spell not found"
+                )
+            await self._validate_spell_limit(
+                character,
+                spell,
+                entry.source_class,
+                True,
+                db,
+                exclude_spell_entry_id=entry.id,
+            )
+
+        entry.prepared = data.prepared
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def remove_spell(
+        self,
+        character_id: uuid.UUID,
+        spell_entry_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Forget a known spell. Owner only."""
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        entry = self._require_spell_entry(character, spell_entry_id)
+        await db.delete(entry)
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
@@ -454,6 +525,191 @@ class CharacterService:
         )
         return character
 
+    def _require_spell_entry(
+        self, character: Character, spell_entry_id: uuid.UUID
+    ) -> CharacterSpell:
+        """Return the character's `CharacterSpell` row, 404 if not on this sheet."""
+        entry = next(
+            (s for s in character.spells if s.id == spell_entry_id), None
+        )
+        if entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Spell entry not found on this character",
+            )
+        return entry
+
+    async def _find_class_by_index(
+        self, character: Character, class_index: str, db: AsyncSession
+    ) -> tuple[CharacterClass, ClassDefinition] | None:
+        """Find the character's `CharacterClass` whose class has `index`."""
+        for class_entry in character.classes:
+            class_def = await catalog_service.get_class(
+                db, class_entry.class_definition_id
+            )
+            if class_def is not None and class_def.index == class_index:
+                return class_entry, class_def
+        return None
+
+    def _class_level_row(
+        self, class_def: ClassDefinition, level: int
+    ) -> ClassLevel | None:
+        """Return the base (non-subclass) `ClassLevel` row for `level`."""
+        return next(
+            (
+                cl
+                for cl in class_def.class_levels
+                if cl.subclass_definition_id is None and cl.level == level
+            ),
+            None,
+        )
+
+    def _ability_modifier(self, character: Character, ability_code: str) -> int:
+        """Return the character's modifier for a short ability code (e.g. `wis`)."""
+        for score in character.ability_scores:
+            if score.ability.value == ability_code:
+                return calculate_modifier(
+                    score.base_score + score.asi_bonus + score.misc_bonus
+                )
+        return 0
+
+    async def _count_known_spells(
+        self,
+        character_id: uuid.UUID,
+        class_index: str,
+        *,
+        cantrip: bool,
+        db: AsyncSession,
+        exclude_spell_entry_id: uuid.UUID | None = None,
+    ) -> int:
+        """Count a character's known spells for one class (cantrips or not)."""
+        stmt = (
+            select(func.count(CharacterSpell.id))
+            .join(Spell, Spell.id == CharacterSpell.spell_id)
+            .where(
+                CharacterSpell.character_id == character_id,
+                CharacterSpell.source_class == class_index,
+                (Spell.level == 0) if cantrip else (Spell.level > 0),
+            )
+        )
+        if exclude_spell_entry_id is not None:
+            stmt = stmt.where(CharacterSpell.id != exclude_spell_entry_id)
+        result = await db.execute(stmt)
+        return result.scalar_one()
+
+    async def _count_prepared_spells(
+        self,
+        character_id: uuid.UUID,
+        class_index: str,
+        db: AsyncSession,
+        exclude_spell_entry_id: uuid.UUID | None = None,
+    ) -> int:
+        """Count a character's prepared (non-cantrip) spells for one class."""
+        stmt = (
+            select(func.count(CharacterSpell.id))
+            .join(Spell, Spell.id == CharacterSpell.spell_id)
+            .where(
+                CharacterSpell.character_id == character_id,
+                CharacterSpell.source_class == class_index,
+                CharacterSpell.prepared.is_(True),
+                Spell.level > 0,
+            )
+        )
+        if exclude_spell_entry_id is not None:
+            stmt = stmt.where(CharacterSpell.id != exclude_spell_entry_id)
+        result = await db.execute(stmt)
+        return result.scalar_one()
+
+    async def _validate_spell_limit(
+        self,
+        character: Character,
+        spell: Spell,
+        source_class: str | None,
+        prepared: bool,
+        db: AsyncSession,
+        *,
+        exclude_spell_entry_id: uuid.UUID | None = None,
+    ) -> None:
+        """Enforce the known/prepared spell limit for `source_class` (422).
+
+        No-op when `source_class` doesn't match one of the character's
+        classes — a limit can't be computed without knowing whose
+        progression to use (see `engine.spellcasting`).
+        """
+        if source_class is None:
+            return
+        match = await self._find_class_by_index(character, source_class, db)
+        if match is None:
+            return
+        class_entry, class_def = match
+
+        if class_def.index in KNOWN_CASTER_CLASSES:
+            class_level = self._class_level_row(class_def, class_entry.level)
+            if class_level is None:
+                return
+            if spell.level == 0:
+                limit = next(
+                    (
+                        s.slot_count
+                        for s in class_level.spell_slots
+                        if s.spell_level == 0
+                    ),
+                    0,
+                )
+                kind = "cantrips"
+            else:
+                resource = next(
+                    (
+                        r
+                        for r in class_level.resources
+                        if r.resource_key == "spells_known"
+                    ),
+                    None,
+                )
+                limit = int(resource.value) if resource is not None else 0
+                kind = "spells known"
+            current = await self._count_known_spells(
+                character.id,
+                class_def.index,
+                cantrip=spell.level == 0,
+                db=db,
+                exclude_spell_entry_id=exclude_spell_entry_id,
+            )
+            if current >= limit:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"{class_def.index} already knows the maximum of {limit} "
+                        f"{kind} at level {class_entry.level} ({current} known)"
+                    ),
+                )
+            return
+
+        if (
+            prepared
+            and spell.level > 0
+            and class_def.index in PREPARED_CASTER_CLASSES
+            and class_def.spellcasting_ability is not None
+        ):
+            ability_mod = self._ability_modifier(
+                character, class_def.spellcasting_ability
+            )
+            limit = prepared_spell_limit(ability_mod, class_entry.level)
+            current = await self._count_prepared_spells(
+                character.id,
+                class_def.index,
+                db,
+                exclude_spell_entry_id=exclude_spell_entry_id,
+            )
+            if current >= limit:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"{class_def.index} can only prepare {limit} spells at "
+                        f"level {class_entry.level} ({current} prepared)"
+                    ),
+                )
+
     async def _current_class_indices(
         self, character: Character, db: AsyncSession
     ) -> list[str]:
@@ -510,9 +766,22 @@ class CharacterService:
             .options(*_CHARACTER_LOAD_OPTIONS)
             .execution_options(populate_existing=True)
         )
-        return self._to_read(result.scalar_one())
+        character = result.scalar_one()
+        spell_catalog = await self._resolve_spell_catalog(character, db)
+        return self._to_read(character, spell_catalog)
 
-    def _to_read(self, character: Character) -> CharacterRead:
+    async def _resolve_spell_catalog(
+        self, character: Character, db: AsyncSession
+    ) -> dict[uuid.UUID, Spell]:
+        """Bulk-fetch the catalog `Spell` rows for a character's known spells."""
+        spells = await catalog_service.get_spells_by_ids(
+            db, [s.spell_id for s in character.spells]
+        )
+        return {s.id: s for s in spells}
+
+    def _to_read(
+        self, character: Character, spell_catalog: dict[uuid.UUID, Spell]
+    ) -> CharacterRead:
         """Build the read schema, computing ability modifiers and skill bonuses."""
         modifier_by_ability = {
             score.ability: calculate_modifier(
@@ -554,7 +823,21 @@ class CharacterService:
             for skill in character.skills
         ]
         classes = [CharacterClassRead.model_validate(c) for c in character.classes]
-        spells = [CharacterSpellRead.model_validate(s) for s in character.spells]
+        spells = [
+            CharacterSpellRead(
+                id=s.id,
+                spell_id=s.spell_id,
+                prepared=s.prepared,
+                source_class=s.source_class,
+                level=spell_catalog[s.spell_id].level
+                if s.spell_id in spell_catalog
+                else 0,
+                ritual=spell_catalog[s.spell_id].ritual
+                if s.spell_id in spell_catalog
+                else False,
+            )
+            for s in character.spells
+        ]
         equipment = [
             CharacterEquipmentRead.model_validate(e) for e in character.equipment
         ]

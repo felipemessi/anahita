@@ -1,5 +1,6 @@
 """Shared fixtures for characters tests: async SQLite in-memory database."""
 
+import uuid
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -10,7 +11,7 @@ import app.auth.models  # noqa: F401 — registers models with Base
 import app.campaigns.models  # noqa: F401 — registers models with Base
 import app.catalog.models  # noqa: F401 — registers models with Base
 import app.characters.models  # noqa: F401 — registers models with Base
-from app.catalog.models import ClassDefinition, Race
+from app.catalog.models import ClassDefinition, Race, Spell, SpellClass
 from app.catalog.seeds.seed import seed_catalog
 from app.database import Base
 
@@ -59,3 +60,29 @@ async def wizard_class_id(db: AsyncSession) -> str:
         select(ClassDefinition).where(ClassDefinition.index == "wizard")
     )
     return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def sorcerer_class_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Sorcerer class's id."""
+    await seed_catalog(db)
+    result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "sorcerer")
+    )
+    return str(result.scalar_one().id)
+
+
+async def spell_ids_for_class(
+    db: AsyncSession, class_id: str, *, level: int, limit: int
+) -> list[str]:
+    """Return up to `limit` spell ids of `level` castable by `class_id`."""
+    result = await db.execute(
+        select(Spell.id)
+        .join(SpellClass, SpellClass.spell_id == Spell.id)
+        .where(
+            SpellClass.class_definition_id == uuid.UUID(class_id),
+            Spell.level == level,
+        )
+        .limit(limit)
+    )
+    return [str(row) for row in result.scalars().all()]

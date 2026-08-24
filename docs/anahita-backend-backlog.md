@@ -336,12 +336,13 @@
 
 > Objetivo: fechar as lacunas de interação levantadas pelo grupo na ficha de personagem (magias por círculo com limites/slots, itens, moeda) e no fluxo de sessão/combate (abrir sessão, popular e iniciar combate com iniciativa, ações declaradas com resolução automática, rolagens do sistema com opção de digitar manualmente). Depende das Fases 1 (Characters) e 2 (Combat), já completas. Levantado em 2026-08-24 a partir de pedido do grupo — ver também `docs/anahita-frontend-backlog.md` Fase 6 para as telas correspondentes, e Fase 7 para os complementos de sobrevivência/descanso/recursos levantados na mesma sessão.
 
-- **Como jogador, quero gerenciar as magias conhecidas/preparadas da minha ficha, organizadas por círculo, respeitando os limites da minha classe.**
-  - [ ] `CharacterSpellRead` passa a incluir o círculo (nível) e a flag `ritual`, resolvidos do catálogo (`Spell.level`/`Spell.ritual`) na leitura, sem duplicar dado
-  - [ ] `PATCH /characters/{id}/spells/{spell_id}` (toggle `prepared`) e `DELETE /characters/{id}/spells/{spell_id}` (esquecer magia) — owner only
-  - [ ] `engine/spellcasting.py`: fórmula de magias conhecidas (classes com número fixo por nível, ex. Bard/Sorcerer/Warlock) e de magias preparadas (`ability_mod + nível de conjurador`, ex. Cleric/Druid/Paladin/Wizard), a partir da progressão já modelada em `ClassLevel`
-  - [ ] `service.py`: adicionar/preparar magia acima do limite calculado é rejeitado (422), com mensagem informando o limite atual e quantas já estão preparadas/conhecidas
-  - [ ] Testes: limite de preparadas/conhecidas por classe e nível, toggle `prepared` respeita o limite, remover magia libera espaço, dono errado rejeitado
+- **Como jogador, quero gerenciar as magias conhecidas/preparadas da minha ficha, organizadas por círculo, respeitando os limites da minha classe.** ✅ (2026-08-24)
+  - [x] `CharacterSpellRead` passa a incluir o círculo (nível) e a flag `ritual`, resolvidos do catálogo (`Spell.level`/`Spell.ritual`) na leitura, sem duplicar dado
+  - [x] `PATCH /characters/{id}/spells/{spell_id}` (toggle `prepared`) e `DELETE /characters/{id}/spells/{spell_id}` (esquecer magia) — owner only
+  - [x] `engine/spellcasting.py`: fórmula de magias conhecidas (classes com número fixo por nível, ex. Bard/Sorcerer/Warlock) e de magias preparadas (`ability_mod + nível de conjurador`, ex. Cleric/Druid/Paladin/Wizard), a partir da progressão já modelada em `ClassLevel`
+  - [x] `service.py`: adicionar/preparar magia acima do limite calculado é rejeitado (422), com mensagem informando o limite atual e quantas já estão preparadas/conhecidas
+  - [x] Testes: limite de preparadas/conhecidas por classe e nível, toggle `prepared` respeita o limite, remover magia libera espaço, dono errado rejeitado
+  - Notas: known-caster (Bard/Ranger/Sorcerer/Warlock) count vem direto de `ClassLevelResource.resource_key="spells_known"`/`ClassLevelSpellSlot.spell_level=0`, dados que já existiam no SRD raw mas eram descartados por `convert_srd.py` — corrigido inline (regenerado `classes.json`); prepared-caster (Cleric/Druid/Paladin/Wizard) usa a fórmula `ability_mod + nível`. Adicionada coluna `ClassDefinition.spellcasting_ability` (também ausente, mesma causa) para resolver a habilidade de conjuração por classe. Limite só é verificado quando `source_class` corresponde ao índice de uma classe do personagem — sem isso não há progressão pra calcular o limite contra.
 
 - **Como jogador, quero ver quantos slots de magia tenho disponíveis por nível e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.**
   - [ ] `app/characters/models.py`: `CharacterSpellSlot` (`character_id`, `spell_level` 1-9, `used`) — o máximo por nível é derivado de `ClassLevelSpellSlot` na leitura, não persistido

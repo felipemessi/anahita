@@ -4,6 +4,7 @@
     "hit_die": 12,
     "primary_ability": "Strength",
     "saving_throw_proficiencies": "Strength, Constitution",
+    "spellcasting_ability": null,
     "i18n": {
       "en": {
         "name": "Barbarian"
@@ -757,6 +758,7 @@
     "hit_die": 8,
     "primary_ability": "Charisma",
     "saving_throw_proficiencies": "Dexterity, Charisma",
+    "spellcasting_ability": "cha",
     "i18n": {
       "en": {
         "name": "Bard"
@@ -797,6 +799,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "4"
           }
         ]
       },
@@ -834,6 +840,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "5"
           }
         ]
       },
@@ -875,6 +885,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "6"
           }
         ]
       },
@@ -916,6 +930,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "7"
           }
         ]
       },
@@ -961,6 +979,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "8"
           }
         ]
       },
@@ -1006,6 +1028,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "9"
           }
         ]
       },
@@ -1055,6 +1081,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "10"
           }
         ]
       },
@@ -1104,6 +1134,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "11"
           }
         ]
       },
@@ -1157,6 +1191,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "12"
           }
         ]
       },
@@ -1210,6 +1248,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "14"
           }
         ]
       },
@@ -1267,6 +1309,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       },
@@ -1324,6 +1370,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       },
@@ -1385,6 +1435,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "16"
           }
         ]
       },
@@ -1446,6 +1500,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "18"
           }
         ]
       },
@@ -1511,6 +1569,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "19"
           }
         ]
       },
@@ -1576,6 +1638,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "19"
           }
         ]
       },
@@ -1645,6 +1711,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "20"
           }
         ]
       },
@@ -1714,6 +1784,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "22"
           }
         ]
       },
@@ -1783,6 +1857,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "22"
           }
         ]
       },
@@ -1852,6 +1930,10 @@
           {
             "resource_key": "magical_secrets_max_9",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "22"
           }
         ]
       }
@@ -2238,6 +2320,7 @@
     "hit_die": 8,
     "primary_ability": "Wisdom",
     "saving_throw_proficiencies": "Wisdom, Charisma",
+    "spellcasting_ability": "wis",
     "i18n": {
       "en": {
         "name": "Cleric"
@@ -3515,6 +3598,7 @@
     "hit_die": 8,
     "primary_ability": "Wisdom",
     "saving_throw_proficiencies": "Intelligence, Wisdom",
+    "spellcasting_ability": "wis",
     "i18n": {
       "en": {
         "name": "Druid"
@@ -4884,6 +4968,7 @@
     "hit_die": 10,
     "primary_ability": "Strength or Dexterity",
     "saving_throw_proficiencies": "Strength, Constitution",
+    "spellcasting_ability": null,
     "i18n": {
       "en": {
         "name": "Fighter"
@@ -5709,6 +5794,7 @@
     "hit_die": 8,
     "primary_ability": "Dexterity and Wisdom",
     "saving_throw_proficiencies": "Strength, Dexterity",
+    "spellcasting_ability": null,
     "i18n": {
       "en": {
         "name": "Monk"
@@ -6466,6 +6552,7 @@
     "hit_die": 10,
     "primary_ability": "Strength and Charisma",
     "saving_throw_proficiencies": "Wisdom, Charisma",
+    "spellcasting_ability": "cha",
     "i18n": {
       "en": {
         "name": "Paladin"
@@ -7374,6 +7461,7 @@
     "hit_die": 10,
     "primary_ability": "Dexterity and Wisdom",
     "saving_throw_proficiencies": "Strength, Dexterity",
+    "spellcasting_ability": "wis",
     "i18n": {
       "en": {
         "name": "Ranger"
@@ -7393,6 +7481,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "0"
           }
         ]
       },
@@ -7414,6 +7506,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "2"
           }
         ]
       },
@@ -7435,6 +7531,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "3"
           }
         ]
       },
@@ -7456,6 +7556,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "3"
           }
         ]
       },
@@ -7481,6 +7585,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "4"
           }
         ]
       },
@@ -7506,6 +7614,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "4"
           }
         ]
       },
@@ -7531,6 +7643,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "5"
           }
         ]
       },
@@ -7556,6 +7672,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "5"
           }
         ]
       },
@@ -7585,6 +7705,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "6"
           }
         ]
       },
@@ -7614,6 +7738,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "6"
           }
         ]
       },
@@ -7643,6 +7771,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "7"
           }
         ]
       },
@@ -7672,6 +7804,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "7"
           }
         ]
       },
@@ -7705,6 +7841,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "8"
           }
         ]
       },
@@ -7738,6 +7878,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "8"
           }
         ]
       },
@@ -7771,6 +7915,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "9"
           }
         ]
       },
@@ -7804,6 +7952,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "9"
           }
         ]
       },
@@ -7841,6 +7993,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "10"
           }
         ]
       },
@@ -7878,6 +8034,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "10"
           }
         ]
       },
@@ -7915,6 +8075,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "11"
           }
         ]
       },
@@ -7952,6 +8116,10 @@
           {
             "resource_key": "favored_terrain",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "11"
           }
         ]
       }
@@ -8494,6 +8662,7 @@
     "hit_die": 8,
     "primary_ability": "Dexterity",
     "saving_throw_proficiencies": "Dexterity, Intelligence",
+    "spellcasting_ability": null,
     "i18n": {
       "en": {
         "name": "Rogue"
@@ -8987,6 +9156,7 @@
     "hit_die": 6,
     "primary_ability": "Charisma",
     "saving_throw_proficiencies": "Constitution, Charisma",
+    "spellcasting_ability": "cha",
     "i18n": {
       "en": {
         "name": "Sorcerer"
@@ -9015,6 +9185,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "2"
           }
         ]
       },
@@ -9040,6 +9214,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "3"
           }
         ]
       },
@@ -9069,6 +9247,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "4"
           }
         ]
       },
@@ -9098,6 +9280,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "5"
           }
         ]
       },
@@ -9131,6 +9317,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "6"
           }
         ]
       },
@@ -9164,6 +9354,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "7"
           }
         ]
       },
@@ -9201,6 +9395,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "8"
           }
         ]
       },
@@ -9238,6 +9436,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "9"
           }
         ]
       },
@@ -9279,6 +9481,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "2"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "10"
           }
         ]
       },
@@ -9320,6 +9526,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "11"
           }
         ]
       },
@@ -9365,6 +9575,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "12"
           }
         ]
       },
@@ -9410,6 +9624,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "12"
           }
         ]
       },
@@ -9459,6 +9677,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "13"
           }
         ]
       },
@@ -9508,6 +9730,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "13"
           }
         ]
       },
@@ -9561,6 +9787,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "3"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "14"
           }
         ]
       },
@@ -9614,6 +9844,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "4"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "14"
           }
         ]
       },
@@ -9671,6 +9905,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "4"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       },
@@ -9728,6 +9966,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "4"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       },
@@ -9785,6 +10027,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "4"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       },
@@ -9842,6 +10088,10 @@
           {
             "resource_key": "metamagic_known",
             "value": "4"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       }
@@ -10348,6 +10598,7 @@
     "hit_die": 8,
     "primary_ability": "Charisma",
     "saving_throw_proficiencies": "Wisdom, Charisma",
+    "spellcasting_ability": "cha",
     "i18n": {
       "en": {
         "name": "Warlock"
@@ -10388,6 +10639,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "2"
           }
         ]
       },
@@ -10425,6 +10680,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "3"
           }
         ]
       },
@@ -10462,6 +10721,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "4"
           }
         ]
       },
@@ -10499,6 +10762,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "5"
           }
         ]
       },
@@ -10536,6 +10803,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "6"
           }
         ]
       },
@@ -10573,6 +10844,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "7"
           }
         ]
       },
@@ -10610,6 +10885,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "8"
           }
         ]
       },
@@ -10647,6 +10926,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "9"
           }
         ]
       },
@@ -10684,6 +10967,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "10"
           }
         ]
       },
@@ -10721,6 +11008,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "10"
           }
         ]
       },
@@ -10758,6 +11049,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "11"
           }
         ]
       },
@@ -10795,6 +11090,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "11"
           }
         ]
       },
@@ -10832,6 +11131,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "12"
           }
         ]
       },
@@ -10869,6 +11172,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "12"
           }
         ]
       },
@@ -10906,6 +11213,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "13"
           }
         ]
       },
@@ -10943,6 +11254,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "0"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "13"
           }
         ]
       },
@@ -10980,6 +11295,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "14"
           }
         ]
       },
@@ -11017,6 +11336,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "14"
           }
         ]
       },
@@ -11054,6 +11377,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       },
@@ -11091,6 +11418,10 @@
           {
             "resource_key": "mystic_arcanum_level_9",
             "value": "1"
+          },
+          {
+            "resource_key": "spells_known",
+            "value": "15"
           }
         ]
       }
@@ -11891,6 +12222,7 @@
     "hit_die": 6,
     "primary_ability": "Intelligence",
     "saving_throw_proficiencies": "Intelligence, Wisdom",
+    "spellcasting_ability": "int",
     "i18n": {
       "en": {
         "name": "Wizard"

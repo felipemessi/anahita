@@ -14,6 +14,7 @@ from app.characters.schemas import (
     CharacterFeatureCreate,
     CharacterRead,
     CharacterSpellCreate,
+    CharacterSpellUpdate,
     CharacterUpdate,
 )
 from app.characters.service import CharacterService
@@ -98,6 +99,31 @@ async def add_spell(
 ) -> CharacterRead:
     """Add a known/prepared spell to a character. Owner only."""
     return await service.add_spell(character_id, user.id, body, db)
+
+
+@router.patch("/{character_id}/spells/{spell_id}", response_model=CharacterRead)
+async def update_spell(
+    character_id: uuid.UUID,
+    spell_id: uuid.UUID,
+    body: CharacterSpellUpdate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Toggle a known spell's `prepared` flag. Owner only."""
+    return await service.update_spell(character_id, spell_id, user.id, body, db)
+
+
+@router.delete("/{character_id}/spells/{spell_id}", response_model=CharacterRead)
+async def remove_spell(
+    character_id: uuid.UUID,
+    spell_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Forget a known spell. Owner only."""
+    return await service.remove_spell(character_id, spell_id, user.id, db)
 
 
 @router.post("/{character_id}/equipment", response_model=CharacterRead)
