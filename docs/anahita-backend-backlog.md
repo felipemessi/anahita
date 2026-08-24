@@ -318,13 +318,14 @@
   - [x] Testes: entrada automática aparece sem persistir nada; evento manual DM-only; ordenação mistura os dois conjuntos corretamente
   - Notas: sem `domain.py` — sem invariante não trivial a extrair, mesma razão do Diário. Entrada automática só é gerada para sessões com `summary` preenchido (sessão sem resumo não aparece na timeline). `PATCH`/`DELETE` de evento manual localizam o evento só pelo id (mesmo padrão de `_require_faction` no domínio de world) e então checam DM da campanha do evento.
 
-- **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções já cadastrados.**
-  - [ ] `app/wiki/models.py`: `WikiPage`, `WikiPageLink` (seção 7.10 do PRD)
-  - [ ] Migração Alembic
-  - [ ] `domain.py` (mutual exclusion de `npc_id`/`location_id`/`faction_id` no link, mesmo padrão de `LootDrop`) /`schemas.py`/`service.py`/`router.py`
-  - [ ] Slug único por campanha, gerado a partir do título
-  - [ ] Regra: leitura (`GET /campaigns/{id}/wiki`, `GET /wiki/{id}`) para qualquer membro; criar/editar/apagar página e link é DM only
-  - [ ] Estender `app/queries/world_queries.py` (busca cross-entidade da Fase 3) com `wiki_page` como quarto `entity_type`
-  - [ ] Testes: CRUD de página, link mutuamente exclusivo rejeita mais de um alvo, busca cross-entidade encontra página de wiki por título/conteúdo
+- **Como DM, quero criar páginas de wiki com lore livre, linkáveis a NPCs, locais e facções já cadastrados.** ✅ (2026-08-24)
+  - [x] `app/wiki/models.py`: `WikiPage`, `WikiPageLink` (seção 7.10 do PRD)
+  - [x] Migração Alembic
+  - [x] `domain.py` (mutual exclusion de `npc_id`/`location_id`/`faction_id` no link, mesmo padrão de `LootDrop`) /`schemas.py`/`service.py`/`router.py`
+  - [x] Slug único por campanha, gerado a partir do título
+  - [x] Regra: leitura (`GET /campaigns/{id}/wiki`, `GET /wiki/{id}`) para qualquer membro; criar/editar/apagar página e link é DM only
+  - [x] Estender `app/queries/world_queries.py` (busca cross-entidade da Fase 3) com `wiki_page` como quarto `entity_type`
+  - [x] Testes: CRUD de página, link mutuamente exclusivo rejeita mais de um alvo, busca cross-entidade encontra página de wiki por título/conteúdo
+  - Notas: slug gerado por `slugify()` puro em `domain.py`, com desambiguação por sufixo numérico (`-2`, `-3`...) resolvida no service contra o banco; editar o título regenera o slug. `WikiPage.links` usa `cascade="all, delete-orphan"` (mesmo padrão de `SessionNote`/`Encounter`) em vez de delete manual. Respostas HTTP montam `WikiPageRead` a partir de linhas já carregadas (nunca acessam a relationship `links` preguiçosamente) pra evitar lazy-load fora de contexto async.
 
 ---

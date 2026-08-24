@@ -1,7 +1,7 @@
-"""Cross-entity full-text search over NPCs, Locations, and Factions (Postgres-only).
+"""Cross-entity full-text search over NPCs, Locations, Factions, and Wiki Pages.
 
-Uses `tsvector`/`plainto_tsquery`, so this only works against Postgres — the
-world domain's SQLite test suite never exercises this module.
+Postgres-only: uses `tsvector`/`plainto_tsquery`, so this only works against
+Postgres — the world domain's SQLite test suite never exercises this module.
 """
 
 import uuid
@@ -44,6 +44,18 @@ _SEARCH_SQL = text(
     FROM factions
     WHERE campaign_id = :campaign_id
       AND to_tsvector('english', name || ' ' || description)
+          @@ plainto_tsquery('english', :query)
+
+    UNION ALL
+
+    SELECT 'wiki_page' AS entity_type, id, title AS name, content AS snippet,
+           ts_rank(
+               to_tsvector('english', title || ' ' || content),
+               plainto_tsquery('english', :query)
+           ) AS rank
+    FROM wiki_pages
+    WHERE campaign_id = :campaign_id
+      AND to_tsvector('english', title || ' ' || content)
           @@ plainto_tsquery('english', :query)
 
     ORDER BY rank DESC
