@@ -16,7 +16,7 @@ import app.sessions.models  # noqa: F401 — registers models with Base
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
-from app.catalog.models import EquipmentCategory, Item
+from app.catalog.models import EquipmentCategory, Item, MagicItem
 from app.characters.models import Character
 from app.combat.models import Encounter
 from app.database import Base
@@ -53,6 +53,7 @@ class _CampaignFixture:
         player_id: uuid.UUID,
         character_id: uuid.UUID,
         item_id: uuid.UUID,
+        magic_item_id: uuid.UUID,
     ) -> None:
         self.campaign_id = campaign_id
         self.session_id = session_id
@@ -61,6 +62,7 @@ class _CampaignFixture:
         self.player_id = player_id
         self.character_id = character_id
         self.item_id = item_id
+        self.magic_item_id = magic_item_id
 
 
 @pytest.fixture
@@ -108,6 +110,14 @@ async def campaign_with_encounter(db: AsyncSession) -> _CampaignFixture:
     db.add(item)
     await db.flush()
 
+    magic_item = MagicItem(
+        equipment_category_id=category.id,
+        rarity="rare",
+        is_custom=False,
+    )
+    db.add(magic_item)
+    await db.flush()
+
     character = Character(
         campaign_member_id=player_member.id,
         name="Aria",
@@ -130,4 +140,5 @@ async def campaign_with_encounter(db: AsyncSession) -> _CampaignFixture:
         player_id=player.id,
         character_id=character.id,
         item_id=item.id,
+        magic_item_id=magic_item.id,
     )

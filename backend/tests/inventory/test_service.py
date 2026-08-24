@@ -118,6 +118,42 @@ async def test_dm_creates_loot_drop_with_pure_currency(
     assert drop.custom_item_name is None
 
 
+async def test_dm_creates_loot_drop_with_magic_item(
+    db: AsyncSession, campaign_with_encounter
+) -> None:
+    """The DM can drop a magic item after combat."""
+    service = InventoryService()
+
+    drop = await service.create_loot_drop(
+        campaign_with_encounter.encounter_id,
+        campaign_with_encounter.dm_id,
+        LootDropCreate(magic_item_id=campaign_with_encounter.magic_item_id, quantity=1),
+        db,
+    )
+    assert drop.magic_item_id == campaign_with_encounter.magic_item_id
+    assert drop.item_id is None
+    assert drop.custom_item_name is None
+
+
+async def test_loot_drop_rejects_item_and_magic_item_together(
+    db: AsyncSession, campaign_with_encounter
+) -> None:
+    """A loot drop can't name both a catalog item and a magic item."""
+    service = InventoryService()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.create_loot_drop(
+            campaign_with_encounter.encounter_id,
+            campaign_with_encounter.dm_id,
+            LootDropCreate(
+                item_id=campaign_with_encounter.item_id,
+                magic_item_id=campaign_with_encounter.magic_item_id,
+            ),
+            db,
+        )
+    assert exc_info.value.status_code == 422
+
+
 async def test_loot_drop_rejects_item_and_custom_name_together(
     db: AsyncSession, campaign_with_encounter
 ) -> None:

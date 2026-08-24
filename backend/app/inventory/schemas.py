@@ -37,11 +37,12 @@ class PartyInventoryRead(BaseModel):
 class LootDropCreate(BaseModel):
     """Request body to record a loot drop from an encounter.
 
-    `item_id` and `custom_item_name` are mutually exclusive — see
-    `app.inventory.domain.validate_loot_drop_kind`.
+    `item_id`, `magic_item_id`, and `custom_item_name` are mutually
+    exclusive — see `app.inventory.domain.validate_loot_drop_kind`.
     """
 
     item_id: uuid.UUID | None = None
+    magic_item_id: uuid.UUID | None = None
     custom_item_name: str | None = Field(default=None, max_length=255)
     quantity: int = Field(default=1, ge=1)
     currency_cp: int = Field(default=0, ge=0)
@@ -55,6 +56,7 @@ class LootDropRead(BaseModel):
     id: uuid.UUID
     encounter_id: uuid.UUID
     item_id: uuid.UUID | None
+    magic_item_id: uuid.UUID | None
     custom_item_name: str | None
     quantity: int
     currency_cp: int

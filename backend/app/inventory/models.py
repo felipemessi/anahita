@@ -23,11 +23,12 @@ class PartyInventory(Base):
 
 
 class LootDrop(Base):
-    """A drop of loot from an encounter — a catalog/custom item, currency, or both.
+    """A drop of loot from an encounter: a catalog/magic/custom item and/or currency.
 
-    `item_id` and `custom_item_name` are mutually exclusive, enforced in
-    `app.inventory.domain.validate_loot_drop_kind` at the application layer
-    (mirrors `EncounterParticipant.character_id`/`npc_id`, PRD §7.6).
+    `item_id`, `magic_item_id`, and `custom_item_name` are mutually exclusive,
+    enforced in `app.inventory.domain.validate_loot_drop_kind` at the
+    application layer (mirrors `EncounterParticipant.character_id`/`npc_id`,
+    PRD §7.6).
     """
 
     __tablename__ = "loot_drops"
@@ -36,6 +37,9 @@ class LootDrop(Base):
     encounter_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("encounters.id"))
     item_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("catalog_items.id")
+    )
+    magic_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("catalog_magic_items.id")
     )
     custom_item_name: Mapped[str | None] = mapped_column(String(255))
     quantity: Mapped[int] = mapped_column(Integer, default=1)
