@@ -1,6 +1,7 @@
 """Pydantic request/response schemas for the characters domain."""
 
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -118,6 +119,36 @@ class CharacterSpellUpdate(BaseModel):
     prepared: bool
 
 
+class CharacterSpellSlotRead(BaseModel):
+    """Response schema for a character's spell slots at one level.
+
+    `max` is derived from the catalog on read (see
+    `CharacterService._max_spell_slots`), never persisted.
+    """
+
+    spell_level: int
+    used: int
+    max: int
+
+
+class CharacterSpellCastRequest(BaseModel):
+    """Request body to cast a known spell, consuming a spell slot.
+
+    `cast_at_level` defaults to the spell's own level (no upcast).
+    `as_ritual=True` casts without consuming a slot — only accepted when the
+    spell has the ritual tag.
+    """
+
+    cast_at_level: int | None = Field(default=None, ge=1, le=9)
+    as_ritual: bool = False
+
+
+class CharacterRestRequest(BaseModel):
+    """Request body to take a short or long rest."""
+
+    rest_type: Literal["short", "long"]
+
+
 class CharacterEquipmentCreate(BaseModel):
     """Request body to add an item to a character's personal inventory."""
 
@@ -205,5 +236,6 @@ class CharacterRead(BaseModel):
     skills: list[CharacterSkillRead]
     classes: list[CharacterClassRead]
     spells: list[CharacterSpellRead]
+    spell_slots: list[CharacterSpellSlotRead]
     equipment: list[CharacterEquipmentRead]
     features: list[CharacterFeatureRead]

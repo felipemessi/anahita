@@ -344,12 +344,13 @@
   - [x] Testes: limite de preparadas/conhecidas por classe e nível, toggle `prepared` respeita o limite, remover magia libera espaço, dono errado rejeitado
   - Notas: known-caster (Bard/Ranger/Sorcerer/Warlock) count vem direto de `ClassLevelResource.resource_key="spells_known"`/`ClassLevelSpellSlot.spell_level=0`, dados que já existiam no SRD raw mas eram descartados por `convert_srd.py` — corrigido inline (regenerado `classes.json`); prepared-caster (Cleric/Druid/Paladin/Wizard) usa a fórmula `ability_mod + nível`. Adicionada coluna `ClassDefinition.spellcasting_ability` (também ausente, mesma causa) para resolver a habilidade de conjuração por classe. Limite só é verificado quando `source_class` corresponde ao índice de uma classe do personagem — sem isso não há progressão pra calcular o limite contra.
 
-- **Como jogador, quero ver quantos slots de magia tenho disponíveis por nível e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.**
-  - [ ] `app/characters/models.py`: `CharacterSpellSlot` (`character_id`, `spell_level` 1-9, `used`) — o máximo por nível é derivado de `ClassLevelSpellSlot` na leitura, não persistido
-  - [ ] Migração Alembic
-  - [ ] `POST /characters/{id}/spells/{spell_id}/cast` (body: `cast_at_level`, `as_ritual`) — valida magia conhecida/preparada, `cast_at_level >= spell.level`, slot disponível no nível pedido; `as_ritual=true` só é aceito se `Spell.ritual=true` e não consome slot; upcast consome o slot do nível efetivamente escolhido
-  - [ ] `POST /characters/{id}/rest` (`short`/`long`) — long rest zera `CharacterSpellSlot.used`; short rest não mexe em slots por padrão (Warlock tem regra própria — fora do escopo desta história)
-  - [ ] Testes: consumo de slot correto, ritual não consome, upcast exige slot do nível maior, sem slot disponível é rejeitado (422), long rest restaura todos os slots
+- **Como jogador, quero ver quantos slots de magia tenho disponíveis por nível e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.** ✅ (2026-08-24)
+  - [x] `app/characters/models.py`: `CharacterSpellSlot` (`character_id`, `spell_level` 1-9, `used`) — o máximo por nível é derivado de `ClassLevelSpellSlot` na leitura, não persistido
+  - [x] Migração Alembic
+  - [x] `POST /characters/{id}/spells/{spell_id}/cast` (body: `cast_at_level`, `as_ritual`) — valida magia conhecida/preparada, `cast_at_level >= spell.level`, slot disponível no nível pedido; `as_ritual=true` só é aceito se `Spell.ritual=true` e não consome slot; upcast consome o slot do nível efetivamente escolhido
+  - [x] `POST /characters/{id}/rest` (`short`/`long`) — long rest zera `CharacterSpellSlot.used`; short rest não mexe em slots por padrão (Warlock tem regra própria — fora do escopo desta história)
+  - [x] Testes: consumo de slot correto, ritual não consome, upcast exige slot do nível maior, sem slot disponível é rejeitado (422), long rest restaura todos os slots
+  - Notas: `CharacterRead.spell_slots` soma os slots de cada classe conjuradora do personagem independentemente (não implementa a tabela combinada de conjurador multiclasse do PHB) — documentado no docstring de `CharacterSpellSlot`; exato para personagens de classe única, aproximado para multiclasse com duas classes conjuradoras. `{spell_id}` nas rotas de cast é o id da entrada `CharacterSpell` (mesma convenção do PATCH/DELETE já existentes), não o id do catálogo.
 
 - **Como jogador, quero editar e remover itens do meu inventário, e registrar ganho/gasto de moedas.**
   - [ ] `PATCH /characters/{id}/equipment/{equipment_id}` (toggle `equipped`/`attunement`, ajustar `quantity`) e `DELETE /characters/{id}/equipment/{equipment_id}` — owner only

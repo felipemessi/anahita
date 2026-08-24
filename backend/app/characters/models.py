@@ -5,7 +5,16 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -68,6 +77,9 @@ class Character(Base):
         back_populates="character", cascade="all, delete-orphan"
     )
     spells: Mapped[list[CharacterSpell]] = relationship(
+        back_populates="character", cascade="all, delete-orphan"
+    )
+    spell_slots: Mapped[list[CharacterSpellSlot]] = relationship(
         back_populates="character", cascade="all, delete-orphan"
     )
     equipment: Mapped[list[CharacterEquipment]] = relationship(
@@ -171,6 +183,34 @@ class CharacterSpell(Base):
     source_class: Mapped[str | None] = mapped_column(String(100))
 
     character: Mapped[Character] = relationship(back_populates="spells")
+
+
+class CharacterSpellSlot(Base):
+    """A character's used spell slots at one spell level (1-9).
+
+    The maximum per level is never persisted here — it's derived on read
+    from `ClassLevelSpellSlot`, summed across the character's casting
+    classes at their own class level (see
+    `CharacterService._max_spell_slots`). A simplification worth flagging:
+    this sums each casting class's own slot table independently rather than
+    implementing the PHB's combined multiclass-spellcaster slot table, so a
+    multiclass character with two casting classes gets more slots than the
+    full rule would grant. Single-class casters (the common case) are exact.
+    """
+
+    __tablename__ = "character_spell_slots"
+    __table_args__ = (
+        UniqueConstraint(
+            "character_id", "spell_level", name="uq_character_spell_slots"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    character_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("characters.id"))
+    spell_level: Mapped[int] = mapped_column(Integer)
+    used: Mapped[int] = mapped_column(Integer, default=0)
+
+    character: Mapped[Character] = relationship(back_populates="spell_slots")
 
 
 class CharacterEquipment(Base):

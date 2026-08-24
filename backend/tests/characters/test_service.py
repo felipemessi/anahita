@@ -4,17 +4,20 @@ import uuid
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.domain import AbilityScore
-from app.catalog.models import Race
+from app.catalog.models import Race, Spell, SpellClass
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterClassCreate,
     CharacterCreate,
+    CharacterRestRequest,
+    CharacterSpellCastRequest,
     CharacterSpellCreate,
     CharacterSpellUpdate,
 )
@@ -184,6 +187,8 @@ async def _create_character(
     member: CampaignMember,
     human_race_id: str,
     class_id: str,
+    *,
+    level: int = 1,
 ) -> uuid.UUID:
     service = CharacterService()
     character = await service.create_character(
@@ -193,7 +198,11 @@ async def _create_character(
             name="Caster",
             race_id=uuid.UUID(human_race_id),
             ability_scores=_ability_scores(),
-            classes=[CharacterClassCreate(class_definition_id=uuid.UUID(class_id))],
+            classes=[
+                CharacterClassCreate(
+                    class_definition_id=uuid.UUID(class_id), level=level
+                )
+            ],
         ),
         db,
     )
@@ -360,3 +369,279 @@ async def test_update_spell_wrong_owner_rejected(
     with pytest.raises(HTTPException) as exc:
         await service.remove_spell(character_id, entry_id, outsider.id, db)
     assert exc.value.status_code == 403
+
+
+async def test_cast_spell_consumes_slot(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a leveled spell at its own level consumes one slot of that level."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_ids = await spell_ids_for_class(db, sorcerer_class_id, level=1, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_ids[0]), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    character = await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+    slot = next(s for s in character.spell_slots if s.spell_level == 1)
+    # Level-1 Sorcerer has 2 first-level slots.
+    assert slot.used == 1
+    assert slot.max == 2
+
+
+async def test_cast_cantrip_does_not_consume_slot(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a cantrip never touches spell slots."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    cantrip_ids = await spell_ids_for_class(db, sorcerer_class_id, level=0, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=uuid.UUID(cantrip_ids[0]), source_class="sorcerer"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    character = await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+    assert all(s.used == 0 for s in character.spell_slots)
+
+
+async def test_cast_spell_no_slot_available_rejected(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting once every slot at that level is used is rejected (422)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_ids = await spell_ids_for_class(db, sorcerer_class_id, level=1, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_ids[0]), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    # Level-1 Sorcerer has 2 first-level slots — exhaust them.
+    for _ in range(2):
+        character = await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_cast_spell_upcast_consumes_higher_level_slot(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting at a higher level than the spell's own consumes that level's slot."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    # A level-3 Sorcerer has 2nd-level slots to upcast a 1st-level spell into.
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id, level=3
+    )
+    spell_ids = await spell_ids_for_class(db, sorcerer_class_id, level=1, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_ids[0]), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    character = await service.cast_spell(
+        character_id,
+        entry_id,
+        owner.id,
+        CharacterSpellCastRequest(cast_at_level=2),
+        db,
+    )
+    level_1_slot = next(s for s in character.spell_slots if s.spell_level == 1)
+    level_2_slot = next(s for s in character.spell_slots if s.spell_level == 2)
+    assert level_1_slot.used == 0
+    assert level_2_slot.used == 1
+
+
+async def test_cast_spell_below_own_level_rejected(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a spell at a level lower than its own is rejected (422)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id, level=3
+    )
+    spell_ids = await spell_ids_for_class(db, sorcerer_class_id, level=2, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_ids[0]), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.cast_spell(
+            character_id,
+            entry_id,
+            owner.id,
+            CharacterSpellCastRequest(cast_at_level=1),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_cast_ritual_does_not_consume_slot(
+    db: AsyncSession, human_race_id: str, wizard_class_id: str
+) -> None:
+    """Casting a ritual spell never consumes a slot, even without preparing it."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, wizard_class_id
+    )
+    ritual_result = await db.execute(
+        select(Spell.id)
+        .join(SpellClass, SpellClass.spell_id == Spell.id)
+        .where(
+            SpellClass.class_definition_id == uuid.UUID(wizard_class_id),
+            Spell.level == 1,
+            Spell.ritual.is_(True),
+        )
+        .limit(1)
+    )
+    ritual_spell_id = ritual_result.scalar_one()
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=ritual_spell_id, prepared=False, source_class="wizard"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    character = await service.cast_spell(
+        character_id,
+        entry_id,
+        owner.id,
+        CharacterSpellCastRequest(as_ritual=True),
+        db,
+    )
+    assert all(s.used == 0 for s in character.spell_slots)
+
+
+async def test_cast_unprepared_non_ritual_spell_rejected(
+    db: AsyncSession, human_race_id: str, wizard_class_id: str
+) -> None:
+    """A prepared caster can't cast a known but unprepared spell normally."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, wizard_class_id
+    )
+    spell_ids = await spell_ids_for_class(db, wizard_class_id, level=1, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=uuid.UUID(spell_ids[0]), prepared=False, source_class="wizard"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_long_rest_restores_all_spell_slots(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """A long rest zeroes every spell slot's `used` count."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_ids = await spell_ids_for_class(db, sorcerer_class_id, level=1, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_ids[0]), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+    await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+
+    character = await service.rest(
+        character_id, owner.id, CharacterRestRequest(rest_type="long"), db
+    )
+    assert all(s.used == 0 for s in character.spell_slots)
+
+
+async def test_short_rest_does_not_restore_spell_slots(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """A short rest leaves spell slots untouched (no Warlock-style recovery here)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_ids = await spell_ids_for_class(db, sorcerer_class_id, level=1, limit=1)
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_ids[0]), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+    await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+
+    character = await service.rest(
+        character_id, owner.id, CharacterRestRequest(rest_type="short"), db
+    )
+    used_slot = next(s for s in character.spell_slots if s.spell_level == 1)
+    assert used_slot.used == 1
