@@ -35,12 +35,12 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: "Inventário",
     href: (id) => `/campaigns/${id}/inventory`,
-    implemented: false,
+    implemented: true,
   },
   {
     label: "Handouts",
     href: (id) => `/campaigns/${id}/handouts`,
-    implemented: false,
+    implemented: true,
   },
   {
     label: "Configurações",

@@ -20,7 +20,7 @@
 | 1    | Campanhas, Personagens, Catálogo       | Concluída (todas as lacunas de backend identificadas foram implementadas e integradas — ver notas de cada história) | 2026-08-23 |
 | 2    | Sessão ao Vivo (Combat Tracker)        | Concluída       | 2026-08-23           |
 | 3    | World-building                          | Concluída       | 2026-08-23           |
-| 4    | Loot, Inventário e Handouts             | Não iniciado    | —                    |
+| 4    | Loot, Inventário e Handouts             | Concluída       | 2026-08-24           |
 | 5    | Registro e Lore                         | Não iniciado    | —                    |
 
 ---
@@ -187,18 +187,20 @@
 
 > Depende do backend Fase 4. **Nota:** as pastas `app/.../handouts/` e `components/handouts/` ainda nem existem no esqueleto atual — precisam ser criadas nesta fase (não foram scaffoldadas junto com o resto).
 
-- **Como grupo, quero ver e gerenciar o inventário compartilhado da campanha.**
-  - [ ] `lib/api/inventory.ts`, `hooks/use-inventory.ts`
-  - [ ] `app/campaigns/[campaignId]/inventory/page.tsx` + `components/inventory/loot-table.tsx`, `item-card.tsx`
-  - [ ] Teste: lista de inventário renderiza itens do catálogo (incluindo magic items) e itens custom
+- **Como grupo, quero ver e gerenciar o inventário compartilhado da campanha.** ✅ (2026-08-24)
+  - [x] `lib/api/inventory.ts`, `hooks/use-inventory.ts`
+  - [x] `app/campaigns/[campaignId]/inventory/page.tsx` + `components/inventory/loot-table.tsx`, `item-card.tsx`
+  - [x] Teste: lista de inventário renderiza itens do catálogo (incluindo magic items) e itens custom
+  - Notas: não existe endpoint de backend que agregue loot no nível da campanha (`GET /encounters/{id}/loot` é por encontro) — `lib/api/inventory.ts#listCampaignLootDrops` compõe sessões → encontros → loot numa única função para alimentar a página; a criação de loot pelo DM exige escolher um desses encontros num select. Reivindicar loot usa o personagem do próprio jogador na campanha (`campaign_member_id` == a própria membership).
 
-- **Como DM, quero criar e revelar handouts para os jogadores.**
-  - [ ] Criar `app/campaigns/[campaignId]/handouts/page.tsx`, `lib/api/handouts.ts`, `hooks/use-handouts.ts`
-  - [ ] `components/handouts/handout-card.tsx`, `handout-reveal-button.tsx`, `handout-viewer.tsx`
-  - [ ] Visão DM: lista completa, toggle reveal/hide, upload de imagem/mapa, editor de texto, filtro por sessão
-  - [ ] Visão jogador: só handouts revelados, galeria de imagens em tamanho grande
-  - [ ] Reveal em tempo real: escutar evento `handout_revealed` no WebSocket de combat ativo (reaproveita `combat-provider`/`lib/ws`)
-  - [ ] Teste: jogador só vê handouts com `is_revealed=true`; reveal via WS atualiza a UI do jogador sem reload
+- **Como DM, quero criar e revelar handouts para os jogadores.** ✅ (2026-08-24)
+  - [x] Criar `app/campaigns/[campaignId]/handouts/page.tsx`, `lib/api/handouts.ts`, `hooks/use-handouts.ts`
+  - [x] `components/handouts/handout-card.tsx`, `handout-reveal-button.tsx`, `handout-viewer.tsx`
+  - [x] Visão DM: lista completa, toggle reveal/hide, upload de imagem/mapa, editor de texto, filtro por sessão
+  - [x] Visão jogador: só handouts revelados, galeria de imagens em tamanho grande
+  - [x] Reveal em tempo real: escutar evento `handout_revealed` no WebSocket de combat ativo (reaproveita `lib/ws`)
+  - [x] Teste: jogador só vê handouts com `is_revealed=true`; reveal via WS atualiza a UI do jogador sem reload
+  - Notas: criação de handout envia `multipart/form-data` (`lib/api/client.ts#apiFetch` foi ajustado para não forçar `Content-Type: application/json` quando o body é `FormData`, deixando o browser definir o boundary). O reveal em tempo real reaproveita `lib/ws/combat-socket.ts` diretamente (não o `CombatProvider`, que carrega estado de combate desnecessário aqui) — `useHandoutRevealListener` só abre o socket quando a sessão filtrada tem um encontro `active`, então o "filtro por sessão" é pré-requisito prático para o reveal ao vivo.
 
 ---
 
