@@ -215,10 +215,11 @@
   - [x] Teste: jogador não vê o item de menu "Diário"; tentativa de acesso direto à rota trata o 403 do backend sem vazar conteúdo
   - Notas: `NAV_ITEMS` ganhou um campo `dmOnly?: boolean`; `CampaignSidebar`/`MobileNav` agora recebem `role` (vindo de `useMyMembership` no layout) e filtram itens `dmOnly` fora da lista renderizada, não só desabilitados. A página de Diário roda a query independente do papel local — se o backend responder 403 (acesso direto por URL), mostra uma mensagem genérica sem nunca montar o editor/lista.
 
-- **Como grupo, quero ver a história da campanha até agora.**
-  - [ ] `app/campaigns/[campaignId]/recap/page.tsx` — reaproveita `useSessions` (`hooks/use-session.ts`), sem novo arquivo em `lib/api/`
-  - [ ] Lista os `summary` de sessões em ordem, pulando sessões sem resumo ainda
-  - [ ] Teste: renderiza os resumos na ordem certa e omite sessões sem `summary`
+- **Como grupo, quero ver a história da campanha até agora.** ✅ (2026-08-24)
+  - [x] `app/campaigns/[campaignId]/recap/page.tsx` — reaproveita `useSessions` (`hooks/use-session.ts`), sem novo arquivo em `lib/api/`
+  - [x] Lista os `summary` de sessões em ordem, pulando sessões sem resumo ainda
+  - [x] Teste: renderiza os resumos na ordem certa e omite sessões sem `summary`
+  - Notas: item "Recap" adicionado ao `NAV_ITEMS` sem `dmOnly` (visível a todo o grupo). Ordenação e filtro (`summary` ausente) feitos no próprio componente sobre o resultado de `useSessions`, sem tocar o hook existente.
 
 - **Como grupo, quero ver uma timeline combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.**
   - [ ] `lib/api/timeline.ts`, `hooks/use-timeline.ts`

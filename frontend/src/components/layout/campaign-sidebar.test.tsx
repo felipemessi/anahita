@@ -19,4 +19,10 @@ describe("CampaignSidebar", () => {
 
     expect(screen.queryByText("Diário")).not.toBeInTheDocument();
   });
+
+  it("shows the Recap item to a player (not DM-only)", () => {
+    render(<CampaignSidebar campaignId="campaign-1" role="player" />);
+
+    expect(screen.getByText("Recap")).toBeInTheDocument();
+  });
 });
