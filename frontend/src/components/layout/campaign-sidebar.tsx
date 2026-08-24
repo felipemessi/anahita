@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import type { CampaignRole } from "@/types/campaign";
+
 interface NavItem {
   label: string;
   href: (campaignId: string) => string;
   /** Sections not built yet (Fases 2-4) render disabled instead of linking to an empty stub. */
   implemented: boolean;
+  /** DM-only sections (e.g. Diário) are hidden outright for players — never shown disabled. */
+  dmOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -43,21 +47,34 @@ const NAV_ITEMS: NavItem[] = [
     implemented: true,
   },
   {
+    label: "Diário",
+    href: (id) => `/campaigns/${id}/journal`,
+    implemented: true,
+    dmOnly: true,
+  },
+  {
     label: "Configurações",
     href: (id) => `/campaigns/${id}/settings`,
     implemented: true,
   },
 ];
 
-export function CampaignSidebar({ campaignId }: { campaignId: string }) {
+export function CampaignSidebar({
+  campaignId,
+  role,
+}: {
+  campaignId: string;
+  role?: CampaignRole;
+}) {
   const pathname = usePathname();
+  const items = NAV_ITEMS.filter((item) => !item.dmOnly || role === "dm");
 
   return (
     <nav
       aria-label="Navegação da campanha"
       className="hidden w-56 shrink-0 flex-col gap-1 border-r border-border bg-card p-4 md:flex"
     >
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const href = item.href(campaignId);
         const active = pathname === href || pathname.startsWith(`${href}/`);
 

@@ -30,10 +30,10 @@ export default function CampaignLayout({
     <div className="flex min-h-screen flex-col">
       <Header campaignName={campaign?.name ?? "Carregando…"} role={membership?.role ?? "player"} />
       <div className="flex flex-1">
-        <CampaignSidebar campaignId={campaignId} />
+        <CampaignSidebar campaignId={campaignId} role={membership?.role} />
         <div className="flex-1 pb-16 md:pb-0">{children}</div>
       </div>
-      <MobileNav campaignId={campaignId} />
+      <MobileNav campaignId={campaignId} role={membership?.role} />
     </div>
   );
 }

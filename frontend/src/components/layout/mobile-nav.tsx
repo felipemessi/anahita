@@ -4,11 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { NAV_ITEMS } from "@/components/layout/campaign-sidebar";
+import type { CampaignRole } from "@/types/campaign";
 
 /** Bottom tab bar shown on small screens instead of the desktop sidebar. */
-export function MobileNav({ campaignId }: { campaignId: string }) {
+export function MobileNav({
+  campaignId,
+  role,
+}: {
+  campaignId: string;
+  role?: CampaignRole;
+}) {
   const pathname = usePathname();
-  const implementedItems = NAV_ITEMS.filter((item) => item.implemented);
+  const implementedItems = NAV_ITEMS.filter(
+    (item) => item.implemented && (!item.dmOnly || role === "dm"),
+  );
 
   return (
     <nav
