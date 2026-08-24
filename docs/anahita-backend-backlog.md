@@ -305,9 +305,10 @@
   - [x] Testes: DM cria/lista/edita/apaga; jogador recebe 403 em qualquer rota do domínio
   - Notas: sem `domain.py` — não há invariante não trivial a extrair (diferente do mutual-exclusion de `LootDrop`); a checagem "requester é DM" já cobre tudo. `_require_dm` retorna 403 tanto para não-membro quanto para membro não-DM, sem distinguir os dois casos (evita vazar pra um jogador se uma entrada existe).
 
-- **Como grupo, quero ver a história da campanha até agora, sessão por sessão.**
-  - [ ] Nenhuma mudança de backend — reaproveita `GET /campaigns/{id}/sessions` (já retorna `summary`, PRD §7.5)
-  - [ ] Teste: confirmar que a lista de sessões já expõe `summary` para todo membro da campanha (não só o DM) — se não expuser, é a lacuna a fechar aqui
+- **Como grupo, quero ver a história da campanha até agora, sessão por sessão.** ✅ (2026-08-24)
+  - [x] Nenhuma mudança de backend — reaproveita `GET /campaigns/{id}/sessions` (já retorna `summary`, PRD §7.5)
+  - [x] Teste: confirmar que a lista de sessões já expõe `summary` para todo membro da campanha (não só o DM) — se não expuser, é a lacuna a fechar aqui
+  - Notas: sem lacuna — `SessionService.list_sessions` já retorna `summary` pra todo membro (só `dm_notes` é ocultado de não-DM). Teste `test_player_can_see_summary_for_recap` adicionado em `tests/sessions/test_service.py`.
 
 - **Como grupo, quero uma timeline de eventos da campanha, combinando o que aconteceu em cada sessão com marcos que o mestre adicionar manualmente.**
   - [ ] `app/timeline/models.py`: `TimelineEvent` (só eventos manuais são persistidos, seção 7.10 do PRD)
