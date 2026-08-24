@@ -88,6 +88,27 @@ async def test_player_cannot_see_dm_notes(db: AsyncSession) -> None:
     assert player_view[0].dm_notes is None
 
 
+async def test_player_can_see_summary_for_recap(db: AsyncSession) -> None:
+    """Listing sessions exposes `summary` to every member, not just the DM.
+
+    The Fase 5 "recap" screen (PRD §7.10) has no endpoint of its own — it
+    reads `GET /campaigns/{id}/sessions` and renders each session's
+    `summary` in order. This is the gap this story checks isn't there.
+    """
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    await service.create_session(
+        campaign.id,
+        dm.id,
+        SessionCreate(title="Session 1", summary="The party met at the inn."),
+        db,
+    )
+
+    player_view = await service.list_sessions(campaign.id, player.id, db)
+
+    assert player_view[0].summary == "The party met at the inn."
+
+
 async def test_player_can_add_public_note(db: AsyncSession) -> None:
     """A player can add a public (non-private) session note."""
     campaign, dm, player = await _make_campaign_with_dm_and_player(db)
