@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 
 import { useMyMembership } from "@/hooks/use-campaign";
 import { useCombat } from "@/hooks/use-combat";
+import { RollLogProvider } from "@/components/characters/roll-log";
 import { ActionLog } from "@/components/combat/action-log";
 import { ActionPicker } from "@/components/combat/action-picker";
 import { ConditionBadges } from "@/components/combat/condition-badges";
@@ -61,79 +62,81 @@ export default function CombatPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-4">
-      <div className="flex items-center justify-between">
-        <Link
-          href={`/campaigns/${campaignId}/sessions`}
-          className="text-sm text-muted-foreground underline"
-        >
-          ← Sessões
-        </Link>
-        <span
-          className={`text-xs ${isConnected ? "text-emerald-500" : "text-muted-foreground"}`}
-        >
-          {isConnected ? "Conectado" : "Conectando…"}
-        </span>
-      </div>
+    <RollLogProvider>
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-4">
+        <div className="flex items-center justify-between">
+          <Link
+            href={`/campaigns/${campaignId}/sessions`}
+            className="text-sm text-muted-foreground underline"
+          >
+            ← Sessões
+          </Link>
+          <span
+            className={`text-xs ${isConnected ? "text-emerald-500" : "text-muted-foreground"}`}
+          >
+            {isConnected ? "Conectado" : "Conectando…"}
+          </span>
+        </div>
 
-      {!encounter ? (
-        <p className="text-sm text-muted-foreground">Sincronizando combate…</p>
-      ) : (
-        <>
-          <div>
-            <h1 className="text-xl font-bold">{encounter.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {STATUS_LABEL[encounter.status] ?? encounter.status} · Round{" "}
-              {encounter.current_round}
-              {!isDm ? " · Modo espectador" : ""}
-            </p>
-          </div>
-
-          {lastError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {lastError}
-            </p>
-          ) : null}
-
-          <InitiativePrompt />
-
-          <InitiativeTracker
-            encounter={encounter}
-            renderActions={isDm ? renderDmActions : undefined}
-          />
-
-          {currentTurnParticipant ? (
-            <ActionPicker
-              campaignId={campaignId}
-              participant={currentTurnParticipant}
-              otherParticipants={encounter.participants.filter(
-                (p) => p.id !== currentTurnParticipant.id,
-              )}
-            />
-          ) : null}
-
-          <ActionLog />
-
-          {isDm ? (
+        {!encounter ? (
+          <p className="text-sm text-muted-foreground">Sincronizando combate…</p>
+        ) : (
+          <>
             <div>
-              <button
-                type="button"
-                onClick={() => setShowAddParticipant((v) => !v)}
-                className="text-sm text-primary underline"
-              >
-                {showAddParticipant ? "Fechar" : "Adicionar participante"}
-              </button>
-              {showAddParticipant ? (
-                <div className="mt-2">
-                  <MonsterPicker campaignId={campaignId} />
-                </div>
-              ) : null}
+              <h1 className="text-xl font-bold">{encounter.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                {STATUS_LABEL[encounter.status] ?? encounter.status} · Round{" "}
+                {encounter.current_round}
+                {!isDm ? " · Modo espectador" : ""}
+              </p>
             </div>
-          ) : null}
 
-          {isDm ? <TurnIndicator /> : null}
-        </>
-      )}
-    </main>
+            {lastError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {lastError}
+              </p>
+            ) : null}
+
+            <InitiativePrompt />
+
+            <InitiativeTracker
+              encounter={encounter}
+              renderActions={isDm ? renderDmActions : undefined}
+            />
+
+            {currentTurnParticipant ? (
+              <ActionPicker
+                campaignId={campaignId}
+                participant={currentTurnParticipant}
+                otherParticipants={encounter.participants.filter(
+                  (p) => p.id !== currentTurnParticipant.id,
+                )}
+              />
+            ) : null}
+
+            <ActionLog />
+
+            {isDm ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddParticipant((v) => !v)}
+                  className="text-sm text-primary underline"
+                >
+                  {showAddParticipant ? "Fechar" : "Adicionar participante"}
+                </button>
+                {showAddParticipant ? (
+                  <div className="mt-2">
+                    <MonsterPicker campaignId={campaignId} />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {isDm ? <TurnIndicator /> : null}
+          </>
+        )}
+      </main>
+    </RollLogProvider>
   );
 }
