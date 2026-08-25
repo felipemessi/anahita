@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { AbilityScores } from "@/components/characters/ability-scores";
+import { ConcentrationIndicator } from "@/components/characters/concentration-indicator";
 import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
@@ -150,6 +151,11 @@ export function CharacterSheet({
           successes={character.death_save_successes}
           failures={character.death_save_failures}
           isDead={character.is_dead}
+        />
+
+        <ConcentrationIndicator
+          characterId={character.id}
+          concentratingSpellId={character.concentrating_spell_id}
         />
 
         <SkillList skills={character.skills} />

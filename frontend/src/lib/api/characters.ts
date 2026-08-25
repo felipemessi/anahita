@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api/client";
 import type {
   Character,
   CharacterClassCreate,
+  CharacterConcentrationRequest,
   CharacterCreate,
   CharacterCurrencyRequest,
   CharacterDeathSaveRequest,
@@ -126,6 +127,17 @@ export function rollDeathSave(
   data: CharacterDeathSaveRequest,
 ): Promise<Character> {
   return apiFetch<Character>(`/characters/${characterId}/death-save`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Start or end concentration on a known spell — `spell_id: null` ends it. */
+export function setCharacterConcentration(
+  characterId: string,
+  data: CharacterConcentrationRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/concentration`, {
     method: "POST",
     body: JSON.stringify(data),
   });

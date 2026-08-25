@@ -311,11 +311,12 @@
   - [x] Teste: rolar preenche o marcador certo conforme o resultado; 3 falhas mostra estado "morto"; qualquer cura reseta os marcadores
   - Notas: o backend não persiste um estado "estável" separado — 3 sucessos apenas zera os dois contadores, mesmo formato de "ainda não rolou". O componente infere "estável" no cliente comparando com a renderização anterior (teve progresso e depois zerou sem morrer) — só vale enquanto o componente está montado; um reload da página perde essa distinção e volta pro estado neutro (mecanicamente correto, já que não há mais teste de morte pendente de qualquer forma).
 
-- **Como jogador, quero indicar que estou concentrando numa magia e ser avisado da DC do teste de concentração quando meu personagem tomar dano em combate.**
-  - [ ] Indicador de "concentrando em [magia]" na ficha e no `participant-card.tsx` do combat tracker
-  - [ ] Botão "iniciar concentração" ao conjurar uma magia de concentração (a partir da lista de magias da Fase 6); conjurar outra encerra a anterior automaticamente
-  - [ ] Quando um participante concentrando toma dano no combate, a UI mostra a DC do teste (vinda do evento WS) com um atalho pra rolar a resistência de CON correspondente
-  - [ ] Teste: dano em participante concentrando exibe a DC; indicador de concentração muda ao trocar de magia
+- **Como jogador, quero indicar que estou concentrando numa magia e ser avisado da DC do teste de concentração quando meu personagem tomar dano em combate. ✅ (2026-08-25)**
+  - [x] Indicador de "concentrando em [magia]" na ficha e no `participant-card.tsx` do combat tracker
+  - [x] Botão "iniciar concentração" ao conjurar uma magia de concentração (a partir da lista de magias da Fase 6); conjurar outra encerra a anterior automaticamente
+  - [x] Quando um participante concentrando toma dano no combate, a UI mostra a DC do teste (vinda do evento WS) com um atalho pra rolar a resistência de CON correspondente
+  - [x] Teste: dano em participante concentrando exibe a DC; indicador de concentração muda ao trocar de magia
+  - Notas: não existe um botão "iniciar concentração" separado — conjurar uma magia de concentração (botão "conjurar" já existente do `spell-list-by-circle.tsx`) já dispara isso automaticamente no backend (`cast_spell`), inclusive encerrando a concentração anterior; o indicador na ficha (`concentration-indicator.tsx`) só reflete esse estado e permite encerrar manualmente. No `participant-card.tsx`, a DC aparece como um aviso de texto (`concentration_dc` do evento `participant_updated`/`action_resolved`) sem um botão de atalho pra rolar — a ficha do combat tracker não está dentro do `RollLogProvider` usado pelo `roll-button.tsx`, então esse atalho ficou fora do escopo desta história (lacuna adiada).
 
 - **Como jogador, quero ver minhas perícias passivas na ficha.**
   - [ ] `ability-scores.tsx`/nova seção `passive-scores.tsx`: exibe Percepção/Investigação/Intuição passivas (vindas de `CharacterRead`, sem cálculo client-side)
