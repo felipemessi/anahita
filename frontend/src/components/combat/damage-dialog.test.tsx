@@ -24,6 +24,9 @@ const participant = {
   is_active: true,
   conditions: [],
   effects: [],
+  concentration_dc: null,
+  legendary_actions_used: 0,
+  reactions_used: 0,
 };
 
 describe("DamageDialog", () => {

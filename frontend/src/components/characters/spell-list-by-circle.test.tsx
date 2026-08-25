@@ -24,7 +24,9 @@ import { ApiError } from "@/lib/api/client";
 import { SpellListByCircle } from "./spell-list-by-circle";
 
 const wizardClass = { id: "wizard-id", index: "wizard", name: "Wizard" };
-const characterClasses = [{ id: "cc-1", class_definition_id: "wizard-id", subclass_id: null, level: 1 }];
+const characterClasses = [
+  { id: "cc-1", class_definition_id: "wizard-id", subclass_id: null, level: 1, hit_dice_used: 0 },
+];
 
 const cantripEntry = {
   id: "entry-cantrip",

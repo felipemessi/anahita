@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { AbilityScores } from "@/components/characters/ability-scores";
 import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
+import { HitDiceTracker } from "@/components/characters/hit-dice-tracker";
 import { RollButton } from "@/components/characters/roll-button";
 import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
@@ -143,6 +144,12 @@ export function CharacterSheet({
         </section>
 
         <SkillList skills={character.skills} />
+
+        <HitDiceTracker
+          characterId={character.id}
+          campaignId={campaignId}
+          classes={character.classes}
+        />
 
         <SpellSlots slots={character.spell_slots} />
 
