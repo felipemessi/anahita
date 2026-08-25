@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.catalog.domain import (
+    ArmorCategory,
     CreatureSize,
     DamageModifierType,
     FeaturePrerequisiteType,
@@ -979,6 +980,12 @@ class ArmorDetail(Base):
         Boolean, nullable=False, default=False
     )
     strength_requirement: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Nullable so existing/homebrew armor without this (pre-Fase-8) is
+    # unaffected — `CharacterService._recalculate_armor_class` treats a
+    # `None` category as "not usable for AC calculation" (skipped).
+    armor_category: Mapped[ArmorCategory | None] = mapped_column(
+        SAEnum(ArmorCategory, name="armorcategory")
+    )
 
     item: Mapped[Item] = relationship("Item", back_populates="armor_detail")
 

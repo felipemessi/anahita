@@ -11,12 +11,14 @@ from sqlalchemy.orm import selectinload
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
-from app.catalog.domain import AbilityScore, SpellActionType
+from app.catalog.domain import AbilityScore, ArmorCategory, SpellActionType
 from app.catalog.models import (
+    ArmorDetail,
     ClassDefinition,
     ClassLevel,
     ClassLevelResource,
     Feature,
+    Item,
     Spell,
 )
 from app.characters.domain import (
@@ -88,6 +90,7 @@ from engine.spellcasting import (
     prepared_spell_limit,
 )
 from engine.types import Ability as EngineAbility
+from engine.types import ArmorData
 from engine.validation import validate_multiclass
 
 _CHARACTER_LOAD_OPTIONS = (
@@ -1331,6 +1334,8 @@ class CharacterService:
                 attunement=data.attunement,
             )
         )
+        if data.equipped:
+            await self._recalculate_armor_class(character, db)
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
@@ -1342,7 +1347,14 @@ class CharacterService:
         data: CharacterEquipmentUpdate,
         db: AsyncSession,
     ) -> CharacterRead:
-        """Edit an inventory item (equipped/attunement/quantity). Owner only."""
+        """Edit an inventory item (equipped/attunement/quantity). Owner only.
+
+        Toggling `equipped` on an item with armor data (`ArmorDetail`)
+        recalculates `Character.armor_class` from every currently equipped
+        armor piece/shield — see `_recalculate_armor_class`. A manual
+        `PATCH /characters/{id}` override of `armor_class` still works, but
+        only until the next equip/unequip toggle recomputes it.
+        """
         character = await self._load_character_owned_by(
             character_id, requester_id, db
         )
@@ -1355,6 +1367,8 @@ class CharacterService:
         if data.quantity is not None:
             entry.quantity = data.quantity
 
+        if data.equipped is not None:
+            await self._recalculate_armor_class(character, db)
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
@@ -1370,9 +1384,64 @@ class CharacterService:
             character_id, requester_id, db
         )
         entry = self._require_equipment_entry(character, equipment_id)
+        was_equipped = entry.equipped
         await db.delete(entry)
+        if was_equipped:
+            await self._recalculate_armor_class(character, db)
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def _recalculate_armor_class(
+        self, character: Character, db: AsyncSession
+    ) -> None:
+        """Recompute `Character.armor_class` from currently equipped armor/shields.
+
+        Queries fresh rather than trusting `character.equipment`'s
+        in-memory state — SQLAlchemy autoflushes the pending equip/unequip
+        change first, so this is correct right after `db.delete(...)` too.
+        Only items with `ArmorDetail.armor_category` set participate; a
+        body-armor piece sets the base (first one found — multiple
+        equipped at once isn't a PHB-valid state this validates against),
+        every equipped shield's `base_ac` adds flat on top.
+        """
+        result = await db.execute(
+            select(ArmorDetail)
+            .join(Item, Item.id == ArmorDetail.item_id)
+            .join(CharacterEquipment, CharacterEquipment.item_id == Item.id)
+            .where(
+                CharacterEquipment.character_id == character.id,
+                CharacterEquipment.equipped.is_(True),
+                ArmorDetail.armor_category.is_not(None),
+            )
+        )
+        armor_details = list(result.scalars().all())
+
+        body_armor = next(
+            (ad for ad in armor_details if ad.armor_category != ArmorCategory.shield),
+            None,
+        )
+        shield_bonus = sum(
+            ad.base_ac
+            for ad in armor_details
+            if ad.armor_category == ArmorCategory.shield
+        )
+        armor_data = (
+            ArmorData(
+                base_ac=body_armor.base_ac,
+                # calculate_ac expects "none" for unarmored, never reached
+                # here since `body_armor` is None in that case instead.
+                armor_type=body_armor.armor_category.value
+                if body_armor.armor_category is not None
+                else "none",
+                dex_bonus_cap=body_armor.dex_bonus_cap,
+            )
+            if body_armor is not None
+            else None
+        )
+        dex_mod = self._ability_modifier(character, "dex")
+        character.armor_class = calculate_ac(
+            armor_data, dex_mod, shield_bonus=shield_bonus
+        )
 
     async def update_currency(
         self,

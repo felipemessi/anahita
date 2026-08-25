@@ -5,6 +5,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.domain import (
+    ArmorCategory,
     ItemType,
     SpellActionType,
     SpellDamageScalingType,
@@ -283,6 +284,7 @@ class ArmorDetailRead(BaseModel):
     dex_bonus_cap: int | None
     stealth_disadvantage: bool
     strength_requirement: int | None
+    armor_category: ArmorCategory | None
 
 
 class ItemPropertyRead(BaseModel):

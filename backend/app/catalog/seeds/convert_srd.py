@@ -656,6 +656,10 @@ def convert_items() -> None:
                 "dex_bonus_cap": ac.get("max_bonus"),
                 "stealth_disadvantage": e.get("stealth_disadvantage", False),
                 "strength_requirement": e.get("str_minimum") or None,
+                # SRD's own weight class ("Light"/"Medium"/"Heavy"/"Shield")
+                # — needed to tell body armor from shields and cap DEX by
+                # type when recalculating AC (Fase 8, `engine/armor_class.py`).
+                "armor_category": e.get("armor_category", "").lower() or None,
             }
 
         out.append(entry)
