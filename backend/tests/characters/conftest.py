@@ -11,7 +11,7 @@ import app.auth.models  # noqa: F401 — registers models with Base
 import app.campaigns.models  # noqa: F401 — registers models with Base
 import app.catalog.models  # noqa: F401 — registers models with Base
 import app.characters.models  # noqa: F401 — registers models with Base
-from app.catalog.models import ClassDefinition, Race, Spell, SpellClass
+from app.catalog.models import ClassDefinition, Item, Race, Spell, SpellClass
 from app.catalog.seeds.seed import seed_catalog
 from app.database import Base
 
@@ -69,6 +69,14 @@ async def sorcerer_class_id(db: AsyncSession) -> str:
     result = await db.execute(
         select(ClassDefinition).where(ClassDefinition.index == "sorcerer")
     )
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def longsword_item_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Longsword item's id."""
+    await seed_catalog(db)
+    result = await db.execute(select(Item).where(Item.index == "longsword"))
     return str(result.scalar_one().id)
 
 

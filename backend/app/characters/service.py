@@ -37,8 +37,10 @@ from app.characters.schemas import (
     CharacterClassCreate,
     CharacterClassRead,
     CharacterCreate,
+    CharacterCurrencyRequest,
     CharacterEquipmentCreate,
     CharacterEquipmentRead,
+    CharacterEquipmentUpdate,
     CharacterFeatureCreate,
     CharacterFeatureRead,
     CharacterRead,
@@ -595,6 +597,87 @@ class CharacterService:
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
+    async def update_equipment(
+        self,
+        character_id: uuid.UUID,
+        equipment_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterEquipmentUpdate,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Edit an inventory item (equipped/attunement/quantity). Owner only."""
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        entry = self._require_equipment_entry(character, equipment_id)
+
+        if data.equipped is not None:
+            entry.equipped = data.equipped
+        if data.attunement is not None:
+            entry.attunement = data.attunement
+        if data.quantity is not None:
+            entry.quantity = data.quantity
+
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def remove_equipment(
+        self,
+        character_id: uuid.UUID,
+        equipment_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Remove an item from a character's inventory. Owner only."""
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        entry = self._require_equipment_entry(character, equipment_id)
+        await db.delete(entry)
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def update_currency(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterCurrencyRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Record a currency gain (positive `delta`) or spend (negative). Owner only.
+
+        The resulting balance can never go below zero (422).
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        new_balance = character.currency_cp + data.delta
+        if new_balance < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"Insufficient funds: balance is {character.currency_cp} cp, "
+                    f"cannot spend {-data.delta} cp"
+                ),
+            )
+        character.currency_cp = new_balance
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    def _require_equipment_entry(
+        self, character: Character, equipment_id: uuid.UUID
+    ) -> CharacterEquipment:
+        """Return the character's `CharacterEquipment` row, 404 if not on this sheet."""
+        entry = next(
+            (e for e in character.equipment if e.id == equipment_id), None
+        )
+        if entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Equipment entry not found on this character",
+            )
+        return entry
+
     async def add_feature(
         self,
         character_id: uuid.UUID,
@@ -1019,6 +1102,7 @@ class CharacterService:
             speed=character.speed,
             inspiration=character.inspiration,
             proficiency_bonus=character.proficiency_bonus,
+            currency_cp=character.currency_cp,
             ability_scores=ability_scores,
             skills=skills,
             classes=classes,

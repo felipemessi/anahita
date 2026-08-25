@@ -10,7 +10,9 @@ from app.auth.models import User
 from app.characters.schemas import (
     CharacterClassCreate,
     CharacterCreate,
+    CharacterCurrencyRequest,
     CharacterEquipmentCreate,
+    CharacterEquipmentUpdate,
     CharacterFeatureCreate,
     CharacterRead,
     CharacterRestRequest,
@@ -163,6 +165,43 @@ async def add_equipment(
 ) -> CharacterRead:
     """Add an item to a character's personal inventory. Owner only."""
     return await service.add_equipment(character_id, user.id, body, db)
+
+
+@router.patch("/{character_id}/equipment/{equipment_id}", response_model=CharacterRead)
+async def update_equipment(
+    character_id: uuid.UUID,
+    equipment_id: uuid.UUID,
+    body: CharacterEquipmentUpdate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Edit an inventory item (equipped/attunement/quantity). Owner only."""
+    return await service.update_equipment(character_id, equipment_id, user.id, body, db)
+
+
+@router.delete("/{character_id}/equipment/{equipment_id}", response_model=CharacterRead)
+async def remove_equipment(
+    character_id: uuid.UUID,
+    equipment_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Remove an item from a character's inventory. Owner only."""
+    return await service.remove_equipment(character_id, equipment_id, user.id, db)
+
+
+@router.post("/{character_id}/currency", response_model=CharacterRead)
+async def update_currency(
+    character_id: uuid.UUID,
+    body: CharacterCurrencyRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Record a currency gain (positive `delta`) or spend (negative). Owner only."""
+    return await service.update_currency(character_id, user.id, body, db)
 
 
 @router.post("/{character_id}/features", response_model=CharacterRead)

@@ -16,6 +16,9 @@ from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterClassCreate,
     CharacterCreate,
+    CharacterCurrencyRequest,
+    CharacterEquipmentCreate,
+    CharacterEquipmentUpdate,
     CharacterRestRequest,
     CharacterSpellCastRequest,
     CharacterSpellCreate,
@@ -645,3 +648,128 @@ async def test_short_rest_does_not_restore_spell_slots(
     )
     used_slot = next(s for s in character.spell_slots if s.spell_level == 1)
     assert used_slot.used == 1
+
+
+async def test_update_equipment_toggle_and_quantity(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, longsword_item_id: str
+) -> None:
+    """Editing an inventory item updates equipped/attunement/quantity."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(longsword_item_id), quantity=1),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    character = await service.update_equipment(
+        character_id,
+        entry_id,
+        owner.id,
+        CharacterEquipmentUpdate(equipped=True, quantity=2),
+        db,
+    )
+    assert character.equipment[0].equipped is True
+    assert character.equipment[0].quantity == 2
+
+
+async def test_remove_equipment(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, longsword_item_id: str
+) -> None:
+    """Removing an item drops it from the character's inventory."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(longsword_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    character = await service.remove_equipment(character_id, entry_id, owner.id, db)
+    assert character.equipment == []
+
+
+async def test_update_equipment_wrong_owner_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, longsword_item_id: str
+) -> None:
+    """A different player cannot edit/remove another character's items."""
+    owner = await _make_user(db, email="owner@example.com")
+    outsider = await _make_user(db, email="outsider@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(longsword_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_equipment(
+            character_id,
+            entry_id,
+            outsider.id,
+            CharacterEquipmentUpdate(equipped=True),
+            db,
+        )
+    assert exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as exc:
+        await service.remove_equipment(character_id, entry_id, outsider.id, db)
+    assert exc.value.status_code == 403
+
+
+async def test_update_currency_gain_and_spend(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Currency gain/spend deltas are reflected in the character's balance."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    character = await service.update_currency(
+        character_id, owner.id, CharacterCurrencyRequest(delta=500), db
+    )
+    assert character.currency_cp == 500
+
+    character = await service.update_currency(
+        character_id, owner.id, CharacterCurrencyRequest(delta=-200), db
+    )
+    assert character.currency_cp == 300
+
+
+async def test_update_currency_negative_balance_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Spending more than the current balance is rejected (422)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_currency(
+            character_id, owner.id, CharacterCurrencyRequest(delta=-1), db
+        )
+    assert exc.value.status_code == 422

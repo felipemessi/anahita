@@ -170,6 +170,24 @@ class CharacterEquipmentRead(BaseModel):
     attunement: bool
 
 
+class CharacterEquipmentUpdate(BaseModel):
+    """Request body to edit an inventory item. Every field is optional."""
+
+    equipped: bool | None = None
+    attunement: bool | None = None
+    quantity: int | None = Field(default=None, ge=1)
+
+
+class CharacterCurrencyRequest(BaseModel):
+    """Request body to record a currency gain/spend, in copper pieces.
+
+    `delta` is positive for a gain, negative for a spend — the resulting
+    balance can never go below zero (422).
+    """
+
+    delta: int
+
+
 class CharacterFeatureCreate(BaseModel):
     """Request body to record a class/feat feature on a character.
 
@@ -232,6 +250,7 @@ class CharacterRead(BaseModel):
     speed: int
     inspiration: bool
     proficiency_bonus: int
+    currency_cp: int
     ability_scores: list[CharacterAbilityScoreRead]
     skills: list[CharacterSkillRead]
     classes: list[CharacterClassRead]
