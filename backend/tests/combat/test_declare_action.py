@@ -38,6 +38,7 @@ from app.characters.schemas import (
     CharacterClassCreate,
     CharacterCreate,
     CharacterEquipmentCreate,
+    CharacterEquipmentUpdate,
     CharacterSpellCreate,
 )
 from app.characters.service import CharacterService
@@ -235,7 +236,6 @@ async def test_declare_weapon_attack_hits_and_applies_damage(
     ids = await _participant_ids(db, encounter_id)
     service = CombatService()
 
-
     result = await service.declare_action(
         encounter_id,
         fx.player_id,
@@ -269,7 +269,6 @@ async def test_declare_weapon_attack_misses_no_damage(
     ids = await _participant_ids(db, encounter_id)
     service = CombatService()
 
-
     result = await service.declare_action(
         encounter_id,
         fx.player_id,
@@ -290,6 +289,116 @@ async def test_declare_weapon_attack_misses_no_damage(
     assert goblin.hit_point_current == 7
 
 
+async def test_declare_weapon_attack_after_swapping_weapon_uses_new_bonuses(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Switching equipped weapons and attacking again uses the new weapon's bonuses."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    service = CombatService()
+    char_service = CharacterService()
+
+    dagger_result = await db.execute(select(Item).where(Item.index == "dagger"))
+    dagger_id = dagger_result.scalar_one().id
+    await char_service.update_equipment(
+        fx.character_id,
+        fx.equipment_id,
+        fx.player_id,
+        CharacterEquipmentUpdate(equipped=False),
+        db,
+    )
+    character = await char_service.add_equipment(
+        fx.character_id,
+        fx.player_id,
+        CharacterEquipmentCreate(item_id=dagger_id, equipped=True),
+        db,
+    )
+    dagger_equipment_id = next(
+        e.id for e in character.equipment if e.item_id == dagger_id
+    )
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Aldric"],
+            target_id=ids["Goblin"],
+            action_type="attack_weapon",
+            weapon_equipment_id=dagger_equipment_id,
+            manual_attack_roll=20,
+            manual_damage_roll=4,
+        ),
+        db,
+    )
+    # Dagger is finesse -> DEX 14 (+2 mod); Fighter is proficient with
+    # simple weapons too -> +2. Different from the Longsword's STR-based 5.
+    assert result.attack_bonus == 4
+    assert result.damage_type == "piercing"
+
+
+async def test_weapon_attack_without_proficiency_omits_proficiency_bonus(
+    db: AsyncSession,
+) -> None:
+    """A weapon outside the character's proficiency never adds the prof bonus."""
+    dm = User(email="dm2@example.com", username="dm2", hashed_password="x")
+    player = User(email="player2@example.com", username="player2", hashed_password="x")
+    db.add_all([dm, player])
+    await db.flush()
+    campaign = Campaign(name="Neverwinter", owner_id=dm.id)
+    db.add(campaign)
+    await db.flush()
+    player_member = CampaignMember(
+        campaign_id=campaign.id, user_id=player.id, role=CampaignRole.player
+    )
+    db.add(player_member)
+    await db.commit()
+    await db.refresh(player_member)
+
+    race_result = await db.execute(select(Race).where(Race.index == "human"))
+    race_id = race_result.scalar_one().id
+    class_result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "wizard")
+    )
+    class_id = class_result.scalar_one().id
+    longsword_result = await db.execute(select(Item).where(Item.index == "longsword"))
+    longsword_id = longsword_result.scalar_one().id
+
+    char_service = CharacterService()
+    character = await char_service.create_character(
+        player.id,
+        CharacterCreate(
+            campaign_member_id=player_member.id,
+            name="Elmindra",
+            race_id=race_id,
+            ability_scores=_STANDARD_ARRAY,
+            classes=[CharacterClassCreate(class_definition_id=class_id)],
+        ),
+        db,
+    )
+    character = await char_service.add_equipment(
+        character.id,
+        player.id,
+        CharacterEquipmentCreate(item_id=longsword_id, equipped=True),
+        db,
+    )
+    equipment_id = character.equipment[0].id
+
+    combat_service = CombatService()
+    (
+        attack_bonus,
+        _damage_expression,
+        _damage_type,
+        _source,
+    ) = await combat_service._resolve_character_weapon_attack(
+        character.id, equipment_id, db
+    )
+
+    # STR 16 -> +3 mod, no proficiency bonus (Wizard isn't proficient with
+    # martial weapons like the Longsword).
+    assert attack_bonus == 3
+
+
 async def test_declare_action_wrong_owner_rejected(
     db: AsyncSession, fixture_with_fighter: _Fixture
 ) -> None:
@@ -298,7 +407,6 @@ async def test_declare_action_wrong_owner_rejected(
     encounter_id = await _get_encounter_id(db, fx.session_id)
     ids = await _participant_ids(db, encounter_id)
     service = CombatService()
-
 
     with pytest.raises(HTTPException) as exc:
         await service.declare_action(
@@ -334,7 +442,6 @@ async def test_declare_monster_attack_uses_stat_block(
         )
     )
     scimitar = action_result.scalar_one()
-
 
     result = await service.declare_action(
         encounter_id,
@@ -633,7 +740,6 @@ async def test_declare_grapple_success_applies_condition(
     ids = await _participant_ids(db, encounter_id)
     service = CombatService()
 
-
     result = await service.declare_action(
         encounter_id,
         fx.player_id,
@@ -662,7 +768,6 @@ async def test_declare_grapple_failure_no_condition(
     encounter_id = await _get_encounter_id(db, fx.session_id)
     ids = await _participant_ids(db, encounter_id)
     service = CombatService()
-
 
     result = await service.declare_action(
         encounter_id,
@@ -698,10 +803,7 @@ async def test_declare_action_manual_participant_requires_manual_bonus(
         db,
     )
     updated = await service.get_encounter(encounter_id, fx.dm_id, db)
-    mystery_id = next(
-        p.id for p in updated.participants if p.name == "Mystery Foe"
-    )
-
+    mystery_id = next(p.id for p in updated.participants if p.name == "Mystery Foe")
 
     with pytest.raises(HTTPException) as exc:
         await service.declare_action(
@@ -773,7 +875,6 @@ async def test_declare_spell_attack_resolves_catalog_damage(
         db,
     )
 
-
     result = await combat_service.declare_action(
         encounter_id,
         fx.player_id,
@@ -801,7 +902,6 @@ async def test_roll_initiative_server_rolls_for_character(
     encounter_id = await _get_encounter_id(db, fx.session_id)
     ids = await _participant_ids(db, encounter_id)
     service = CombatService()
-
 
     participant = await service.roll_initiative(
         encounter_id, ids["Aldric"], fx.player_id, None, db

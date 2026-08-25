@@ -29,6 +29,7 @@ from app.catalog.domain import (
     SpellActionType,
     SpellDamageScalingType,
     SpellTargetType,
+    WeaponCategory,
 )
 from app.catalog.mixins import CatalogEntityMixin, CatalogI18nMixin
 from app.database import Base
@@ -955,6 +956,12 @@ class WeaponDetail(Base):
         nullable=False,
     )
     weapon_range: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Nullable so existing/homebrew weapons without this (pre-Fase-8) are
+    # unaffected — `CombatService._is_weapon_proficient` treats `None` as
+    # "no category to match", falling through to the specific-weapon check.
+    weapon_category: Mapped[WeaponCategory | None] = mapped_column(
+        SAEnum(WeaponCategory, name="weaponcategory")
+    )
 
     item: Mapped[Item] = relationship("Item", back_populates="weapon_detail")
     damage_type: Mapped[DamageType] = relationship("DamageType")
