@@ -21,7 +21,29 @@ from sqlalchemy.orm import selectinload
 
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
-from app.characters.models import Character
+from app.catalog.domain import AbilityScore
+from app.catalog.models import (
+    ClassDefinition,
+    Item,
+    ItemProperty,
+    Monster,
+    MonsterAction,
+    MonsterActionDamage,
+    MonsterProficiency,
+    Proficiency,
+    SkillDefinition,
+    Spell,
+    SpellDamage,
+    WeaponDetail,
+)
+from app.characters.domain import SKILL_ABILITY, Skill
+from app.characters.models import (
+    Character,
+    CharacterAbilityScore,
+    CharacterEquipment,
+    CharacterSkill,
+    CharacterSpell,
+)
 from app.combat.domain import (
     ActionType,
     ConditionType,
@@ -40,6 +62,7 @@ from app.combat.models import (
 )
 from app.combat.schemas import (
     CombatLogRead,
+    DeclareActionResultRead,
     EncounterConditionRead,
     EncounterCreate,
     EncounterParticipantCreate,
@@ -47,11 +70,19 @@ from app.combat.schemas import (
     EncounterParticipantUpdate,
     EncounterRead,
     MechanicalEffectRead,
+    WSDeclareActionPayload,
 )
 from app.sessions.models import Session
+from engine.abilities import calculate_modifier, calculate_skill_bonus
 from engine.conditions import get_condition_effects
+from engine.dice import roll, roll_d20
 from engine.types import Condition as EngineCondition
 from engine.types import ConditionType as EngineConditionType
+
+#: Skills whose contest resolves a grapple/shove (PHB: attacker's Athletics
+#: vs. the target's choice of Athletics/Acrobatics) — see `declare_action`.
+_GRAPPLE_ATTACKER_SKILLS = (Skill.athletics,)
+_GRAPPLE_DEFENSE_SKILLS = (Skill.athletics, Skill.acrobatics)
 
 _ENCOUNTER_LOAD_OPTIONS = (
     selectinload(Encounter.participants).selectinload(EncounterParticipant.conditions),
@@ -81,6 +112,7 @@ def participant_to_read(participant: EncounterParticipant) -> EncounterParticipa
         encounter_id=participant.encounter_id,
         character_id=participant.character_id,
         npc_id=participant.npc_id,
+        monster_id=participant.monster_id,
         name=participant.name,
         initiative=participant.initiative,
         hit_point_max=participant.hit_point_max,
@@ -238,7 +270,9 @@ class CombatService:
 
         try:
             validate_participant_kind(
-                character_id=data.character_id, npc_id=data.npc_id
+                character_id=data.character_id,
+                npc_id=data.npc_id,
+                monster_id=data.monster_id,
             )
         except ParticipantKindError as exc:
             raise HTTPException(
@@ -254,6 +288,7 @@ class CombatService:
             encounter_id=encounter.id,
             character_id=data.character_id,
             npc_id=data.npc_id,
+            monster_id=data.monster_id,
             name=data.name,
             initiative=data.initiative,
             hit_point_max=data.hit_point_max,
@@ -474,7 +509,7 @@ class CombatService:
         encounter_id: uuid.UUID,
         participant_id: uuid.UUID,
         requester_id: uuid.UUID,
-        initiative: int,
+        initiative: int | None,
         db: AsyncSession,
     ) -> EncounterParticipantRead:
         """Set a participant's initiative (live, WS-driven).
@@ -482,6 +517,13 @@ class CombatService:
         Unlike other WS commands this isn't DM-only: a player may roll for
         their own character's participant; the DM may roll for any
         participant (their own characters, NPCs, monsters).
+
+        `initiative=None` rolls `1d20 + DEX modifier` server-side via
+        `engine/dice.py` (Character or catalog-linked Monster participant
+        only — a purely manual participant has no ability scores to roll
+        from and must supply `initiative` explicitly, 422 otherwise).
+        Supplied, it's used as-is and logged as a manual roll (backlog Fase
+        6 história 6).
         """
         encounter = await self._load_encounter_or_404(encounter_id, db)
         session = await self._require_session(encounter.session_id, db)
@@ -496,12 +538,33 @@ class CombatService:
                     detail="You can only roll initiative for your own character",
                 )
 
-        participant.initiative = initiative
+        if initiative is not None:
+            rolled_value = initiative
+            log_suffix = " (manual)"
+            rolled_by_system = False
+        else:
+            dex_mod = await self._participant_dex_modifier(participant, db)
+            if dex_mod is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "This participant has no ability scores to roll "
+                        "initiative from — supply `initiative` manually"
+                    ),
+                )
+            rolled_value = roll_d20(bonus=dex_mod).total
+            log_suffix = ""
+            rolled_by_system = True
+
+        participant.initiative = rolled_value
         self._log(
             db,
             encounter,
             actor_id=participant.id,
-            description=f"{participant.name} rolled initiative: {initiative}",
+            description=(
+                f"{participant.name} rolled initiative: {rolled_value}{log_suffix}"
+            ),
+            rolled_by_system=rolled_by_system,
         )
         await db.commit()
         result = await db.execute(
@@ -511,6 +574,618 @@ class CombatService:
             .execution_options(populate_existing=True)
         )
         return participant_to_read(result.scalar_one())
+
+    async def _participant_dex_modifier(
+        self, participant: EncounterParticipant, db: AsyncSession
+    ) -> int | None:
+        """Return a Character/Monster participant's DEX modifier, else None."""
+        if participant.character_id is not None:
+            result = await db.execute(
+                select(CharacterAbilityScore).where(
+                    CharacterAbilityScore.character_id == participant.character_id,
+                    CharacterAbilityScore.ability == AbilityScore.dex,
+                )
+            )
+            score = result.scalar_one_or_none()
+            if score is None:
+                return None
+            return calculate_modifier(
+                score.base_score + score.asi_bonus + score.misc_bonus
+            )
+        if participant.monster_id is not None:
+            monster_result = await db.execute(
+                select(Monster).where(Monster.id == participant.monster_id)
+            )
+            monster = monster_result.scalar_one_or_none()
+            if monster is None:
+                return None
+            return calculate_modifier(monster.dexterity)
+        return None
+
+    async def declare_action(
+        self,
+        encounter_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Declare and resolve a combat action (live, WS-driven).
+
+        `attack_weapon`/`attack_spell`: attack roll (`1d20 + bonus`, or
+        `manual_attack_roll`) vs. the target's `armor_class`; on hit, rolls
+        (or takes `manual_damage_roll` for) the weapon/spell's damage.
+        `grapple`/`shove`: an opposed check (attacker's Athletics vs. the
+        best of the target's Athletics/Acrobatics — PHB lets the target
+        choose which; this always uses whichever is higher rather than
+        prompting live, a documented simplification) resolved server-side;
+        applies `grappled` on a successful grapple (repositioning for a
+        shove isn't tracked — no position/map model in this app yet).
+
+        Unlike the DM-only WS commands, only the attacker's own
+        player (or the DM) may declare for it — mirrors `roll_initiative`.
+        """
+        encounter = await self._load_encounter_or_404(encounter_id, db)
+        session = await self._require_session(encounter.session_id, db)
+        member = await self._require_membership(session.campaign_id, requester_id, db)
+        attacker = self._find_participant_or_404(encounter, data.participant_id)
+        target = self._find_participant_or_404(encounter, data.target_id)
+
+        if member.role != CampaignRole.dm:
+            owns = await self._participant_owned_by(attacker, requester_id, db)
+            if not owns:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only declare actions for your own character",
+                )
+
+        if data.action_type in (ActionType.attack_weapon, ActionType.attack_spell):
+            result = await self._resolve_attack(encounter, attacker, target, data, db)
+        elif data.action_type in (ActionType.grapple, ActionType.shove):
+            result = await self._resolve_contest(encounter, attacker, target, data, db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"declare_action doesn't resolve action_type={data.action_type}",
+            )
+
+        await db.commit()
+        return result
+
+    async def _resolve_attack(
+        self,
+        encounter: Encounter,
+        attacker: EncounterParticipant,
+        target: EncounterParticipant,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Resolve `attack_weapon`/`attack_spell`: to-hit roll, then damage."""
+        attack_bonus, damage_expression, damage_type, source_desc = (
+            await self._resolve_attack_source(attacker, data, db)
+        )
+
+        if data.manual_attack_roll is not None:
+            attack_roll = data.manual_attack_roll
+        else:
+            attack_roll = roll_d20(bonus=attack_bonus).total
+
+        hit = attack_roll >= target.armor_class
+        description = (
+            f"{attacker.name} attacks {target.name} with {source_desc}: "
+            f"{attack_roll} vs AC {target.armor_class} — "
+            f"{'hit' if hit else 'miss'}"
+        )
+        damage_rolled: int | None = None
+        if hit:
+            if data.manual_damage_roll is not None:
+                damage_rolled = data.manual_damage_roll
+            elif damage_expression is not None:
+                damage_rolled = roll(damage_expression).total
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "No damage expression could be resolved for this "
+                        "attack — supply manual_damage_expression or "
+                        "manual_damage_roll"
+                    ),
+                )
+            new_hp = max(0, target.hit_point_current - damage_rolled)
+            self._log_hp_change(db, encounter, target, new_hp)
+            target.hit_point_current = new_hp
+            description += (
+                f", dealing {damage_rolled} {damage_type or ''} damage".rstrip()
+            )
+
+        self._log(
+            db,
+            encounter,
+            actor_id=attacker.id,
+            target_id=target.id,
+            action_type=data.action_type,
+            description=description,
+            damage_dealt=damage_rolled if hit else None,
+            damage_type=damage_type if hit else None,
+            rolled_by_system=(
+                data.manual_attack_roll is None and data.manual_damage_roll is None
+            ),
+        )
+        return DeclareActionResultRead(
+            actor_id=attacker.id,
+            target_id=target.id,
+            action_type=data.action_type,
+            attack_roll=attack_roll,
+            attack_bonus=attack_bonus,
+            hit=hit,
+            damage_rolled=damage_rolled,
+            damage_type=damage_type if hit else None,
+            description=description,
+        )
+
+    async def _resolve_attack_source(
+        self,
+        attacker: EncounterParticipant,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> tuple[int, str | None, str | None, str]:
+        """Resolve `(attack_bonus, damage_expression, damage_type, source_name)`.
+
+        `damage_expression` is `None` only when the source genuinely has no
+        damage to roll (e.g. a non-damaging spell) — the caller must then
+        supply `manual_damage_expression`/`manual_damage_roll` to hit with
+        an effect but no auto damage.
+        """
+        if (
+            data.action_type == ActionType.attack_weapon
+            and attacker.character_id is not None
+        ):
+            if data.weapon_equipment_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="weapon_equipment_id is required to attack with a weapon",
+                )
+            return await self._resolve_character_weapon_attack(
+                attacker.character_id, data.weapon_equipment_id, db
+            )
+        if (
+            data.action_type == ActionType.attack_spell
+            and attacker.character_id is not None
+        ):
+            if data.spell_entry_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="spell_entry_id is required to attack with a spell",
+                )
+            return await self._resolve_character_spell_attack(
+                attacker.character_id, data.spell_entry_id, data.cast_at_level, db
+            )
+        if attacker.monster_id is not None:
+            if data.monster_action_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="monster_action_id is required for a monster's attack",
+                )
+            return await self._resolve_monster_attack(
+                attacker.monster_id, data.monster_action_id, db
+            )
+        if data.manual_attack_bonus is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "This participant has no stat block to resolve an attack "
+                    "from — supply manual_attack_bonus (and "
+                    "manual_damage_expression/manual_damage_roll)"
+                ),
+            )
+        return (
+            data.manual_attack_bonus,
+            data.manual_damage_expression,
+            None,
+            attacker.name,
+        )
+
+    async def _resolve_character_weapon_attack(
+        self, character_id: uuid.UUID, equipment_id: uuid.UUID, db: AsyncSession
+    ) -> tuple[int, str, str, str]:
+        """Resolve a Character's equipped weapon into attack bonus + damage.
+
+        Ability used: DEX for ranged or finesse weapons, STR otherwise — for
+        finesse specifically the PHB lets the player pick either; this
+        always picks DEX (the common choice in play), a documented
+        simplification. Proficiency is assumed with any weapon a character
+        has equipped — this app doesn't model per-category weapon
+        proficiency on `Character`, another documented simplification.
+        """
+        result = await db.execute(
+            select(CharacterEquipment).where(
+                CharacterEquipment.id == equipment_id,
+                CharacterEquipment.character_id == character_id,
+            )
+        )
+        equipment = result.scalar_one_or_none()
+        if equipment is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Equipment entry not found on the attacker's character",
+            )
+        item_result = await db.execute(
+            select(Item)
+            .where(Item.id == equipment.item_id)
+            .options(
+                selectinload(Item.weapon_detail).selectinload(WeaponDetail.damage_type),
+                selectinload(Item.properties).selectinload(
+                    ItemProperty.weapon_property
+                ),
+            )
+        )
+        item = item_result.scalar_one_or_none()
+        if item is None or item.weapon_detail is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Selected equipment is not a weapon",
+            )
+
+        has_finesse = any(
+            p.weapon_property.index == "finesse" for p in item.properties
+        )
+        ability = (
+            AbilityScore.dex
+            if item.weapon_detail.weapon_range == "Ranged" or has_finesse
+            else AbilityScore.str
+        )
+        ability_mod = await self._character_ability_modifier(character_id, ability, db)
+        proficiency_bonus = await self._character_proficiency_bonus(character_id, db)
+        attack_bonus = ability_mod + proficiency_bonus
+        sign = "+" if ability_mod >= 0 else ""
+        damage_expression = f"{item.weapon_detail.damage_dice}{sign}{ability_mod}"
+        return (
+            attack_bonus,
+            damage_expression,
+            item.weapon_detail.damage_type.index or "",
+            item.index or "weapon",
+        )
+
+    async def _resolve_character_spell_attack(
+        self,
+        character_id: uuid.UUID,
+        spell_entry_id: uuid.UUID,
+        cast_at_level: int | None,
+        db: AsyncSession,
+    ) -> tuple[int, str | None, str | None, str]:
+        """Resolve a Character's known spell into attack bonus + damage.
+
+        Attack bonus: the casting class's spellcasting-ability modifier +
+        proficiency bonus, matched by `CharacterSpell.source_class` against
+        the character's classes (same lookup `CharacterService` uses).
+        Damage: looked up from catalog `SpellDamage` at `cast_at_level`
+        (slot-scaled) or the character's class level (cantrip/character-
+        level-scaled); `None` if the spell has no damage entry at all (e.g.
+        a pure debuff/utility spell) — the caller must then supply a manual
+        damage expression to log an effect without rolling one here.
+        """
+        entry_result = await db.execute(
+            select(CharacterSpell).where(
+                CharacterSpell.id == spell_entry_id,
+                CharacterSpell.character_id == character_id,
+            )
+        )
+        entry = entry_result.scalar_one_or_none()
+        if entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Spell entry not found on the attacker's character",
+            )
+        spell_result = await db.execute(
+            select(Spell)
+            .where(Spell.id == entry.spell_id)
+            .options(selectinload(Spell.damages).selectinload(SpellDamage.damage_type))
+        )
+        spell = spell_result.scalar_one_or_none()
+        if spell is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Spell not found"
+            )
+
+        character_result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(selectinload(Character.classes))
+        )
+        character = character_result.scalar_one()
+        ability_mod = 0
+        caster_level = character.level
+        if entry.source_class is not None:
+            class_result = await db.execute(
+                select(ClassDefinition).where(
+                    ClassDefinition.index == entry.source_class
+                )
+            )
+            class_def = class_result.scalar_one_or_none()
+            class_entry = next(
+                (
+                    c
+                    for c in character.classes
+                    if class_def is not None
+                    and c.class_definition_id == class_def.id
+                ),
+                None,
+            )
+            if class_def is not None and class_entry is not None:
+                caster_level = class_entry.level
+                if class_def.spellcasting_ability is not None:
+                    ability_mod = await self._character_ability_modifier(
+                        character_id, AbilityScore(class_def.spellcasting_ability), db
+                    )
+        proficiency_bonus = await self._character_proficiency_bonus(character_id, db)
+        attack_bonus = ability_mod + proficiency_bonus
+
+        target_level = cast_at_level or spell.level
+        damage_row = next(
+            (
+                d
+                for d in spell.damages
+                if (d.scaling_type == "slot_level" and d.scaling_key == target_level)
+                or (
+                    d.scaling_type == "character_level"
+                    and d.scaling_key
+                    == max(
+                        (k for k in (1, 5, 11, 17) if k <= caster_level), default=1
+                    )
+                )
+            ),
+            None,
+        )
+        if damage_row is None:
+            return attack_bonus, None, None, spell.index or "spell"
+        return (
+            attack_bonus,
+            damage_row.dice_expression,
+            damage_row.damage_type.index or "",
+            spell.index or "spell",
+        )
+
+    async def _resolve_monster_attack(
+        self, monster_id: uuid.UUID, monster_action_id: uuid.UUID, db: AsyncSession
+    ) -> tuple[int, str | None, str | None, str]:
+        """Resolve a catalog Monster's action into attack bonus + damage.
+
+        `attack_bonus` is read straight from `MonsterAction.attack_bonus`
+        (already the SRD's precomputed number). Multiple `MonsterActionDamage`
+        rows (e.g. a bite that also deals poison) are summed into one dice
+        expression, logged under the first row's damage type — mixed-type
+        damage isn't split out per type, a documented simplification.
+        """
+        result = await db.execute(
+            select(MonsterAction)
+            .where(
+                MonsterAction.id == monster_action_id,
+                MonsterAction.monster_id == monster_id,
+            )
+            .options(
+                selectinload(MonsterAction.damages).selectinload(
+                    MonsterActionDamage.damage_type
+                )
+            )
+        )
+        action = result.scalar_one_or_none()
+        if action is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Action not found on the attacker's monster stat block",
+            )
+        if action.attack_bonus is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "This monster action has no attack roll "
+                    "(e.g. a save-based effect)"
+                ),
+            )
+        if not action.damages:
+            return action.attack_bonus, None, None, action.name
+        damage_expression = "+".join(d.damage_dice for d in action.damages)
+        return (
+            action.attack_bonus,
+            damage_expression,
+            action.damages[0].damage_type.index or "",
+            action.name,
+        )
+
+    async def _character_ability_modifier(
+        self, character_id: uuid.UUID, ability: AbilityScore, db: AsyncSession
+    ) -> int:
+        result = await db.execute(
+            select(CharacterAbilityScore).where(
+                CharacterAbilityScore.character_id == character_id,
+                CharacterAbilityScore.ability == ability,
+            )
+        )
+        score = result.scalar_one_or_none()
+        if score is None:
+            return 0
+        return calculate_modifier(score.base_score + score.asi_bonus + score.misc_bonus)
+
+    async def _character_proficiency_bonus(
+        self, character_id: uuid.UUID, db: AsyncSession
+    ) -> int:
+        result = await db.execute(
+            select(Character).where(Character.id == character_id)
+        )
+        character = result.scalar_one_or_none()
+        return character.proficiency_bonus if character is not None else 0
+
+    async def _resolve_contest(
+        self,
+        encounter: Encounter,
+        attacker: EncounterParticipant,
+        target: EncounterParticipant,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Resolve `grapple`/`shove` as attacker's Athletics vs. defense.
+
+        The target's contest uses the best of Athletics/Acrobatics — see
+        `declare_action`'s docstring for the "always picks the target's
+        best" simplification.
+        """
+        attacker_bonus = await self._resolve_check_bonus(
+            attacker, _GRAPPLE_ATTACKER_SKILLS, data.manual_athletics_bonus, db
+        )
+        target_bonus = await self._resolve_check_bonus(
+            target, _GRAPPLE_DEFENSE_SKILLS, data.manual_target_bonus, db
+        )
+
+        attacker_roll = (
+            data.manual_attack_roll
+            if data.manual_attack_roll is not None
+            else roll_d20(bonus=attacker_bonus).total
+        )
+        target_roll = (
+            data.manual_target_roll
+            if data.manual_target_roll is not None
+            else roll_d20(bonus=target_bonus).total
+        )
+        succeeded = attacker_roll >= target_roll
+
+        verb = "grapples" if data.action_type == ActionType.grapple else "shoves"
+        description = (
+            f"{attacker.name} {verb} {target.name}: {attacker_roll} vs "
+            f"{target_roll} — {'success' if succeeded else 'fail'}"
+        )
+        condition_applied: str | None = None
+        if succeeded and data.action_type == ActionType.grapple:
+            already_grappled = any(
+                c.condition == ConditionType.grappled for c in target.conditions
+            )
+            if not already_grappled:
+                db.add(
+                    EncounterCondition(
+                        participant_id=target.id,
+                        condition=ConditionType.grappled,
+                        applied_at_round=encounter.current_round,
+                    )
+                )
+                condition_applied = ConditionType.grappled.value
+
+        self._log(
+            db,
+            encounter,
+            actor_id=attacker.id,
+            target_id=target.id,
+            action_type=data.action_type,
+            description=description,
+            rolled_by_system=(
+                data.manual_attack_roll is None and data.manual_target_roll is None
+            ),
+        )
+        return DeclareActionResultRead(
+            actor_id=attacker.id,
+            target_id=target.id,
+            action_type=data.action_type,
+            attacker_check=attacker_roll,
+            target_check=target_roll,
+            hit=succeeded,
+            condition_applied=condition_applied,
+            description=description,
+        )
+
+    async def _resolve_check_bonus(
+        self,
+        participant: EncounterParticipant,
+        skills: tuple[Skill, ...],
+        manual_bonus: int | None,
+        db: AsyncSession,
+    ) -> int:
+        """Resolve the best of `skills`' bonus for a participant.
+
+        Character: `engine.abilities.calculate_skill_bonus` per skill,
+        best wins. Monster: best of `MonsterProficiency` (if proficient in
+        one of `skills`) or the governing ability's modifier otherwise.
+        Manual participant: `manual_bonus` is required (422 without it).
+        """
+        if participant.character_id is not None:
+            return await self._character_best_skill_bonus(
+                participant.character_id, skills, db
+            )
+        if participant.monster_id is not None:
+            return await self._monster_best_skill_bonus(
+                participant.monster_id, skills, db
+            )
+        if manual_bonus is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"{participant.name} has no stat block to resolve a check "
+                    "from — supply a manual bonus"
+                ),
+            )
+        return manual_bonus
+
+    async def _character_best_skill_bonus(
+        self, character_id: uuid.UUID, skills: tuple[Skill, ...], db: AsyncSession
+    ) -> int:
+        skills_result = await db.execute(
+            select(CharacterSkill).where(
+                CharacterSkill.character_id == character_id,
+                CharacterSkill.skill.in_(skills),
+            )
+        )
+        char_skills = skills_result.scalars().all()
+        scores_result = await db.execute(
+            select(CharacterAbilityScore).where(
+                CharacterAbilityScore.character_id == character_id
+            )
+        )
+        scores_by_ability = {s.ability: s for s in scores_result.scalars().all()}
+        proficiency_bonus = await self._character_proficiency_bonus(character_id, db)
+
+        bonuses = []
+        for skill_row in char_skills:
+            score = scores_by_ability.get(SKILL_ABILITY[skill_row.skill])
+            if score is None:
+                continue
+            mod = calculate_modifier(
+                score.base_score + score.asi_bonus + score.misc_bonus
+            )
+            bonuses.append(
+                calculate_skill_bonus(
+                    mod, skill_row.proficient, skill_row.expertise, proficiency_bonus
+                )
+            )
+        return max(bonuses) if bonuses else 0
+
+    async def _monster_best_skill_bonus(
+        self, monster_id: uuid.UUID, skills: tuple[Skill, ...], db: AsyncSession
+    ) -> int:
+        monster_result = await db.execute(
+            select(Monster).where(Monster.id == monster_id)
+        )
+        monster = monster_result.scalar_one_or_none()
+        if monster is None:
+            return 0
+
+        prof_result = await db.execute(
+            select(SkillDefinition.index, MonsterProficiency.value)
+            .join(Proficiency, Proficiency.id == MonsterProficiency.proficiency_id)
+            .join(SkillDefinition, SkillDefinition.id == Proficiency.skill_id)
+            .where(
+                MonsterProficiency.monster_id == monster_id,
+                SkillDefinition.index.in_([s.value for s in skills]),
+            )
+        )
+        prof_by_skill = {index: value for index, value in prof_result.all()}
+
+        ability_by_skill = {
+            Skill.athletics.value: monster.strength,
+            Skill.acrobatics.value: monster.dexterity,
+        }
+        bonuses = []
+        for skill in skills:
+            if skill.value in prof_by_skill:
+                bonuses.append(prof_by_skill[skill.value])
+            elif skill.value in ability_by_skill:
+                bonuses.append(calculate_modifier(ability_by_skill[skill.value]))
+        return max(bonuses) if bonuses else 0
 
     async def _participant_owned_by(
         self,
@@ -560,6 +1235,7 @@ class CombatService:
         action_type: ActionType = ActionType.other,
         damage_dealt: int | None = None,
         damage_type: str | None = None,
+        rolled_by_system: bool = True,
     ) -> None:
         """Record one CombatLog entry at the encounter's current round/turn."""
         db.add(
@@ -573,6 +1249,7 @@ class CombatService:
                 damage_dealt=damage_dealt,
                 damage_type=damage_type,
                 target_id=target_id,
+                rolled_by_system=rolled_by_system,
             )
         )
 

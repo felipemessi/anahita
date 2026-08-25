@@ -1,12 +1,13 @@
 """WebSocket endpoint for live combat — turn advancement, damage/heal/condition.
 
 PRD §10: envelope `{"event_type": "...", "payload": {...}}`. Server → clients:
-`state_sync`, `turn_advanced`, `participant_updated`, `encounter_status_changed`
-(plus an `error` event for rejected/invalid commands, not in the PRD table but
-needed to give the DM's client feedback). Client (DM only) → server:
-`advance_turn`, `update_participant`, `add_participant`, `remove_participant`,
-`end_encounter`. Client (any campaign member) → server: `roll_initiative`
-(a player only for their own character's participant, the DM for any).
+`state_sync`, `turn_advanced`, `participant_updated`, `encounter_status_changed`,
+`action_resolved` (plus an `error` event for rejected/invalid commands, not in
+the PRD table but needed to give the DM's client feedback). Client (DM only)
+→ server: `advance_turn`, `update_participant`, `add_participant`,
+`remove_participant`, `end_encounter`. Client (any campaign member) →
+server: `roll_initiative`, `declare_action` (a player only for their own
+character's participant, the DM for any).
 """
 
 import uuid
@@ -26,9 +27,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.campaigns.domain import CampaignRole
 from app.combat.schemas import (
+    DeclareActionResultRead,
     EncounterParticipantCreate,
     EncounterParticipantRead,
     EncounterRead,
+    WSDeclareActionPayload,
     WSRemoveParticipantPayload,
     WSRollInitiativePayload,
     WSUpdateParticipantPayload,
@@ -51,7 +54,7 @@ _DM_COMMANDS = frozenset(
 )
 #: Unlike `_DM_COMMANDS`, allowed for any campaign member — the service
 #: enforces per-participant ownership (own character only, DM any).
-_MEMBER_COMMANDS = frozenset({"roll_initiative"})
+_MEMBER_COMMANDS = frozenset({"roll_initiative", "declare_action"})
 
 
 async def _authenticate(token: str) -> uuid.UUID | None:
@@ -111,10 +114,13 @@ async def combat_ws(
 
 
 def _envelope(
-    event_type: str, model: EncounterRead | EncounterParticipantRead | Any
+    event_type: str,
+    model: EncounterRead | EncounterParticipantRead | DeclareActionResultRead | Any,
 ) -> dict[str, Any]:
     """Build a `{"event_type": ..., "payload": ...}` frame from a schema or dict."""
-    if isinstance(model, EncounterRead | EncounterParticipantRead):
+    if isinstance(
+        model, EncounterRead | EncounterParticipantRead | DeclareActionResultRead
+    ):
         payload = model.model_dump(mode="json")
     else:
         payload = model
@@ -200,6 +206,14 @@ async def _handle_message(
             )
             await manager.broadcast(
                 encounter_id, _envelope("participant_updated", participant)
+            )
+        elif event_type == "declare_action":
+            action_data = WSDeclareActionPayload.model_validate(payload)
+            action_result = await service.declare_action(
+                encounter_id, user_id, action_data, db
+            )
+            await manager.broadcast(
+                encounter_id, _envelope("action_resolved", action_result)
             )
         elif event_type == "end_encounter":
             encounter = await service.end_encounter(encounter_id, user_id, db)

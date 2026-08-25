@@ -25,6 +25,7 @@ from app.catalog.domain import (
     ItemType,
     LanguageType,
     ProficiencyType,
+    SpellDamageScalingType,
 )
 from app.catalog.mixins import CatalogEntityMixin, CatalogI18nMixin
 from app.database import Base
@@ -696,6 +697,9 @@ class Spell(Base):
     classes: Mapped[list[SpellClass]] = relationship(
         "SpellClass", back_populates="spell", cascade="all, delete-orphan"
     )
+    damages: Mapped[list[SpellDamage]] = relationship(
+        "SpellDamage", back_populates="spell", cascade="all, delete-orphan"
+    )
 
 
 class SpellI18n(CatalogI18nMixin, Base):
@@ -742,6 +746,50 @@ class SpellClass(Base):
 
     spell: Mapped[Spell] = relationship("Spell", back_populates="classes")
     class_definition: Mapped[ClassDefinition] = relationship("ClassDefinition")
+
+
+class SpellDamage(Base):
+    """One damage roll for a Spell, scaled by slot level or character level.
+
+    Most damaging spells (e.g. Fireball) scale by the slot they're cast at
+    when upcast — one row per slot level, `scaling_type=slot_level`. A
+    handful of cantrips (e.g. Fire Bolt) instead scale by the caster's class
+    level at fixed thresholds (1/5/11/17) — `scaling_type=character_level`.
+    A Spell has rows of one scaling type only, never both.
+
+    `dice_expression` is the raw SRD string (e.g. `"8d6"`, or `"1d8 + MOD"`
+    for the rare few that add the caster's ability modifier) — resolved by
+    `engine/dice.py` at cast time, never evaluated here.
+    """
+
+    __tablename__ = "catalog_spell_damages"
+    __table_args__ = (
+        UniqueConstraint(
+            "spell_id", "scaling_type", "scaling_key", name="uq_catalog_spell_damages"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    spell_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_spells.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    damage_type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_damage_types.id"),
+        nullable=False,
+    )
+    scaling_type: Mapped[SpellDamageScalingType] = mapped_column(
+        SAEnum(SpellDamageScalingType, name="spelldamagescalingtype"), nullable=False
+    )
+    scaling_key: Mapped[int] = mapped_column(Integer, nullable=False)
+    dice_expression: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    spell: Mapped[Spell] = relationship("Spell", back_populates="damages")
+    damage_type: Mapped[DamageType] = relationship("DamageType")
 
 
 class EquipmentCategory(CatalogEntityMixin, Base):

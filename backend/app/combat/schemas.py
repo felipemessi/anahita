@@ -17,13 +17,17 @@ class EncounterCreate(BaseModel):
 class EncounterParticipantCreate(BaseModel):
     """Request body to add a participant to an encounter.
 
-    `character_id`/`npc_id` are mutually exclusive — see
-    `app.combat.domain.validate_participant_kind`. Neither set means a
-    manual/generic entry, identified only by `name`.
+    `character_id`/`npc_id`/`monster_id` are mutually exclusive — see
+    `app.combat.domain.validate_participant_kind`. None set means a
+    manual/generic entry, identified only by `name`. `monster_id` links a
+    catalog stat block — `declare_action` resolves attack/skill bonuses
+    from it automatically; the other two kinds don't carry that data yet
+    and require the declaring client to supply bonuses explicitly.
     """
 
     character_id: uuid.UUID | None = None
     npc_id: uuid.UUID | None = None
+    monster_id: uuid.UUID | None = None
     name: str = Field(min_length=1, max_length=255)
     initiative: int | None = None
     hit_point_max: int = Field(ge=1)
@@ -81,6 +85,7 @@ class EncounterParticipantRead(BaseModel):
     encounter_id: uuid.UUID
     character_id: uuid.UUID | None
     npc_id: uuid.UUID | None
+    monster_id: uuid.UUID | None
     name: str
     initiative: int | None
     hit_point_max: int
@@ -112,6 +117,7 @@ class CombatLogRead(BaseModel):
     damage_dealt: int | None
     damage_type: str | None
     target_id: uuid.UUID | None
+    rolled_by_system: bool
     created_at: datetime
 
 
@@ -155,13 +161,73 @@ class WSRemoveParticipantPayload(BaseModel):
     participant_id: uuid.UUID
 
 
+class WSDeclareActionPayload(BaseModel):
+    """Payload for the `declare_action` command — attack/grapple/shove.
+
+    Resolved automatically when the attacker is a Character (via
+    `weapon_equipment_id`/`spell_entry_id`, selecting from their own sheet)
+    or a catalog-linked Monster (via `monster_action_id`); a purely manual
+    participant (no `character_id`/`monster_id`) has no stat block to
+    resolve from, so the declaring client must supply `manual_attack_bonus`
+    + `manual_damage_expression` (attacks) or `manual_athletics_bonus`
+    (grapple/shove) instead — `declare_action` rejects (422) with a clear
+    message when neither is available. The same manual/auto split applies
+    to the *target* of a grapple/shove (`manual_target_bonus`), since the
+    opposed check needs a bonus from both sides.
+
+    `manual_attack_roll`/`manual_damage_roll` (and `manual_target_roll` for
+    the defender's side of a grapple/shove contest) let the declaring
+    player type in a result instead of the server rolling via
+    `engine/dice.py` (backlog Fase 6 história 6) — a player may only supply
+    these for their own participant, the DM for any (mirrors
+    `roll_initiative`).
+    """
+
+    participant_id: uuid.UUID
+    target_id: uuid.UUID
+    action_type: ActionType
+    weapon_equipment_id: uuid.UUID | None = None
+    spell_entry_id: uuid.UUID | None = None
+    cast_at_level: int | None = Field(default=None, ge=1, le=9)
+    monster_action_id: uuid.UUID | None = None
+    manual_attack_bonus: int | None = None
+    manual_damage_expression: str | None = None
+    manual_athletics_bonus: int | None = None
+    manual_target_bonus: int | None = None
+    manual_attack_roll: int | None = None
+    manual_damage_roll: int | None = None
+    manual_target_roll: int | None = None
+
+
+class DeclareActionResultRead(BaseModel):
+    """Response schema for a resolved combat action (WS `action_resolved` event)."""
+
+    actor_id: uuid.UUID
+    target_id: uuid.UUID
+    action_type: ActionType
+    attack_roll: int | None = None
+    attack_bonus: int | None = None
+    hit: bool | None = None
+    damage_rolled: int | None = None
+    damage_type: str | None = None
+    condition_applied: str | None = None
+    attacker_check: int | None = None
+    target_check: int | None = None
+    description: str
+
+
 class WSRollInitiativePayload(BaseModel):
     """Payload for the `roll_initiative` command.
 
     Unlike the other WS commands this one isn't DM-only: a player may send
     it for their own character's participant; the DM may send it for any
-    participant (see `CombatService.roll_initiative`).
+    participant (see `CombatService.roll_initiative`). `initiative` is
+    optional — omitted, the server rolls `1d20 + DEX modifier` via
+    `engine/dice.py` (Character or catalog-linked Monster only; a purely
+    manual participant has no DEX to roll with and must supply it);
+    supplied, it's used as-is and the roll is logged as manual (backlog
+    Fase 6 história 6).
     """
 
     participant_id: uuid.UUID
-    initiative: int
+    initiative: int | None = None

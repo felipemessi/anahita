@@ -392,3 +392,56 @@ def test_dm_roll_initiative_broadcasts_participant_updated(client: TestClient) -
         frame = ws.receive_json()
         assert frame["event_type"] == "participant_updated"
         assert frame["payload"]["initiative"] == 9
+
+
+def test_dm_declare_action_manual_attack_broadcasts_action_resolved(
+    client: TestClient,
+) -> None:
+    """declare_action with manual bonuses resolves and broadcasts action_resolved."""
+    dm_token = _register_and_login(client, "dm@example.com")
+    encounter_id = _make_campaign_session_and_encounter(client, dm_token)
+
+    attacker_resp = client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={
+            "name": "Ogre",
+            "hit_point_max": 30,
+            "armor_class": 11,
+            "turn_order": 0,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    attacker_id = attacker_resp.json()["participants"][0]["id"]
+    target_resp = client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={
+            "name": "Goblin",
+            "hit_point_max": 7,
+            "armor_class": 15,
+            "turn_order": 1,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    target_id = target_resp.json()["participants"][1]["id"]
+
+    with client.websocket_connect(f"/ws/combat/{encounter_id}?token={dm_token}") as ws:
+        ws.receive_json()  # initial state_sync
+
+        ws.send_json(
+            {
+                "event_type": "declare_action",
+                "payload": {
+                    "participant_id": attacker_id,
+                    "target_id": target_id,
+                    "action_type": "attack_weapon",
+                    "manual_attack_bonus": 5,
+                    "manual_damage_expression": "2d6+3",
+                    "manual_attack_roll": 20,
+                    "manual_damage_roll": 10,
+                },
+            }
+        )
+        frame = ws.receive_json()
+        assert frame["event_type"] == "action_resolved"
+        assert frame["payload"]["hit"] is True
+        assert frame["payload"]["damage_rolled"] == 10

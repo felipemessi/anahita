@@ -532,6 +532,8 @@ Unique `(class_definition_id, subclass_definition_id, level)`.
 
 **SpellClass** — junção `(spell_id, class_definition_id)` — quais classes podem conjurar a magia.
 
+**SpellDamage** — `spell_id` FK, `damage_type_id` FK, `scaling_type` (`slot_level` | `character_level`), `scaling_key` (nível do slot 1-9, ou nível de personagem 1/5/11/17 pros truques), `dice_expression` (string bruta do SRD, ex. `"8d6"`, ou `"1d8 + MOD"` nos raros casos que somam o modificador de habilidade — resolvido por `engine/dice.py` na hora de conjurar, nunca aqui). Usado por `declare_action` (Combat, história `attack_spell`) pra resolver o dano automaticamente.
+
 #### 7.4.6 Equipamento e itens mágicos
 
 **EquipmentCategory** — `id`, `index`, i18n (`name`).
@@ -868,9 +870,10 @@ Constraint: exatamente um dos dois FKs preenchido.
 | id                   | UUID (PK) |                                                |
 | encounter_id         | FK        |                                                |
 | character_id         | FK        | nullable (PCs)                                 |
-| npc_id               | FK NPC    | nullable (monstros/NPCs)                       |
-| name                 | String    | fallback para monstros genéricos               |
-| initiative           | Integer   |                                                |
+| npc_id               | FK NPC    | nullable (NPCs autorais da campanha — World-building, ainda não implementado) |
+| monster_id           | FK Monster| nullable (stat block do catálogo — `declare_action` resolve bônus de ataque/perícia automaticamente quando presente) |
+| name                 | String    | fallback para participantes manuais            |
+| initiative           | Integer   | nullable até rolar (`roll_initiative`)         |
 | hit_point_max        | Integer   |                                                |
 | hit_point_current    | Integer   |                                                |
 | temporary_hit_points | Integer   |                                                |
@@ -878,7 +881,7 @@ Constraint: exatamente um dos dois FKs preenchido.
 | turn_order           | Integer   |                                                |
 | is_active            | Boolean   | false = morto/fugitivo                         |
 
-Regra: um participant é PC **ou** NPC, nunca ambos. Validado na camada de aplicação.
+Regra: um participant é PC, NPC **ou** monstro do catálogo, nunca mais de um. Validado na camada de aplicação. Sem nenhum dos três (participante manual/genérico), `declare_action` exige bônus manuais no payload — não há stat block pra resolver automaticamente.
 
 **EncounterCondition**
 
@@ -899,11 +902,12 @@ Regra: um participant é PC **ou** NPC, nunca ambos. Validado na camada de aplic
 | round        | Integer   |                                                                       |
 | turn_order   | Integer   |                                                                       |
 | actor_id     | FK        | EncounterParticipant                                                  |
-| action_type  | Enum      | attack, spell, move, dash, dodge, disengage, help, hide, ready, other |
+| action_type  | Enum      | attack, spell, move, dash, dodge, disengage, help, hide, ready, attack_weapon, attack_spell, grapple, shove, search, other |
 | description  | Text      |                                                                       |
 | damage_dealt | Integer   | nullable                                                              |
 | damage_type  | String    | nullable                                                              |
 | target_id    | FK        | nullable                                                              |
+| rolled_by_system | Boolean | default true; false quando alguma rolagem da entrada veio de um valor manual do cliente (`declare_action`/`roll_initiative`) em vez de `engine/dice.py` |
 | created_at   | Timestamp |                                                                       |
 
 ### 7.7 World-building

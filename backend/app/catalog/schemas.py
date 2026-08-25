@@ -4,7 +4,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.catalog.domain import ItemType
+from app.catalog.domain import ItemType, SpellDamageScalingType
 
 
 class RaceTraitRead(BaseModel):
@@ -201,6 +201,21 @@ class SpellClassRead(BaseModel):
     name: str
 
 
+class SpellDamageRead(BaseModel):
+    """Read schema for one of a spell's damage entries, `damage_type` resolved.
+
+    `scaling_key` is a slot level (1-9) when `scaling_type=slot_level`, or a
+    character-level threshold (1/5/11/17) when `scaling_type=character_level`
+    — see `app.catalog.models.SpellDamage`.
+    """
+
+    id: uuid.UUID
+    damage_type: str
+    scaling_type: SpellDamageScalingType
+    scaling_key: int
+    dice_expression: str
+
+
 class SpellRead(BaseModel):
     """Read schema for a spell, with translated text fields resolved."""
 
@@ -221,6 +236,7 @@ class SpellRead(BaseModel):
     higher_levels: str | None
     is_custom: bool
     classes: list[SpellClassRead]
+    damages: list[SpellDamageRead]
 
 
 class SpellSummary(BaseModel):
