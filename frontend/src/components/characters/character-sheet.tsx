@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { AbilityScores } from "@/components/characters/ability-scores";
+import { ClassResources } from "@/components/characters/class-resources";
 import { ConcentrationIndicator } from "@/components/characters/concentration-indicator";
 import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
@@ -179,6 +180,8 @@ export function CharacterSheet({
           campaignId={campaignId}
           classes={character.classes}
         />
+
+        <ClassResources characterId={character.id} resources={character.resources} />
 
         <SpellSlots slots={character.spell_slots} />
 
