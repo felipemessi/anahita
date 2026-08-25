@@ -417,6 +417,56 @@ async def _translate_feature(
     )
 
 
+async def get_feature(session: AsyncSession, feature_id: uuid.UUID) -> Feature | None:
+    """Return a single feature by ID (untranslated), or None if not found."""
+    stmt = (
+        select(Feature)
+        .where(Feature.id == feature_id)
+        .options(selectinload(Feature.prerequisites))
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_feature_translated(
+    session: AsyncSession, feature_id: uuid.UUID, *, locale: str = "en"
+) -> FeatureRead | None:
+    """Return a feature by ID with translated text resolved, or None if not found."""
+    feature = await get_feature(session, feature_id)
+    if feature is None:
+        return None
+    return await _translate_feature(session, feature, locale)
+
+
+async def list_features_translated(
+    session: AsyncSession,
+    *,
+    parent_feature_id: uuid.UUID | None = None,
+    search: str | None = None,
+    locale: str = "en",
+) -> list[FeatureRead]:
+    """Return features with translated text resolved, optionally scoped to one parent.
+
+    `parent_feature_id` is how a level-up UI lists the named options under a
+    broader choice feature (e.g. "Fighting Style: Defense" under "Fighting
+    Style") — every option shares the same parent via
+    `Feature.parent_feature_id` (PRD Fase 8).
+    """
+    stmt = select(Feature).options(selectinload(Feature.prerequisites))
+    if parent_feature_id is not None:
+        stmt = stmt.where(Feature.parent_feature_id == parent_feature_id)
+    result = await session.execute(stmt)
+    features = [
+        await _translate_feature(session, feature, locale)
+        for feature in result.scalars().all()
+    ]
+    if search:
+        needle = search.lower()
+        features = [f for f in features if needle in f.feature_name.lower()]
+    features.sort(key=lambda f: f.feature_name)
+    return features
+
+
 async def _translate_class_level(
     session: AsyncSession, class_level: ClassLevel, locale: str
 ) -> ClassLevelRead:

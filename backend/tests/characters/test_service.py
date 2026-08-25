@@ -11,7 +11,7 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.domain import AbilityScore
-from app.catalog.models import Feat, Race, Spell, SpellClass
+from app.catalog.models import Feat, Feature, Race, Spell, SpellClass
 from app.characters.domain import AbilityGenerationMethod, Skill
 from app.characters.models import CharacterSkill
 from app.characters.schemas import (
@@ -23,6 +23,7 @@ from app.characters.schemas import (
     CharacterDeathSaveRequest,
     CharacterEquipmentCreate,
     CharacterEquipmentUpdate,
+    CharacterFeatureChoiceInput,
     CharacterHitDiceSpend,
     CharacterLevelUpRequest,
     CharacterRead,
@@ -1426,6 +1427,136 @@ async def test_level_up_feat_records_character_feature(
             db,
         )
     assert any(f.feature_name.lower() == "grappler" for f in character.features)
+
+
+async def _fighting_style_option_id(db: AsyncSession, index: str) -> uuid.UUID:
+    """Return the id of one of Ranger's Fighting Style options, by index."""
+    result = await db.execute(select(Feature).where(Feature.index == index))
+    return result.scalar_one().id
+
+
+async def test_level_up_choice_feature_without_feature_choices_rejected(
+    db: AsyncSession, human_race_id: str, ranger_class_id: str
+) -> None:
+    """Leveling into a choice feature (Fighting Style) with no pick is a 422."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, ranger_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(ranger_class_id), manual_hit_die_roll=6
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+    assert isinstance(exc.value.detail, dict)
+    assert exc.value.detail["requires_choice"] is True
+    assert exc.value.detail["choices"][0]["options"]
+
+
+async def test_level_up_choice_feature_invalid_option_rejected(
+    db: AsyncSession, human_race_id: str, ranger_class_id: str
+) -> None:
+    """An option that doesn't belong to the granted feature is rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, ranger_class_id
+    )
+    service = CharacterService()
+    fighting_style_result = await db.execute(
+        select(Feature).where(Feature.index == "ranger-fighting-style")
+    )
+    fighting_style_id = fighting_style_result.scalar_one().id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(ranger_class_id),
+                manual_hit_die_roll=6,
+                feature_choices=[
+                    CharacterFeatureChoiceInput(
+                        feature_id=fighting_style_id,
+                        feature_option_id=uuid.uuid4(),
+                    )
+                ],
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_level_up_choice_feature_persists_and_appears_on_read(
+    db: AsyncSession, human_race_id: str, ranger_class_id: str
+) -> None:
+    """A valid choice is persisted and shows up on the character's sheet."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, ranger_class_id
+    )
+    service = CharacterService()
+    fighting_style_result = await db.execute(
+        select(Feature).where(Feature.index == "ranger-fighting-style")
+    )
+    fighting_style_id = fighting_style_result.scalar_one().id
+    archery_id = await _fighting_style_option_id(
+        db, "ranger-fighting-style-archery"
+    )
+
+    character = await service.level_up(
+        character_id,
+        owner.id,
+        CharacterLevelUpRequest(
+            class_definition_id=uuid.UUID(ranger_class_id),
+            manual_hit_die_roll=6,
+            feature_choices=[
+                CharacterFeatureChoiceInput(
+                    feature_id=fighting_style_id, feature_option_id=archery_id
+                )
+            ],
+        ),
+        db,
+    )
+
+    assert character.level == 2
+    assert len(character.feature_choices) == 1
+    assert character.feature_choices[0].feature_id == fighting_style_id
+    assert character.feature_choices[0].feature_option_id == archery_id
+
+
+async def test_level_up_without_choice_feature_requires_nothing(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A level that grants no choice feature never requires `feature_choices`."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    # Fighter's Fighting Style is granted at level 1 (already at creation) —
+    # leveling to 2 grants nothing that needs a choice.
+    character = await service.level_up(
+        character_id,
+        owner.id,
+        CharacterLevelUpRequest(
+            class_definition_id=uuid.UUID(fighter_class_id), manual_hit_die_roll=6
+        ),
+        db,
+    )
+    assert character.level == 2
+    assert character.feature_choices == []
 
 
 async def test_use_resource_consumes_and_rejects_past_limit(

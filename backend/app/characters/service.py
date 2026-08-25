@@ -1,7 +1,7 @@
 """CharacterService orchestrates character sheet creation and reads."""
 
 import uuid
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -12,7 +12,13 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
 from app.catalog.domain import AbilityScore
-from app.catalog.models import ClassDefinition, ClassLevel, ClassLevelResource, Spell
+from app.catalog.models import (
+    ClassDefinition,
+    ClassLevel,
+    ClassLevelResource,
+    Feature,
+    Spell,
+)
 from app.characters.domain import (
     MULTICLASS_ABILITY_REQUIREMENTS,
     SKILL_ABILITY,
@@ -30,6 +36,7 @@ from app.characters.models import (
     CharacterClass,
     CharacterEquipment,
     CharacterFeature,
+    CharacterFeatureChoice,
     CharacterResource,
     CharacterSkill,
     CharacterSpell,
@@ -47,6 +54,8 @@ from app.characters.schemas import (
     CharacterEquipmentCreate,
     CharacterEquipmentRead,
     CharacterEquipmentUpdate,
+    CharacterFeatureChoiceInput,
+    CharacterFeatureChoiceRead,
     CharacterFeatureCreate,
     CharacterFeatureRead,
     CharacterHitDiceSpend,
@@ -88,6 +97,7 @@ _CHARACTER_LOAD_OPTIONS = (
     selectinload(Character.spell_slots),
     selectinload(Character.equipment),
     selectinload(Character.features),
+    selectinload(Character.feature_choices),
     selectinload(Character.resources),
 )
 
@@ -342,7 +352,11 @@ class CharacterService:
         and `proficiency_bonus`. At an ASI level (`ClassLevel`'s
         `ability_score_bonuses` set for the new level in this class),
         `ability_score_increases` or `feat_id` may be supplied — see
-        `CharacterLevelUpRequest`.
+        `CharacterLevelUpRequest`. If the new level grants a choice feature
+        (e.g. Fighting Style, Pact Boon) with no matching `feature_choices`
+        entry, nothing is committed and a 422 is raised with
+        `requires_choice`/the available options — see
+        `_apply_feature_choices`.
         """
         if (
             data.ability_score_increases is not None
@@ -458,6 +472,8 @@ class CharacterService:
         elif data.feat_id is not None:
             await self._apply_feat_selection(character, data.feat_id, db)
 
+        await self._apply_feature_choices(character, class_level_row, data, db)
+
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
@@ -546,6 +562,87 @@ class CharacterService:
                 level_acquired=character.level,
             )
         )
+
+    async def _apply_feature_choices(
+        self,
+        character: Character,
+        class_level_row: ClassLevel | None,
+        data: CharacterLevelUpRequest,
+        db: AsyncSession,
+    ) -> None:
+        """Require and persist a choice for every choice feature granted this level.
+
+        A "choice feature" is any `Feature` granted at `class_level_row`
+        that has named options (other `Feature` rows with
+        `parent_feature_id` set to it — e.g. "Fighting Style" -> "Fighting
+        Style: Dueling"). Every such feature must have a matching entry in
+        `data.feature_choices`, or the whole level-up is rejected (422,
+        nothing committed) with `requires_choice`/the available options so
+        the client can retry with a pick.
+        """
+        if class_level_row is None:
+            return
+        granted_features = [clf.feature for clf in class_level_row.level_features]
+
+        pending: list[dict[str, Any]] = []
+        to_persist: list[CharacterFeatureChoiceInput] = []
+        for feature in granted_features:
+            options_result = await db.execute(
+                select(Feature).where(Feature.parent_feature_id == feature.id)
+            )
+            option_ids = {o.id for o in options_result.scalars().all()}
+            if not option_ids:
+                continue
+
+            choice = next(
+                (c for c in data.feature_choices if c.feature_id == feature.id), None
+            )
+            if choice is None:
+                pending.append(
+                    {
+                        "feature_id": feature.id,
+                        "options": await catalog_service.list_features_translated(
+                            db, parent_feature_id=feature.id
+                        ),
+                    }
+                )
+                continue
+            if choice.feature_option_id not in option_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"{choice.feature_option_id} is not an option of feature "
+                        f"{feature.id}"
+                    ),
+                )
+            to_persist.append(choice)
+
+        if pending:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "requires_choice": True,
+                    "choices": [
+                        {
+                            "feature_id": str(p["feature_id"]),
+                            "options": [
+                                {"id": str(o.id), "name": o.feature_name}
+                                for o in p["options"]
+                            ],
+                        }
+                        for p in pending
+                    ],
+                },
+            )
+
+        for choice in to_persist:
+            db.add(
+                CharacterFeatureChoice(
+                    character_id=character.id,
+                    feature_id=choice.feature_id,
+                    feature_option_id=choice.feature_option_id,
+                )
+            )
 
     async def list_characters_for_campaign(
         self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
@@ -1671,6 +1768,10 @@ class CharacterService:
         features = [
             CharacterFeatureRead.model_validate(f) for f in character.features
         ]
+        feature_choices = [
+            CharacterFeatureChoiceRead.model_validate(c)
+            for c in character.feature_choices
+        ]
         used_by_resource_key = {r.resource_key: r.used for r in character.resources}
         resources = [
             CharacterResourceRead(
@@ -1714,6 +1815,7 @@ class CharacterService:
             spell_slots=spell_slots,
             equipment=equipment,
             features=features,
+            feature_choices=feature_choices,
         )
 
     async def _require_own_membership(

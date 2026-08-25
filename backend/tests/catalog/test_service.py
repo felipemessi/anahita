@@ -3,7 +3,7 @@
 import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
@@ -13,6 +13,7 @@ from app.catalog.models import (
     BackgroundProficiency,
     Condition,
     Feat,
+    Feature,
     Item,
     MagicItem,
     Monster,
@@ -710,6 +711,36 @@ async def test_get_feat_not_found_returns_none(db: AsyncSession) -> None:
     """get_feat should return None for an unknown ID."""
     result = await service.get_feat(db, uuid.uuid4())
     assert result is None
+
+
+async def test_list_features_translated_scoped_to_parent_returns_named_options(
+    db: AsyncSession,
+) -> None:
+    """Filtering by `parent_feature_id` returns only that feature's named options."""
+    await seed_catalog(db)
+    parent = (
+        await db.execute(
+            select(Feature).where(Feature.index == "ranger-fighting-style")
+        )
+    ).scalar_one()
+
+    options = await service.list_features_translated(
+        db, parent_feature_id=parent.id
+    )
+
+    names = {o.feature_name for o in options}
+    assert "Fighting Style: Archery" in names
+    assert all(o.parent_feature_id == parent.id for o in options)
+
+
+async def test_list_features_translated_without_parent_returns_all(
+    db: AsyncSession,
+) -> None:
+    """No `parent_feature_id` filter returns every seeded feature."""
+    await seed_catalog(db)
+    features = await service.list_features_translated(db)
+    total = await db.scalar(select(func.count()).select_from(Feature))
+    assert len(features) == total
 
 
 @pytest.mark.asyncio

@@ -14,6 +14,7 @@ from app.catalog.models import (
     DamageType,
     EquipmentCategory,
     Feat,
+    Feature,
     Item,
     Language,
     MagicItem,
@@ -27,7 +28,7 @@ from app.catalog.models import (
     Spell,
     WeaponProperty,
 )
-from app.catalog.seeds.seed import seed_catalog
+from app.catalog.seeds.seed import backfill_feature_parent_ids, seed_catalog
 
 #: Row counts for the full SRD 2014 `en` seed — see PRD §7.4.1-7.4.9. These
 #: are the real published SRD sizes (not a subset), so any change here should
@@ -230,3 +231,49 @@ async def test_seed_is_idempotent(db: AsyncSession) -> None:
     for model, expected in _EXPECTED_COUNTS.items():
         count = await db.scalar(select(func.count()).select_from(model))
         assert count == expected, f"{model.__name__}: expected {expected}, got {count}"
+
+
+async def test_seed_links_fighting_style_options_to_parent_feature(
+    db: AsyncSession,
+) -> None:
+    """A named option (e.g. Fighting Style: Archery) links to its parent feature."""
+    await seed_catalog(db)
+
+    parent = (
+        await db.execute(
+            select(Feature).where(Feature.index == "ranger-fighting-style")
+        )
+    ).scalar_one()
+    option = (
+        await db.execute(
+            select(Feature).where(Feature.index == "ranger-fighting-style-archery")
+        )
+    ).scalar_one()
+
+    assert option.parent_feature_id == parent.id
+
+
+async def test_backfill_feature_parent_ids_is_idempotent_and_preserves_ids(
+    db: AsyncSession,
+) -> None:
+    """Running the backfill again doesn't change ids or duplicate rows."""
+    await seed_catalog(db)
+    before = (
+        await db.execute(
+            select(Feature.id, Feature.parent_feature_id).where(
+                Feature.index == "ranger-fighting-style-archery"
+            )
+        )
+    ).one()
+
+    await backfill_feature_parent_ids(db)
+    await db.commit()
+
+    after = (
+        await db.execute(
+            select(Feature.id, Feature.parent_feature_id).where(
+                Feature.index == "ranger-fighting-style-archery"
+            )
+        )
+    ).one()
+    assert after == before
