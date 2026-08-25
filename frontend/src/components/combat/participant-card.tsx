@@ -68,6 +68,12 @@ export function ParticipantCard({
         </div>
       ) : null}
 
+      {participant.concentration_dc !== null ? (
+        <p role="alert" className="mt-2 text-xs font-medium text-amber-500">
+          Teste de concentração: CD {participant.concentration_dc}
+        </p>
+      ) : null}
+
       {children ? <div className="mt-3">{children}</div> : null}
     </li>
   );

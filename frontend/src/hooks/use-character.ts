@@ -15,6 +15,7 @@ import {
   removeCharacterSpell,
   restCharacter,
   rollDeathSave,
+  setCharacterConcentration,
   updateCharacterCurrency,
   updateCharacterEquipment,
   updateCharacterHp,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/api/characters";
 import type {
   CharacterClassCreate,
+  CharacterConcentrationRequest,
   CharacterCreate,
   CharacterCurrencyRequest,
   CharacterDeathSaveRequest,
@@ -170,6 +172,20 @@ export function useRollDeathSave(characterId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CharacterDeathSaveRequest) => rollDeathSave(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/** Start or end concentration on a known spell — `spell_id: null` ends it. */
+export function useSetCharacterConcentration(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterConcentrationRequest) =>
+      setCharacterConcentration(characterId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],
