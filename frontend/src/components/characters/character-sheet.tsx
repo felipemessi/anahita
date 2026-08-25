@@ -8,6 +8,7 @@ import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
 import { HitDiceTracker } from "@/components/characters/hit-dice-tracker";
+import { LevelUpDialog } from "@/components/characters/level-up-dialog";
 import { PassiveScores } from "@/components/characters/passive-scores";
 import { RollButton } from "@/components/characters/roll-button";
 import { RollLogProvider } from "@/components/characters/roll-log";
@@ -75,6 +76,12 @@ export function CharacterSheet({
             {character.alignment ? ` · ${character.alignment}` : ""}
           </p>
         </header>
+
+        <LevelUpDialog
+          characterId={character.id}
+          campaignId={campaignId}
+          classes={character.classes}
+        />
 
         <AbilityScores scores={character.ability_scores} />
 

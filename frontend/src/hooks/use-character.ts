@@ -11,6 +11,7 @@ import {
   createCharacter,
   getCharacter,
   listCharacters,
+  levelUpCharacter,
   removeCharacterEquipment,
   removeCharacterSpell,
   restCharacter,
@@ -30,6 +31,7 @@ import type {
   CharacterEquipmentCreate,
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
+  CharacterLevelUpRequest,
   CharacterRestRequest,
   CharacterSpellCastRequest,
   CharacterSpellCreate,
@@ -186,6 +188,19 @@ export function useSetCharacterConcentration(characterId: string) {
   return useMutation({
     mutationFn: (data: CharacterConcentrationRequest) =>
       setCharacterConcentration(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/** Level up a character by one level in one class (existing or new via multiclass). */
+export function useLevelUpCharacter(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterLevelUpRequest) => levelUpCharacter(characterId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],
