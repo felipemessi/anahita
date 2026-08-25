@@ -12,6 +12,7 @@ import { ConditionBadges } from "@/components/combat/condition-badges";
 import { DamageDialog } from "@/components/combat/damage-dialog";
 import { InitiativePrompt } from "@/components/combat/initiative-prompt";
 import { InitiativeTracker } from "@/components/combat/initiative-tracker";
+import { LegendaryActionPicker } from "@/components/combat/legendary-action-picker";
 import { MonsterPicker } from "@/components/combat/monster-picker";
 import { TurnIndicator } from "@/components/combat/turn-indicator";
 import type { EncounterParticipant } from "@/types/combat";
@@ -41,6 +42,13 @@ export default function CombatPage() {
       <div className="space-y-2">
         <DamageDialog participant={participant} />
         <ConditionBadges participant={participant} />
+        <LegendaryActionPicker
+          campaignId={campaignId}
+          participant={participant}
+          otherParticipants={
+            encounter?.participants.filter((p) => p.id !== participant.id) ?? []
+          }
+        />
         <button
           type="button"
           onClick={() => removeParticipant(participant.id)}

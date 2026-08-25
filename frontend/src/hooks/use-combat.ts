@@ -124,6 +124,47 @@ export function useCombat() {
     });
   }
 
+  /**
+   * Use a monster/NPC's legendary action (Fase 7). DM only — rejected
+   * server-side outside an NPC/monster participant, on its own turn, or
+   * past its per-round budget. Named `sendLegendaryAction` (not
+   * `useLegendaryAction`) despite the domain term, so a caller
+   * destructuring it doesn't read as a React hook.
+   */
+  function sendLegendaryAction(
+    participantId: string,
+    targetId: string,
+    legendaryActionId: string,
+  ): void {
+    sendCommand({
+      event_type: "use_legendary_action",
+      payload: {
+        participant_id: participantId,
+        target_id: targetId,
+        legendary_action_id: legendaryActionId,
+      },
+    });
+  }
+
+  /**
+   * Trigger a monster/NPC's reaction (Fase 7). DM only — once per round,
+   * server-enforced.
+   */
+  function triggerReaction(
+    participantId: string,
+    targetId: string,
+    reactionId: string,
+  ): void {
+    sendCommand({
+      event_type: "trigger_reaction",
+      payload: {
+        participant_id: participantId,
+        target_id: targetId,
+        reaction_id: reactionId,
+      },
+    });
+  }
+
   return {
     encounter,
     lastError,
@@ -136,5 +177,7 @@ export function useCombat() {
     endEncounter,
     rollInitiative,
     declareAction,
+    sendLegendaryAction,
+    triggerReaction,
   };
 }

@@ -327,9 +327,10 @@
   - [x] Teste: fluxo completo gera o payload correto pro endpoint de level-up; nível sem ASI pula a etapa de escolha
   - Notas: escopo restrito a subir de nível numa classe que o personagem já tem — multiclasse (adicionar uma classe nova) ainda não tem fluxo de UI nenhum no frontend (endpoint `POST /classes` já existe no backend desde a Fase 1, mas sem tela; gap pré-existente, não introduzido por esta história). O nível de ASI é detectado consultando `ClassLevel.ability_score_bonuses` do catálogo (`useCatalogEntry("classes", ...)`) pro próximo nível da classe escolhida. "Confirmar PV ganho" é feedback pós-ação (o servidor rola o dado de vida), não uma etapa de pré-confirmação — mensagem de sucesso mostra o novo PV máximo.
 
-- **Como DM, quero disparar ações lendárias e reações de monstros pelo combat tracker.**
-  - [ ] `components/combat/legendary-action-picker.tsx`: para participantes NPC/monstro com stat block, lista as ações lendárias/reações disponíveis (via `monster-stat-block.tsx`, já usado no catálogo) com contador de uso por rodada
-  - [ ] Teste: ação lendária fica desabilitada quando o limite da rodada é atingido; resultado aparece no log de combate
+- **Como DM, quero disparar ações lendárias e reações de monstros pelo combat tracker. ✅ (2026-08-25)**
+  - [x] `components/combat/legendary-action-picker.tsx`: para participantes NPC/monstro com stat block, lista as ações lendárias/reações disponíveis (via `monster-stat-block.tsx`, já usado no catálogo) com contador de uso por rodada
+  - [x] Teste: ação lendária fica desabilitada quando o limite da rodada é atingido; resultado aparece no log de combate
+  - Notas: pra um participante `npc_id` (sem `monster_id` direto), o stat block é resolvido buscando o NPC via `useNpcs(campaignId)` e seu `stat_block_id` — não existe um hook de NPC único por id ainda, então isso busca a lista inteira da campanha e filtra no cliente (aceitável, mesma lista já usada em outras telas do World). O evento `action_resolved` cai no `ActionLog` do mesmo jeito que qualquer outra ação (já coberto pelo reducer genérico testado em `combat-provider.test.ts`), sem teste redundante aqui. `use_legendary_action`/`trigger_reaction` no hook `useCombat` viraram `sendLegendaryAction`/`triggerReaction` (não `useLegendaryAction`) pra não serem confundidos com hooks React pelo eslint (`react-hooks/rules-of-hooks`) ao serem chamados dentro de um `onClick`.
 
 - **Como jogador, quero usar e acompanhar recursos de classe (fúria, ki, etc.) na ficha e no combate.**
   - [ ] `components/characters/class-resources.tsx`: lista de recursos da classe (nome, usado/máximo) com botão "usar"; aparece também como atalho no `participant-card.tsx` durante o combate
