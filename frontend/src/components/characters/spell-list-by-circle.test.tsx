@@ -11,10 +11,12 @@ vi.mock("@/hooks/use-catalog", () => ({
 const useAddCharacterSpell = vi.fn();
 const useUpdateCharacterSpell = vi.fn();
 const useRemoveCharacterSpell = vi.fn();
+const useCastCharacterSpell = vi.fn();
 vi.mock("@/hooks/use-character", () => ({
   useAddCharacterSpell: () => useAddCharacterSpell(),
   useUpdateCharacterSpell: () => useUpdateCharacterSpell(),
   useRemoveCharacterSpell: () => useRemoveCharacterSpell(),
+  useCastCharacterSpell: () => useCastCharacterSpell(),
 }));
 
 import { ApiError } from "@/lib/api/client";
@@ -50,14 +52,17 @@ describe("SpellListByCircle", () => {
   const addSpellMutate = vi.fn();
   const updateSpellMutate = vi.fn();
   const removeSpellMutate = vi.fn();
+  const castSpellMutate = vi.fn();
 
   beforeEach(() => {
     addSpellMutate.mockReset();
     updateSpellMutate.mockReset();
     removeSpellMutate.mockReset();
+    castSpellMutate.mockReset();
     addSpellMutate.mockResolvedValue(undefined);
     updateSpellMutate.mockResolvedValue(undefined);
     removeSpellMutate.mockResolvedValue(undefined);
+    castSpellMutate.mockResolvedValue(undefined);
 
     useAddCharacterSpell.mockReturnValue({
       mutateAsync: addSpellMutate,
@@ -69,6 +74,10 @@ describe("SpellListByCircle", () => {
     });
     useRemoveCharacterSpell.mockReturnValue({
       mutateAsync: removeSpellMutate,
+      isPending: false,
+    });
+    useCastCharacterSpell.mockReturnValue({
+      mutateAsync: castSpellMutate,
       isPending: false,
     });
     useCatalogEntry.mockReturnValue({ data: undefined, isLoading: false });
@@ -86,6 +95,7 @@ describe("SpellListByCircle", () => {
         campaignId="camp-1"
         spells={[cantripEntry, leveledEntry]}
         classes={characterClasses}
+        spellSlots={[]}
       />,
     );
 
@@ -102,6 +112,7 @@ describe("SpellListByCircle", () => {
         campaignId="camp-1"
         spells={[cantripEntry]}
         classes={characterClasses}
+        spellSlots={[]}
       />,
     );
 
@@ -117,6 +128,7 @@ describe("SpellListByCircle", () => {
         campaignId="camp-1"
         spells={[cantripEntry]}
         classes={characterClasses}
+        spellSlots={[]}
       />,
     );
 
@@ -144,6 +156,7 @@ describe("SpellListByCircle", () => {
         campaignId="camp-1"
         spells={[]}
         classes={characterClasses}
+        spellSlots={[]}
       />,
     );
 
@@ -152,5 +165,104 @@ describe("SpellListByCircle", () => {
     expect(
       await screen.findByText(/wizard já prepara o máximo de 2 magias no nível 1/),
     ).toBeInTheDocument();
+  });
+
+  it("casting a leveled spell with an available slot calls cast at its own level", () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[leveledEntry]}
+        classes={characterClasses}
+        spellSlots={[{ spell_level: 1, used: 0, max: 2 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "conjurar" }));
+
+    expect(castSpellMutate).toHaveBeenCalledWith({
+      spellEntryId: "entry-magic-missile",
+      data: { cast_at_level: 1 },
+    });
+  });
+
+  it("disables the cast button with no slot available", () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[leveledEntry]}
+        classes={characterClasses}
+        spellSlots={[{ spell_level: 1, used: 2, max: 2 }]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "conjurar" })).toBeDisabled();
+  });
+
+  it("casting a ritual spell doesn't require an available slot", () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[{ ...leveledEntry, ritual: true }]}
+        classes={characterClasses}
+        spellSlots={[{ spell_level: 1, used: 2, max: 2 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "conjurar como ritual" }));
+
+    expect(castSpellMutate).toHaveBeenCalledWith({
+      spellEntryId: "entry-magic-missile",
+      data: { as_ritual: true },
+    });
+  });
+
+  it("upcasting selects and casts at a higher available slot level", () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[leveledEntry]}
+        classes={characterClasses}
+        spellSlots={[
+          { spell_level: 1, used: 0, max: 1 },
+          { spell_level: 2, used: 0, max: 1 },
+        ]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/nível de conjuração/i), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "conjurar" }));
+
+    expect(castSpellMutate).toHaveBeenCalledWith({
+      spellEntryId: "entry-magic-missile",
+      data: { cast_at_level: 2 },
+    });
+  });
+
+  it("casting with only a higher slot available than the spell's own level uses it", () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[leveledEntry]}
+        classes={characterClasses}
+        spellSlots={[
+          { spell_level: 1, used: 1, max: 1 },
+          { spell_level: 2, used: 0, max: 1 },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "conjurar" }));
+
+    expect(castSpellMutate).toHaveBeenCalledWith({
+      spellEntryId: "entry-magic-missile",
+      data: { cast_at_level: 2 },
+    });
   });
 });

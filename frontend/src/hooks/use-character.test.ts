@@ -4,11 +4,20 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const updateCharacterHp = vi.fn();
+const restCharacter = vi.fn();
+const updateCharacterCurrency = vi.fn();
 vi.mock("@/lib/api/characters", () => ({
   updateCharacterHp: (...args: unknown[]) => updateCharacterHp(...args),
+  restCharacter: (...args: unknown[]) => restCharacter(...args),
+  updateCharacterCurrency: (...args: unknown[]) => updateCharacterCurrency(...args),
 }));
 
-import { CHARACTERS_QUERY_KEY, useUpdateCharacterHp } from "./use-character";
+import {
+  CHARACTERS_QUERY_KEY,
+  useRestCharacter,
+  useUpdateCharacterCurrency,
+  useUpdateCharacterHp,
+} from "./use-character";
 
 const character = {
   id: "char-1",
@@ -27,9 +36,17 @@ const character = {
   speed: 30,
   inspiration: false,
   proficiency_bonus: 2,
+  currency_cp: 500,
   ability_scores: [],
   skills: [],
   classes: [],
+  spells: [],
+  spell_slots: [
+    { spell_level: 1, used: 2, max: 2 },
+    { spell_level: 2, used: 1, max: 1 },
+  ],
+  equipment: [],
+  features: [],
 };
 
 function setup() {
@@ -85,6 +102,118 @@ describe("useUpdateCharacterHp", () => {
         queryClient.getQueryData<typeof character>([...CHARACTERS_QUERY_KEY, "char-1"])
           ?.hit_point_current,
       ).toBe(20);
+    });
+  });
+});
+
+describe("useRestCharacter", () => {
+  beforeEach(() => {
+    restCharacter.mockReset();
+  });
+
+  it("optimistically zeroes every spell slot's used count on a long rest", async () => {
+    let resolveRequest!: (value: typeof character) => void;
+    restCharacter.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useRestCharacter("char-1"), { wrapper });
+
+    result.current.mutate({ rest_type: "long" });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<typeof character>([
+        ...CHARACTERS_QUERY_KEY,
+        "char-1",
+      ]);
+      expect(cached?.spell_slots.every((s) => s.used === 0)).toBe(true);
+    });
+
+    resolveRequest({
+      ...character,
+      spell_slots: character.spell_slots.map((s) => ({ ...s, used: 0 })),
+    });
+  });
+
+  it("leaves spell slots untouched on a short rest", async () => {
+    restCharacter.mockResolvedValue(character);
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useRestCharacter("char-1"), { wrapper });
+
+    result.current.mutate({ rest_type: "short" });
+
+    await waitFor(() => expect(restCharacter).toHaveBeenCalled());
+    const cached = queryClient.getQueryData<typeof character>([
+      ...CHARACTERS_QUERY_KEY,
+      "char-1",
+    ]);
+    expect(cached?.spell_slots[0]?.used).toBe(2);
+  });
+
+  it("rolls back spell slots when the long rest request fails", async () => {
+    restCharacter.mockRejectedValueOnce(new Error("network error"));
+
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useRestCharacter("char-1"), { wrapper });
+
+    result.current.mutate({ rest_type: "long" });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<typeof character>([
+        ...CHARACTERS_QUERY_KEY,
+        "char-1",
+      ]);
+      expect(cached?.spell_slots[0]?.used).toBe(2);
+    });
+  });
+});
+
+describe("useUpdateCharacterCurrency", () => {
+  beforeEach(() => {
+    updateCharacterCurrency.mockReset();
+  });
+
+  it("updates the cached balance optimistically", async () => {
+    let resolveRequest!: (value: typeof character) => void;
+    updateCharacterCurrency.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUpdateCharacterCurrency("char-1"), { wrapper });
+
+    result.current.mutate({ delta: -100 });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<typeof character>([
+        ...CHARACTERS_QUERY_KEY,
+        "char-1",
+      ]);
+      expect(cached?.currency_cp).toBe(400);
+    });
+
+    resolveRequest({ ...character, currency_cp: 400 });
+  });
+
+  it("rolls back the balance when the spend is rejected (insufficient funds)", async () => {
+    updateCharacterCurrency.mockRejectedValueOnce(new Error("422"));
+
+    const { queryClient, wrapper } = setup();
+    const { result } = renderHook(() => useUpdateCharacterCurrency("char-1"), { wrapper });
+
+    result.current.mutate({ delta: -1000 });
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<typeof character>([
+        ...CHARACTERS_QUERY_KEY,
+        "char-1",
+      ]);
+      expect(cached?.currency_cp).toBe(500);
     });
   });
 });

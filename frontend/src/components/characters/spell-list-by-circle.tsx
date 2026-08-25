@@ -6,12 +6,13 @@ import { circleLabel, SpellSearch } from "@/components/characters/spell-search";
 import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
 import {
   useAddCharacterSpell,
+  useCastCharacterSpell,
   useRemoveCharacterSpell,
   useUpdateCharacterSpell,
 } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 import type { ClassSummary, SpellSummary } from "@/types/catalog";
-import type { CharacterClass, CharacterSpell } from "@/types/character";
+import type { CharacterClass, CharacterSpell, CharacterSpellSlot } from "@/types/character";
 
 /**
  * Known spells grouped by circle (0 = truques), with prepare/unprepare,
@@ -24,11 +25,13 @@ export function SpellListByCircle({
   campaignId,
   spells,
   classes,
+  spellSlots,
 }: {
   characterId: string;
   campaignId: string;
   spells: CharacterSpell[];
   classes: CharacterClass[];
+  spellSlots: CharacterSpellSlot[];
 }) {
   const { data: catalogClasses } = useCatalogList("classes", {
     campaign_id: campaignId,
@@ -37,8 +40,10 @@ export function SpellListByCircle({
   const addSpell = useAddCharacterSpell(characterId);
   const updateSpell = useUpdateCharacterSpell(characterId);
   const removeSpell = useRemoveCharacterSpell(characterId);
+  const castSpell = useCastCharacterSpell(characterId);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [castLevelBySpell, setCastLevelBySpell] = useState<Record<string, number>>({});
 
   const classOptions = classes
     .map((c) => catalogClasses?.find((cc) => cc.id === c.class_definition_id))
@@ -97,6 +102,35 @@ export function SpellListByCircle({
     }
   }
 
+  function availableCastLevels(spellLevel: number): number[] {
+    return spellSlots
+      .filter((slot) => slot.spell_level >= spellLevel && slot.used < slot.max)
+      .map((slot) => slot.spell_level)
+      .sort((a, b) => a - b);
+  }
+
+  /** The spell's own level if it has a slot, else the lowest level that does. */
+  function defaultCastLevel(spell: CharacterSpell): number {
+    const available = availableCastLevels(spell.level);
+    return available.includes(spell.level) ? spell.level : (available[0] ?? spell.level);
+  }
+
+  async function handleCast(spell: CharacterSpell, options: { asRitual?: boolean } = {}) {
+    setError(null);
+    try {
+      await castSpell.mutateAsync({
+        spellEntryId: spell.id,
+        data: options.asRitual
+          ? { as_ritual: true }
+          : { cast_at_level: castLevelBySpell[spell.id] ?? defaultCastLevel(spell) },
+      });
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Não foi possível conjurar a magia.",
+      );
+    }
+  }
+
   return (
     <section aria-label="Magias" className="space-y-4 rounded-lg border border-border bg-card p-4">
       <h2 className="font-semibold">Magias</h2>
@@ -150,6 +184,21 @@ export function SpellListByCircle({
                       </button>
                     </div>
                   </div>
+                  {level > 0 ? (
+                    <CastControls
+                      spell={spell}
+                      availableLevels={availableCastLevels(spell.level)}
+                      castLevel={castLevelBySpell[spell.id] ?? defaultCastLevel(spell)}
+                      onCastLevelChange={(newLevel) =>
+                        setCastLevelBySpell((prev) => ({ ...prev, [spell.id]: newLevel }))
+                      }
+                      onCast={() => handleCast(spell)}
+                      onCastAsRitual={
+                        spell.ritual ? () => handleCast(spell, { asRitual: true }) : undefined
+                      }
+                      isPending={castSpell.isPending}
+                    />
+                  ) : null}
                   {expandedId === spell.id ? <SpellDetail spellId={spell.spell_id} /> : null}
                 </li>
               ))}
@@ -188,6 +237,71 @@ export function SpellListByCircle({
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Cast controls for one non-cantrip spell: a level selector (only when more
+ * than one slot level is available, for upcasting), a "conjurar" button
+ * (disabled with an explanatory tooltip when no slot is available), and a
+ * "conjurar como ritual" button when the spell allows it (never disabled —
+ * a ritual cast never consumes a slot).
+ */
+function CastControls({
+  spell,
+  availableLevels,
+  castLevel,
+  onCastLevelChange,
+  onCast,
+  onCastAsRitual,
+  isPending,
+}: {
+  spell: CharacterSpell;
+  availableLevels: number[];
+  castLevel: number;
+  onCastLevelChange: (level: number) => void;
+  onCast: () => void;
+  onCastAsRitual?: () => void;
+  isPending: boolean;
+}) {
+  const hasSlot = availableLevels.length > 0;
+
+  return (
+    <div className="mt-1 flex items-center gap-2 text-xs">
+      {availableLevels.length > 1 ? (
+        <select
+          value={castLevel}
+          onChange={(e) => onCastLevelChange(Number(e.target.value))}
+          aria-label={`Nível de conjuração de ${spell.spell_id}`}
+          className="rounded-md border border-input bg-background px-1 py-0.5 text-xs"
+        >
+          {availableLevels.map((level) => (
+            <option key={level} value={level}>
+              {circleLabel(level)}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      <button
+        type="button"
+        onClick={onCast}
+        disabled={!hasSlot || isPending}
+        title={hasSlot ? undefined : "Nenhum slot disponível"}
+        className="rounded border border-border px-2 py-0.5 hover:bg-secondary disabled:opacity-40"
+      >
+        conjurar
+      </button>
+      {onCastAsRitual ? (
+        <button
+          type="button"
+          onClick={onCastAsRitual}
+          disabled={isPending}
+          className="rounded border border-border px-2 py-0.5 hover:bg-secondary disabled:opacity-40"
+        >
+          conjurar como ritual
+        </button>
+      ) : null}
+    </div>
   );
 }
 
