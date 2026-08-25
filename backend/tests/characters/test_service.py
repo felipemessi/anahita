@@ -12,7 +12,7 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.domain import AbilityScore
 from app.catalog.models import Feat, Race, Spell, SpellClass
-from app.characters.domain import Skill
+from app.characters.domain import AbilityGenerationMethod, Skill
 from app.characters.models import CharacterSkill
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
@@ -207,6 +207,92 @@ async def test_create_character_missing_ability_score_rejected(
             db,
         )
     assert exc.value.status_code == 422
+
+
+async def test_create_character_with_standard_array_persists_method(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A character created with `standard_array` persists the method used."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    service = CharacterService()
+
+    character = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Aldric",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+            generation_method=AbilityGenerationMethod.standard_array,
+        ),
+        db,
+    )
+
+    assert character.generation_method == AbilityGenerationMethod.standard_array
+
+
+async def test_create_character_point_buy_over_budget_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Declaring `point_buy` with an over-budget spend is a 422, not created."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    service = CharacterService()
+
+    over_budget_scores = [
+        CharacterAbilityScoreCreate(ability=ability, base_score=15)
+        for ability in AbilityScore
+    ]
+    with pytest.raises(HTTPException) as exc:
+        await service.create_character(
+            owner.id,
+            CharacterCreate(
+                campaign_member_id=member.id,
+                name="Overspent",
+                race_id=uuid.UUID(human_race_id),
+                ability_scores=over_budget_scores,
+                classes=[
+                    CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+                ],
+                generation_method=AbilityGenerationMethod.point_buy,
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_create_character_custom_method_skips_validation(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """`custom` accepts any ability score combination, even an unusual one."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    service = CharacterService()
+
+    unusual_scores = [
+        CharacterAbilityScoreCreate(ability=ability, base_score=3)
+        for ability in AbilityScore
+    ]
+    character = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Unlucky",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=unusual_scores,
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+            generation_method=AbilityGenerationMethod.custom,
+        ),
+        db,
+    )
+
+    assert character.generation_method == AbilityGenerationMethod.custom
 
 
 async def _create_character(

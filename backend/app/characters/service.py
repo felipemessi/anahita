@@ -18,8 +18,10 @@ from app.characters.domain import (
     SKILL_ABILITY,
     CrossCampaignCatalogReferenceError,
     FeatureSourceType,
+    InvalidAbilityGenerationError,
     Skill,
     parse_saving_throw_proficiencies,
+    validate_ability_generation,
     validate_catalog_reference,
 )
 from app.characters.models import (
@@ -132,6 +134,16 @@ class CharacterService:
         )
 
         scores_by_ability = self._validate_ability_scores(data)
+        if data.generation_method is not None:
+            try:
+                validate_ability_generation(
+                    data.generation_method,
+                    [score.base_score for score in data.ability_scores],
+                )
+            except InvalidAbilityGenerationError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+                ) from exc
 
         race = await catalog_service.get_race(db, data.race_id)
         if race is None:
@@ -185,6 +197,7 @@ class CharacterService:
             speed=race.speed,
             inspiration=data.inspiration,
             proficiency_bonus=calculate_proficiency_bonus(data.level),
+            generation_method=data.generation_method,
         )
         db.add(character)
         await db.flush()
@@ -1685,6 +1698,7 @@ class CharacterService:
             inspiration=character.inspiration,
             proficiency_bonus=character.proficiency_bonus,
             currency_cp=character.currency_cp,
+            generation_method=character.generation_method,
             death_save_successes=character.death_save_successes,
             death_save_failures=character.death_save_failures,
             is_dead=character.is_dead,

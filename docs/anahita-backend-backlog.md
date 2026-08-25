@@ -452,12 +452,12 @@
   - [x] Testes: próxima sessão retorna a mais próxima no futuro (não a mais recente no passado), handouts pendentes só aparecem pro DM, NPCs/locais recentes respeitam o limite e a ordenação
   - Notas: `Session.scheduled_date` (`app/sessions/models.py`) já existe — não é campo novo, só a query de "próxima" que faltava. Reaproveita os modelos de `app/sessions`, `app/world`, `app/handouts` já existentes. Lacuna mecânica encontrada e resolvida inline: `Location` não tinha `created_at` (só `NPC` tinha), então "recentes" não era ordenável — adicionada a coluna (migração `7c1e88f5c532`, com `server_default=now()` pra preencher linhas existentes) e o campo em `LocationRead`. Autorização reaproveita `CampaignService.get_own_membership` (404 se não for membro); `dm_notes` da próxima sessão só aparece pro DM, mesmo padrão de `SessionService.list_sessions`.
 
-- **Como jogador, quero escolher a estratégia de geração de atributos (standard array, point buy, custom ou rolagem) ao criar meu personagem.**
-  - [ ] `Character`/`CharacterCreate` ganha `generation_method` (enum: `standard_array`/`point_buy`/`custom`/`roll`), persistido para referência futura (nullable, sem afetar personagens já criados)
-  - [ ] Migração Alembic
-  - [ ] `domain.py`: quando `generation_method=point_buy`, valida orçamento de 27 pontos (tabela de custo 8–15 do PHB); quando `standard_array`, valida que os 6 valores enviados são exatamente `{15,14,13,12,10,8}` permutados; `custom`/`roll` não validam os valores (o cliente decide os números)
-  - [ ] Testes: point buy dentro do orçamento passa, acima do orçamento é rejeitado (422); standard array com valores certos passa, com valor fora do conjunto é rejeitado; custom/roll aceitam qualquer combinação
-  - Notas: `CharacterCreate.ability_scores` hoje já aceita os valores finais diretamente — esta história só adiciona validação condicionada ao método declarado, sem mudar o formato do payload de ability scores.
+- **Como jogador, quero escolher a estratégia de geração de atributos (standard array, point buy, custom ou rolagem) ao criar meu personagem. ✅ (2026-08-25)**
+  - [x] `Character`/`CharacterCreate` ganha `generation_method` (enum: `standard_array`/`point_buy`/`custom`/`roll`), persistido para referência futura (nullable, sem afetar personagens já criados)
+  - [x] Migração Alembic
+  - [x] `domain.py`: quando `generation_method=point_buy`, valida orçamento de 27 pontos (tabela de custo 8–15 do PHB); quando `standard_array`, valida que os 6 valores enviados são exatamente `{15,14,13,12,10,8}` permutados; `custom`/`roll` não validam os valores (o cliente decide os números)
+  - [x] Testes: point buy dentro do orçamento passa, acima do orçamento é rejeitado (422); standard array com valores certos passa, com valor fora do conjunto é rejeitado; custom/roll aceitam qualquer combinação
+  - Notas: `CharacterCreate.ability_scores` já aceitava os valores finais diretamente — esta história só adicionou validação condicionada ao método declarado, sem mudar o formato do payload de ability scores. Point buy rejeita apenas *acima* do orçamento de 27 pontos (não força gastar todos os pontos) — decisão de implementação por não haver exigência explícita de gasto total no PHB nem no backlog.
 
 - **Como jogador, quero que o subir de nível me pergunte as escolhas mecânicas que ganho no nível (estilo de luta, pacto, domínio etc.), e que essas opções sejam pesquisáveis como o resto do catálogo.**
   - [ ] `models.py`: `FeatureOption` (feature-pai + opções nomeadas, ex. "Estilo de Luta: Defesa"/"Estilo de Luta: Duelismo", "Pacto da Lâmina"/"Pacto do Tomo"), `CharacterFeatureChoice` (`character_id`, `feature_id`, `feature_option_id`)
