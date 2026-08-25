@@ -305,3 +305,24 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Descanso e Recursos completa): uso de recursos de classe em combate
   (fúria, ki, pontos de feitiçaria, e outros) com controle de limite por
   nível e recarga em descanso curto ou longo, conforme o recurso.
+- Fase 7 do frontend, história 1: indicador de dados de vida disponíveis
+  na ficha, com botão pra gastar num descanso curto e recuperar pontos
+  de vida.
+- Fase 7 do frontend, história 2: testes de morte na ficha ao chegar a 0
+  pontos de vida, com marcadores de sucesso/falha e estados visuais de
+  estável e morto.
+- Fase 7 do frontend, história 3: indicador de concentração numa magia
+  na ficha e no rastreador de combate, com a DC do teste de concentração
+  e um atalho pra rolar a resistência de Constituição quando o
+  personagem toma dano concentrando.
+- Fase 7 do frontend, história 4: perícias passivas (Percepção,
+  Investigação, Intuição) na ficha do personagem.
+- Fase 7 do frontend, história 5: subida de nível guiada pela ficha,
+  escolhendo a classe, e melhoria de habilidade ou talento do catálogo
+  nos níveis que concedem essa opção.
+- Fase 7 do frontend, história 6: ações lendárias e reações de monstros
+  disparadas pelo rastreador de combate, com contador de uso por rodada.
+- Fase 7 do frontend, história 7 (última da fase — Sobrevivência,
+  Descanso e Recursos completa): recursos de classe (fúria, ki, e
+  outros) usáveis e acompanháveis na ficha e durante a declaração de
+  ação em combate.
