@@ -7,14 +7,17 @@ import { RollButton } from "@/components/characters/roll-button";
 import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
 import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
+import { SpellSlots } from "@/components/characters/spell-slots";
 import { useCatalogList } from "@/hooks/use-catalog";
 import {
   useAddCharacterEquipment,
   useAddCharacterFeature,
+  useRestCharacter,
   useUpdateCharacterHp,
 } from "@/hooks/use-character";
+import { ApiError } from "@/lib/api/client";
 import { calculateModifier } from "@/lib/utils/dnd-rules";
-import type { Character, FeatureSourceType } from "@/types/character";
+import type { Character, FeatureSourceType, RestType } from "@/types/character";
 
 /**
  * Full character sheet (PRD §9.3): header, ability scores, skills, combat
@@ -30,6 +33,8 @@ export function CharacterSheet({
   const updateHp = useUpdateCharacterHp(character.id);
   const [hpDraft, setHpDraft] = useState(String(character.hit_point_current));
   const [hpError, setHpError] = useState<string | null>(null);
+  const rest = useRestCharacter(character.id);
+  const [restError, setRestError] = useState<string | null>(null);
 
   const dexScore = character.ability_scores.find((s) => s.ability === "dex");
   const initiative = dexScore
@@ -45,6 +50,17 @@ export function CharacterSheet({
     } catch {
       setHpError("Não foi possível salvar o HP. Tente novamente.");
       setHpDraft(String(character.hit_point_current));
+    }
+  }
+
+  async function handleRest(restType: RestType) {
+    setRestError(null);
+    try {
+      await rest.mutateAsync({ rest_type: restType });
+    } catch (err) {
+      setRestError(
+        err instanceof ApiError ? err.message : "Não foi possível descansar.",
+      );
     }
   }
 
@@ -105,15 +121,41 @@ export function CharacterSheet({
               {hpError}
             </p>
           ) : null}
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleRest("short")}
+              disabled={rest.isPending}
+              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
+            >
+              Descanso curto
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRest("long")}
+              disabled={rest.isPending}
+              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
+            >
+              Descanso longo
+            </button>
+          </div>
+          {restError ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {restError}
+            </p>
+          ) : null}
         </section>
 
         <SkillList skills={character.skills} />
+
+        <SpellSlots slots={character.spell_slots} />
 
         <SpellListByCircle
           characterId={character.id}
           campaignId={campaignId}
           spells={character.spells}
           classes={character.classes}
+          spellSlots={character.spell_slots}
         />
 
         <EquipmentSection

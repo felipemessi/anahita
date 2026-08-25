@@ -254,11 +254,12 @@
   - [x] Teste: preparar acima do limite mostra o erro; remover magia libera espaço na lista; busca filtra por classe+círculo+nome
   - Notas: lacuna mecânica descoberta e resolvida inline — `GET /catalog/spells` não tinha filtro por classe (`SpellSummary` não carrega `classes`, e buscar o detalhe completo de cada spell só pra filtrar seria caro); adicionado `class_index` como query param no backend (`list_spells`/`list_spells_translated`/router), com teste próprio, antes de implementar a busca do frontend. `spell-slots.tsx` antigo (lista simples + form de adicionar) foi removido — sua função de listar/adicionar virou `spell-list-by-circle.tsx`; o nome `spell-slots.tsx` fica livre pra história 2 (indicador numérico de slots).
 
-- **Como jogador, quero ver meus slots de magia disponíveis/usados por círculo e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.**
-  - [ ] `components/characters/spell-slots.tsx`: indicador visual por círculo (ex. pontos preenchidos/vazios) refletindo `used`/`max`
-  - [ ] Botão "conjurar" em cada magia da lista por círculo: se a magia permite ritual, oferece a opção "conjurar como ritual" (não consome slot); se permite conjuração em nível maior, oferece um seletor de nível (só habilitado até o maior círculo com slot disponível)
-  - [ ] Botões de descanso curto/longo na ficha; longo restaura os slots (mutação otimista, reverte em erro)
-  - [ ] Teste: conjurar consome o slot certo; ritual não consome; upcast exige e consome o slot do nível escolhido; sem slot disponível o botão de conjurar fica desabilitado com tooltip explicando
+- **Como jogador, quero ver meus slots de magia disponíveis/usados por círculo e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.** ✅ (2026-08-25)
+  - [x] `components/characters/spell-slots.tsx`: indicador visual por círculo (ex. pontos preenchidos/vazios) refletindo `used`/`max`
+  - [x] Botão "conjurar" em cada magia da lista por círculo: se a magia permite ritual, oferece a opção "conjurar como ritual" (não consome slot); se permite conjuração em nível maior, oferece um seletor de nível (só habilitado até o maior círculo com slot disponível)
+  - [x] Botões de descanso curto/longo na ficha; longo restaura os slots (mutação otimista, reverte em erro)
+  - [x] Teste: conjurar consome o slot certo; ritual não consome; upcast exige e consome o slot do nível escolhido; sem slot disponível o botão de conjurar fica desabilitado com tooltip explicando
+  - Notas: o seletor de nível só aparece quando há mais de uma opção de slot disponível para upcast; quando só existe uma opção diferente do círculo próprio da magia (ex. slot do próprio nível esgotado, só sobra o de cima), o botão "conjurar" já usa esse nível por padrão sem precisar do seletor.
 
 - **Como jogador, quero adicionar, editar, ver detalhes e remover itens do meu inventário, e registrar ganho/gasto de moedas.**
   - [ ] `lib/api/characters.ts`: `updateCharacterEquipment`, `removeCharacterEquipment`, `updateCharacterCurrency`; estender `hooks/use-character.ts`
