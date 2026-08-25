@@ -549,12 +549,17 @@ async def list_spells(
     *,
     level: int | None = None,
     school: str | None = None,
+    class_index: str | None = None,
     include_custom: bool = True,
     campaign_id: uuid.UUID | None = None,
 ) -> list[Spell]:
     """Return all spells (base rows, eager-loaded classes/school, untranslated).
 
-    `school` filters by the `MagicSchool.index` slug (e.g. `evocation`). See
+    `school` filters by the `MagicSchool.index` slug (e.g. `evocation`).
+    `class_index` filters to spells castable by that `ClassDefinition.index`
+    (e.g. `wizard`) — added for the character sheet's spell search (backlog
+    Fase 6 frontend, história 1), which needs to narrow a huge spell list to
+    a character's own class without fetching every spell's full detail. See
     `list_races` for the `campaign_id` vs. `include_custom` scoping rules.
     """
     stmt = (
@@ -570,6 +575,17 @@ async def list_spells(
         stmt = stmt.where(Spell.level == level)
     if school:
         stmt = stmt.where(MagicSchool.index == school)
+    if class_index:
+        stmt = stmt.where(
+            Spell.id.in_(
+                select(SpellClass.spell_id)
+                .join(
+                    ClassDefinition,
+                    ClassDefinition.id == SpellClass.class_definition_id,
+                )
+                .where(ClassDefinition.index == class_index)
+            )
+        )
     if campaign_id is not None:
         stmt = stmt.where(
             or_(Spell.campaign_id.is_(None), Spell.campaign_id == campaign_id)
@@ -673,6 +689,7 @@ async def list_spells_translated(
     search: str | None = None,
     level: int | None = None,
     school: str | None = None,
+    class_index: str | None = None,
     include_custom: bool = True,
     campaign_id: uuid.UUID | None = None,
     locale: str = "en",
@@ -687,6 +704,7 @@ async def list_spells_translated(
         session,
         level=level,
         school=school,
+        class_index=class_index,
         include_custom=include_custom,
         campaign_id=campaign_id,
     )

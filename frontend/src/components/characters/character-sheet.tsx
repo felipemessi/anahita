@@ -6,7 +6,7 @@ import { AbilityScores } from "@/components/characters/ability-scores";
 import { RollButton } from "@/components/characters/roll-button";
 import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
-import { SpellSlots } from "@/components/characters/spell-slots";
+import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
 import { useCatalogList } from "@/hooks/use-catalog";
 import {
   useAddCharacterEquipment,
@@ -109,10 +109,11 @@ export function CharacterSheet({
 
         <SkillList skills={character.skills} />
 
-        <SpellSlots
+        <SpellListByCircle
           characterId={character.id}
           campaignId={campaignId}
           spells={character.spells}
+          classes={character.classes}
         />
 
         <EquipmentSection

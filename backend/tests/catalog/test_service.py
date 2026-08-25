@@ -204,6 +204,17 @@ async def test_list_spells_filter_by_school(db: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_spells_filter_by_class(db: AsyncSession) -> None:
+    """list_spells with class_index restricts to spells that class can cast."""
+    await seed_catalog(db)
+    wizard_spells = await service.list_spells(db, class_index="wizard")
+    assert len(wizard_spells) > 0
+    for spell in wizard_spells:
+        class_indices = {c.class_definition.index for c in spell.classes}
+        assert "wizard" in class_indices
+
+
+@pytest.mark.asyncio
 async def test_list_spells_translated_search(db: AsyncSession) -> None:
     """list_spells_translated with search should match translated name substring."""
     await seed_catalog(db)

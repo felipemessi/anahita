@@ -246,12 +246,13 @@
 
 > Depende do backend Fase 6 (`docs/anahita-backend-backlog.md`), ainda pendente — cada história abaixo só pode integrar de verdade depois que o endpoint correspondente existir; até lá, trabalhar com mocks e marcar a tarefa de "integração real" como pendente. Levantado em 2026-08-24 a partir de pedido do grupo — ver Fase 7 para os complementos de sobrevivência/descanso/recursos levantados na mesma sessão.
 
-- **Como jogador, quero adicionar, remover, preparar/despreparar e ver detalhes das minhas magias, organizadas por círculo, com busca por classe/círculo/nome.**
-  - [ ] `lib/api/characters.ts`: `updateCharacterSpell` (toggle `prepared`), `removeCharacterSpell`, estender `hooks/use-character.ts`
-  - [ ] `components/characters/spell-list-by-circle.tsx` (substitui/estende `spell-slots.tsx`): agrupa magias conhecidas por círculo (0 = truques), toggle preparar/despreparar, botão remover, modal/expansível de detalhe (descrição, componentes, duração — reaproveita dados já resolvidos do catálogo)
-  - [ ] `components/characters/spell-search.tsx`: busca no catálogo de spells da campanha filtrando por classe do personagem, círculo e nome (reaproveita `useCatalogList("spells", { campaign_id, filters })`, mesmo padrão de `catalog-filter-bar.tsx`)
-  - [ ] Regra de UI: ao tentar preparar/adicionar acima do limite da classe, mostrar a mensagem de erro do backend (limite atual, quantas já preparadas/conhecidas) em vez de um erro genérico
-  - [ ] Teste: preparar acima do limite mostra o erro; remover magia libera espaço na lista; busca filtra por classe+círculo+nome
+- **Como jogador, quero adicionar, remover, preparar/despreparar e ver detalhes das minhas magias, organizadas por círculo, com busca por classe/círculo/nome.** ✅ (2026-08-25)
+  - [x] `lib/api/characters.ts`: `updateCharacterSpell` (toggle `prepared`), `removeCharacterSpell`, estender `hooks/use-character.ts`
+  - [x] `components/characters/spell-list-by-circle.tsx` (substitui/estende `spell-slots.tsx`): agrupa magias conhecidas por círculo (0 = truques), toggle preparar/despreparar, botão remover, modal/expansível de detalhe (descrição, componentes, duração — reaproveita dados já resolvidos do catálogo)
+  - [x] `components/characters/spell-search.tsx`: busca no catálogo de spells da campanha filtrando por classe do personagem, círculo e nome (reaproveita `useCatalogList("spells", { campaign_id, filters })`, mesmo padrão de `catalog-filter-bar.tsx`)
+  - [x] Regra de UI: ao tentar preparar/adicionar acima do limite da classe, mostrar a mensagem de erro do backend (limite atual, quantas já preparadas/conhecidas) em vez de um erro genérico
+  - [x] Teste: preparar acima do limite mostra o erro; remover magia libera espaço na lista; busca filtra por classe+círculo+nome
+  - Notas: lacuna mecânica descoberta e resolvida inline — `GET /catalog/spells` não tinha filtro por classe (`SpellSummary` não carrega `classes`, e buscar o detalhe completo de cada spell só pra filtrar seria caro); adicionado `class_index` como query param no backend (`list_spells`/`list_spells_translated`/router), com teste próprio, antes de implementar a busca do frontend. `spell-slots.tsx` antigo (lista simples + form de adicionar) foi removido — sua função de listar/adicionar virou `spell-list-by-circle.tsx`; o nome `spell-slots.tsx` fica livre pra história 2 (indicador numérico de slots).
 
 - **Como jogador, quero ver meus slots de magia disponíveis/usados por círculo e gastá-los ao conjurar, incluindo ritual (sem custo) e conjuração em nível maior.**
   - [ ] `components/characters/spell-slots.tsx`: indicador visual por círculo (ex. pontos preenchidos/vazios) refletindo `used`/`max`
