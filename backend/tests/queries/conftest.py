@@ -7,6 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 import app.auth.models  # noqa: F401 — registers models with Base
 import app.campaigns.models  # noqa: F401 — registers models with Base
+import app.catalog.models  # noqa: F401 — registers models with Base
+import app.handouts.models  # noqa: F401 — registers models with Base
+import app.sessions.models  # noqa: F401 — registers models with Base
+import app.world.models  # noqa: F401 — registers models with Base
 from app.database import Base
 
 _TEST_DB_URL = "sqlite+aiosqlite:///:memory:"

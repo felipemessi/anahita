@@ -6,6 +6,9 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.campaigns.domain import CampaignRole, CampaignStatus
+from app.handouts.domain import HandoutType
+from app.sessions.schemas import SessionRead
+from app.world.schemas import LocationRead, NPCRead
 
 
 class CampaignCreate(BaseModel):
@@ -78,3 +81,29 @@ class CampaignInviteRedeem(BaseModel):
     """Request body to redeem a campaign invite."""
 
     invite_code: str
+
+
+class DashboardHandoutRead(BaseModel):
+    """A pending (unrevealed) handout, as summarized on the dashboard."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    handout_type: HandoutType
+    created_at: datetime
+
+
+class CampaignDashboardRead(BaseModel):
+    """Cross-domain dashboard summary for a campaign, shaped by the requester's role.
+
+    `pending_handouts`/`pending_handouts_count` are always empty for a
+    player — a player never sees an unrevealed handout anywhere else in the
+    app (PRD §7.8), so the dashboard must not leak that one exists either.
+    """
+
+    next_session: SessionRead | None
+    recent_npcs: list[NPCRead]
+    recent_locations: list[LocationRead]
+    pending_handouts: list[DashboardHandoutRead]
+    pending_handouts_count: int
