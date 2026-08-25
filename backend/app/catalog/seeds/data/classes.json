@@ -3301,7 +3301,7 @@
           }
         },
         "prerequisites": [],
-        "parent_index": null
+        "parent_index": "channel-divinity-1-rest"
       },
       {
         "index": "divine-domain-improvement-1",
@@ -3651,7 +3651,7 @@
               }
             },
             "prerequisites": [],
-            "parent_index": null
+            "parent_index": "channel-divinity-1-rest"
           },
           {
             "index": "blessed-healer",
@@ -7621,7 +7621,7 @@
               }
             },
             "prerequisites": [],
-            "parent_index": null
+            "parent_index": "channel-divinity"
           },
           {
             "index": "channel-divinity-turn-the-unholy",
@@ -7634,7 +7634,7 @@
               }
             },
             "prerequisites": [],
-            "parent_index": null
+            "parent_index": "channel-divinity"
           },
           {
             "index": "aura-of-devotion",

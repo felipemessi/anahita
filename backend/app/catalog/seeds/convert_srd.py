@@ -338,6 +338,20 @@ _ABILITY_FULL_NAME = {
     "cha": "Charisma",
 }
 
+#: Hand-curated `parent_index` for Channel Divinity's uses — unlike Fighting
+#: Style/Pact Boon, the SRD source never sets `parent` on these even though
+#: the PHB text presents them as "choose one of the following" (PRD Fase 8).
+#: Covers every Channel Divinity option in the SRD 2014 `en` data (only the
+#: Life domain and Devotion oath are SRD content, so this is exhaustive as
+#: of this dataset) — extend it if a future SRD update adds another
+#: domain/oath with its own Channel Divinity option.
+_CHANNEL_DIVINITY_PARENT_OVERRIDES = {
+    "channel-divinity-turn-undead": "channel-divinity-1-rest",
+    "channel-divinity-preserve-life": "channel-divinity-1-rest",
+    "channel-divinity-sacred-weapon": "channel-divinity",
+    "channel-divinity-turn-the-unholy": "channel-divinity",
+}
+
 
 def _feature_entry(feature: dict[str, Any]) -> dict[str, Any]:
     prereqs = []
@@ -371,8 +385,13 @@ def _feature_entry(feature: dict[str, Any]) -> dict[str, Any]:
         # A named option under a broader choice feature (e.g. "Fighting
         # Style: Defense" under "Fighting Style", "Pact of the Blade" under
         # "Pact Boon") — the SRD already models this via `parent`; resolved
-        # to `Feature.parent_feature_id` in `seed.py`.
-        "parent_index": feature["parent"]["index"] if feature.get("parent") else None,
+        # to `Feature.parent_feature_id` in `seed.py`. Falls back to the
+        # hand-curated Channel Divinity map for the cases the SRD omits.
+        "parent_index": (
+            feature["parent"]["index"]
+            if feature.get("parent")
+            else _CHANNEL_DIVINITY_PARENT_OVERRIDES.get(feature["index"])
+        ),
     }
 
 

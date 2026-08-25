@@ -109,9 +109,15 @@ async def use_resource(
     user: CurrentUser,
     db: DB,
     service: Annotated[CharacterService, Depends(get_character_service)],
+    option_id: Annotated[
+        uuid.UUID | None,
+        Query(description="Which named option this use spent, if more than one"),
+    ] = None,
 ) -> CharacterRead:
     """Spend one use of a class resource (rage, ki, ...). Owner only."""
-    return await service.use_resource(character_id, user.id, resource_key, db)
+    return await service.use_resource(
+        character_id, user.id, resource_key, db, option_id=option_id
+    )
 
 
 @router.patch("/{character_id}", response_model=CharacterRead)
