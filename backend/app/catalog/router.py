@@ -19,6 +19,7 @@ from app.catalog.schemas import (
     FeatCreate,
     FeatRead,
     FeatSummary,
+    FeatureRead,
     ItemCreate,
     ItemRead,
     ItemSummary,
@@ -322,6 +323,22 @@ async def create_background(
     """Create a homebrew background, scoped to `body.campaign_id`. DM only."""
     await _require_dm(body.campaign_id, user, db)
     return await service.create_custom_background(db, body)
+
+
+@router.get("/features", response_model=list[FeatureRead])
+async def list_features(
+    db: DB,
+    parent_feature_id: Annotated[
+        uuid.UUID | None,
+        Query(description="List only the named options under this parent feature"),
+    ] = None,
+    search: SearchQ = None,
+    locale: LocaleQ = "en",
+) -> list[FeatureRead]:
+    """List features, optionally scoped to the options under one parent feature."""
+    return await service.list_features_translated(
+        db, parent_feature_id=parent_feature_id, search=search, locale=locale
+    )
 
 
 @router.get("/feats", response_model=list[FeatSummary])

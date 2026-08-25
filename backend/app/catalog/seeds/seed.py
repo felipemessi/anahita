@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.models import (
@@ -183,7 +183,49 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_feats(session)
     await _seed_monsters(session)
     await _seed_rules(session)
+    await backfill_feature_parent_ids(session)
     await session.commit()
+
+
+async def backfill_feature_parent_ids(session: AsyncSession) -> None:
+    """Set `Feature.parent_feature_id` on already-seeded rows missing it.
+
+    `_seed_classes` links this correctly for a fresh install (via
+    `_link_feature_options`), but a database seeded before that link existed
+    has every `Feature` row with `parent_feature_id IS NULL`. Matches by
+    `index` rather than re-inserting, so existing ids (and every FK pointing
+    at them, e.g. `CharacterFeature.feature_id`) are left untouched — safe to
+    run repeatedly, including as part of `seed_catalog` on an already-seeded
+    database.
+    """
+    id_by_index = await _index_map(session, Feature)
+    feats: list[dict[str, Any]] = []
+    for entry in _load("classes"):
+        feats.extend(entry.get("features", []))
+        for sc in entry.get("subclasses", []):
+            feats.extend(sc.get("features", []))
+
+    result = await session.execute(
+        select(Feature.index, Feature.parent_feature_id).where(
+            Feature.parent_feature_id.is_not(None)
+        )
+    )
+    already_linked = {index for index, _ in result.all()}
+
+    for feat in feats:
+        parent_index = feat.get("parent_index")
+        if (
+            parent_index is None
+            or feat["index"] in already_linked
+            or feat["index"] not in id_by_index
+            or parent_index not in id_by_index
+        ):
+            continue
+        await session.execute(
+            update(Feature)
+            .where(Feature.id == id_by_index[feat["index"]])
+            .values(parent_feature_id=id_by_index[parent_index])
+        )
 
 
 # --- Fixed vocabulary (PRD §7.4.1) ------------------------------------------
@@ -664,6 +706,7 @@ async def _seed_classes(session: AsyncSession) -> None:
                     spell_id=None,
                 )
             )
+        _link_feature_options(entry.get("features", []), features_by_index)
 
         for sc in entry.get("subclasses", []):
             subclass = SubclassDefinition(
@@ -676,8 +719,9 @@ async def _seed_classes(session: AsyncSession) -> None:
             await _seed_i18n(session, SubclassDefinitionI18n, subclass.id, sc["i18n"])
 
             subclass_levels: dict[int, ClassLevel] = {}
+            subclass_features_by_index: dict[str, Feature] = {}
             for feat in sc.get("features", []):
-                await _seed_class_feature(
+                subclass_feature = await _seed_class_feature(
                     session,
                     feat,
                     owning_class_definition_id=cls.id,
@@ -685,6 +729,28 @@ async def _seed_classes(session: AsyncSession) -> None:
                     feature_subclass_definition_id=subclass.id,
                     class_level_by_level=subclass_levels,
                 )
+                subclass_features_by_index[feat["index"]] = subclass_feature
+            _link_feature_options(sc.get("features", []), subclass_features_by_index)
+
+
+def _link_feature_options(
+    feats: list[dict[str, Any]], features_by_index: dict[str, Feature]
+) -> None:
+    """Set `Feature.parent_feature_id` for every feat that named a `parent_index`.
+
+    A named option under a broader choice feature (e.g. "Fighting Style:
+    Defense" under "Fighting Style") — both rows always come from the same
+    `features` list (class-level or one subclass's), so `features_by_index`
+    built from that same list is enough to resolve the link.
+    """
+    for feat in feats:
+        parent_index = feat.get("parent_index")
+        if parent_index is None:
+            continue
+        feature = features_by_index.get(feat["index"])
+        parent = features_by_index.get(parent_index)
+        if feature is not None and parent is not None:
+            feature.parent_feature_id = parent.id
 
 
 # --- Spells (PRD §7.4.5) ----------------------------------------------------

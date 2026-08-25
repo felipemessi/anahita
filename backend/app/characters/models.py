@@ -100,6 +100,9 @@ class Character(Base):
     features: Mapped[list[CharacterFeature]] = relationship(
         back_populates="character", cascade="all, delete-orphan"
     )
+    feature_choices: Mapped[list[CharacterFeatureChoice]] = relationship(
+        back_populates="character", cascade="all, delete-orphan"
+    )
     race_choices: Mapped[list[CharacterRaceChoice]] = relationship(
         back_populates="character", cascade="all, delete-orphan"
     )
@@ -188,6 +191,35 @@ class CharacterFeature(Base):
     level_acquired: Mapped[int] = mapped_column(Integer)
 
     character: Mapped[Character] = relationship(back_populates="features")
+
+
+class CharacterFeatureChoice(Base):
+    """A named option picked for a class feature that offers a choice.
+
+    `feature_id` is the parent choice feature (e.g. "Fighting Style"),
+    `feature_option_id` the specific option picked among its children (e.g.
+    "Fighting Style: Dueling") — both point at `catalog_features.id`, since
+    the option is just a `Feature` row with `parent_feature_id` set to the
+    parent's id (PRD Fase 8; see `CharacterService.level_up`).
+    """
+
+    __tablename__ = "character_feature_choices"
+    __table_args__ = (
+        UniqueConstraint(
+            "character_id", "feature_id", name="uq_character_feature_choices"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    character_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("characters.id"))
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("catalog_features.id")
+    )
+    feature_option_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("catalog_features.id")
+    )
+
+    character: Mapped[Character] = relationship(back_populates="feature_choices")
 
 
 class CharacterRaceChoice(Base):

@@ -170,6 +170,13 @@ class CharacterRestRequest(BaseModel):
     hit_dice_spent: list[CharacterHitDiceSpend] = Field(default_factory=list)
 
 
+class CharacterFeatureChoiceInput(BaseModel):
+    """One choice made for a level's choice feature (e.g. Fighting Style)."""
+
+    feature_id: uuid.UUID
+    feature_option_id: uuid.UUID
+
+
 class CharacterLevelUpRequest(BaseModel):
     """Request body to level up a character by one level in one class.
 
@@ -180,7 +187,10 @@ class CharacterLevelUpRequest(BaseModel):
     grants an ASI for that class (`ClassLevel.ability_score_bonuses`);
     `manual_hit_die_roll` overrides `engine/dice.py` rolling the class's
     hit die for the HP gained, same manual-override convention as
-    `CharacterHitDiceSpend.manual_roll`.
+    `CharacterHitDiceSpend.manual_roll`. `feature_choices` picks a named
+    option for every choice feature (e.g. Fighting Style, Pact Boon) granted
+    at the new level — required whenever one is granted, see
+    `CharacterService.level_up`.
     """
 
     class_definition_id: uuid.UUID
@@ -188,6 +198,7 @@ class CharacterLevelUpRequest(BaseModel):
     ability_score_increases: dict[AbilityScore, int] | None = None
     feat_id: uuid.UUID | None = None
     manual_hit_die_roll: int | None = Field(default=None, ge=1)
+    feature_choices: list[CharacterFeatureChoiceInput] = []
 
 
 class CharacterDeathSaveRequest(BaseModel):
@@ -288,6 +299,16 @@ class CharacterFeatureRead(BaseModel):
     level_acquired: int
 
 
+class CharacterFeatureChoiceRead(BaseModel):
+    """Response schema for a choice made for a level's choice feature."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    feature_id: uuid.UUID
+    feature_option_id: uuid.UUID
+
+
 class CharacterUpdate(BaseModel):
     """Request body to update a character's combat-facing fields.
 
@@ -361,3 +382,4 @@ class CharacterRead(BaseModel):
     spell_slots: list[CharacterSpellSlotRead]
     equipment: list[CharacterEquipmentRead]
     features: list[CharacterFeatureRead]
+    feature_choices: list[CharacterFeatureChoiceRead]
