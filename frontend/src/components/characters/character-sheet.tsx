@@ -8,6 +8,7 @@ import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
 import { HitDiceTracker } from "@/components/characters/hit-dice-tracker";
+import { PassiveScores } from "@/components/characters/passive-scores";
 import { RollButton } from "@/components/characters/roll-button";
 import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
@@ -159,6 +160,12 @@ export function CharacterSheet({
         />
 
         <SkillList skills={character.skills} />
+
+        <PassiveScores
+          passivePerception={character.passive_perception}
+          passiveInvestigation={character.passive_investigation}
+          passiveInsight={character.passive_insight}
+        />
 
         <HitDiceTracker
           characterId={character.id}

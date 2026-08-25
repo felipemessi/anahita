@@ -318,9 +318,9 @@
   - [x] Teste: dano em participante concentrando exibe a DC; indicador de concentração muda ao trocar de magia
   - Notas: não existe um botão "iniciar concentração" separado — conjurar uma magia de concentração (botão "conjurar" já existente do `spell-list-by-circle.tsx`) já dispara isso automaticamente no backend (`cast_spell`), inclusive encerrando a concentração anterior; o indicador na ficha (`concentration-indicator.tsx`) só reflete esse estado e permite encerrar manualmente. No `participant-card.tsx`, a DC aparece como um aviso de texto (`concentration_dc` do evento `participant_updated`/`action_resolved`) sem um botão de atalho pra rolar — a ficha do combat tracker não está dentro do `RollLogProvider` usado pelo `roll-button.tsx`, então esse atalho ficou fora do escopo desta história (lacuna adiada).
 
-- **Como jogador, quero ver minhas perícias passivas na ficha.**
-  - [ ] `ability-scores.tsx`/nova seção `passive-scores.tsx`: exibe Percepção/Investigação/Intuição passivas (vindas de `CharacterRead`, sem cálculo client-side)
-  - [ ] Teste: renderiza os três valores vindos da API
+- **Como jogador, quero ver minhas perícias passivas na ficha. ✅ (2026-08-25)**
+  - [x] `ability-scores.tsx`/nova seção `passive-scores.tsx`: exibe Percepção/Investigação/Intuição passivas (vindas de `CharacterRead`, sem cálculo client-side)
+  - [x] Teste: renderiza os três valores vindos da API
 
 - **Como jogador, quero subir de nível meu personagem pela ficha, escolhendo melhoria de habilidade ou talento quando aplicável.**
   - [ ] `components/characters/level-up-dialog.tsx`: fluxo guiado (escolher classe a subir, confirmar PV ganho, em nível de ASI escolher entre distribuir pontos ou talento do catálogo)
