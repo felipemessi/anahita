@@ -260,3 +260,25 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   veem só um resumo (nome, raça, classe(s), nível) dos personagens de
   outros jogadores — a ficha completa continua visível só pro dono e pro
   mestre.
+- Fase 6 do frontend, história 1: gerenciamento de magias conhecidas na
+  ficha, organizadas por círculo, com busca por classe/círculo/nome,
+  preparar/despreparar, remover e ver detalhes.
+- Fase 6 do frontend, história 2: indicador de slots de magia por círculo
+  na ficha, com botão de conjurar (incluindo ritual sem custo e
+  conjuração em nível maior) e descanso curto/longo.
+- Fase 6 do frontend, história 3: edição e remoção de itens do
+  inventário pessoal na ficha, e registro de ganho/gasto de moeda.
+- Fase 6 do frontend, história 4: botão de abrir sessão para o mestre, e
+  aviso pedindo a rolagem de iniciativa de cada participante antes do
+  combate poder avançar de turno.
+- Fase 6 do frontend, história 5: seletor de ações de combate (ataque com
+  arma, manual ou com magia, agarrar, empurrar, e as ações sem rolagem
+  associada) para quem está no turno, com o resultado aparecendo em
+  tempo real pra todo mundo conectado.
+- Fase 6 do frontend, história 6 (última da fase — Interatividade de
+  Ficha e Combate completa): na lista de personagens da campanha,
+  jogadores veem só um resumo dos personagens de outros jogadores, e são
+  levados direto pra ficha do próprio personagem quando têm só um na
+  campanha; toda rolagem de combate (ataque, dano, teste oposto,
+  iniciativa) pode ser digitada manualmente em vez de deixar o sistema
+  rolar.
