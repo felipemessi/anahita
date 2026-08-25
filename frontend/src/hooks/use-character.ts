@@ -14,6 +14,7 @@ import {
   removeCharacterEquipment,
   removeCharacterSpell,
   restCharacter,
+  rollDeathSave,
   updateCharacterCurrency,
   updateCharacterEquipment,
   updateCharacterHp,
@@ -23,6 +24,7 @@ import type {
   CharacterClassCreate,
   CharacterCreate,
   CharacterCurrencyRequest,
+  CharacterDeathSaveRequest,
   CharacterEquipmentCreate,
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
@@ -159,6 +161,19 @@ export function useRestCharacter(characterId: string) {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
+/** Roll a death saving throw — only accepted at 0 hit points. */
+export function useRollDeathSave(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterDeathSaveRequest) => rollDeathSave(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
     },
   });
 }

@@ -305,10 +305,11 @@
   - [x] Teste: gastar dado de vida atualiza PV e o contador de dados restantes; botão desabilita quando não há dados disponíveis
   - Notas: o gasto de dados de vida acontece pelo próprio botão "Gastar dado de vida" do `hit-dice-tracker.tsx` (que já dispara o descanso curto com a quantidade escolhida), em vez de acoplar a escolha ao botão genérico "Descanso curto" da ficha — mantém os dois fluxos independentes (um descanso curto sem gasto de dados continua possível pelo botão da ficha). Sem mutação otimista: a cura rolada é decidida no servidor, então o valor final só é conhecido após a resposta.
 
-- **Como jogador, quero fazer testes de morte quando meu personagem chega a 0 PV, vendo sucessos/falhas acumulados.**
-  - [ ] `components/characters/death-save-tracker.tsx`: aparece automaticamente quando `hit_point_current === 0`, mostra 3 marcadores de sucesso/falha e um botão "rolar" (chama o endpoint de death save)
-  - [ ] Estados visuais claros para estável (3 sucessos) e morto (3 falhas)
-  - [ ] Teste: rolar preenche o marcador certo conforme o resultado; 3 falhas mostra estado "morto"; qualquer cura reseta os marcadores
+- **Como jogador, quero fazer testes de morte quando meu personagem chega a 0 PV, vendo sucessos/falhas acumulados. ✅ (2026-08-25)**
+  - [x] `components/characters/death-save-tracker.tsx`: aparece automaticamente quando `hit_point_current === 0`, mostra 3 marcadores de sucesso/falha e um botão "rolar" (chama o endpoint de death save)
+  - [x] Estados visuais claros para estável (3 sucessos) e morto (3 falhas)
+  - [x] Teste: rolar preenche o marcador certo conforme o resultado; 3 falhas mostra estado "morto"; qualquer cura reseta os marcadores
+  - Notas: o backend não persiste um estado "estável" separado — 3 sucessos apenas zera os dois contadores, mesmo formato de "ainda não rolou". O componente infere "estável" no cliente comparando com a renderização anterior (teve progresso e depois zerou sem morrer) — só vale enquanto o componente está montado; um reload da página perde essa distinção e volta pro estado neutro (mecanicamente correto, já que não há mais teste de morte pendente de qualquer forma).
 
 - **Como jogador, quero indicar que estou concentrando numa magia e ser avisado da DC do teste de concentração quando meu personagem tomar dano em combate.**
   - [ ] Indicador de "concentrando em [magia]" na ficha e no `participant-card.tsx` do combat tracker
