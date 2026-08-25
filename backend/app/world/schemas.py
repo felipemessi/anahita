@@ -63,6 +63,7 @@ class LocationRead(BaseModel):
     location_type: LocationType
     description: str
     parent_location_id: uuid.UUID | None
+    created_at: datetime
 
 
 class LocationParentUpdate(BaseModel):

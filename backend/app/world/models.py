@@ -66,6 +66,9 @@ class Location(Base):
     parent_location_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("locations.id")
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
 
 class Faction(Base):

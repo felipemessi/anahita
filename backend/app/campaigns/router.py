@@ -7,19 +7,25 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
+from app.campaigns.domain import CampaignRole
 from app.campaigns.schemas import (
     CampaignCreate,
+    CampaignDashboardRead,
     CampaignInviteCreate,
     CampaignInviteRead,
     CampaignInviteRedeem,
     CampaignMemberRead,
     CampaignRead,
     CampaignUpdate,
+    DashboardHandoutRead,
 )
 from app.campaigns.service import CampaignService
 from app.core.dependencies import get_current_user
 from app.database import get_db
 from app.queries.campaign_queries import list_campaigns_for_user
+from app.queries.dashboard_queries import get_campaign_dashboard
+from app.sessions.schemas import SessionRead
+from app.world.schemas import LocationRead, NPCRead
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -115,6 +121,50 @@ async def get_my_membership(
     """Return the authenticated user's own membership in a campaign."""
     member = await service.get_own_membership(campaign_id, user.id, db)
     return CampaignMemberRead.model_validate(member)
+
+
+@router.get("/{campaign_id}/dashboard", response_model=CampaignDashboardRead)
+async def get_dashboard(
+    campaign_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CampaignService, Depends(get_campaign_service)],
+) -> CampaignDashboardRead:
+    """Get a campaign's dashboard summary. Viewable by any of its members.
+
+    A player's `dm_notes` on `next_session` and pending-handouts fields come
+    back hidden/empty, same as the rest of the app (`GET .../sessions`,
+    handouts never listed unrevealed to a player).
+    """
+    member = await service.get_own_membership(campaign_id, user.id, db)
+    is_dm = member.role == CampaignRole.dm
+    dashboard = await get_campaign_dashboard(campaign_id, is_dm=is_dm, db=db)
+    next_session = (
+        SessionRead(
+            id=dashboard.next_session.id,
+            campaign_id=dashboard.next_session.campaign_id,
+            session_number=dashboard.next_session.session_number,
+            title=dashboard.next_session.title,
+            scheduled_date=dashboard.next_session.scheduled_date,
+            status=dashboard.next_session.status,
+            dm_notes=dashboard.next_session.dm_notes if is_dm else None,
+            summary=dashboard.next_session.summary,
+            created_at=dashboard.next_session.created_at,
+        )
+        if dashboard.next_session is not None
+        else None
+    )
+    return CampaignDashboardRead(
+        next_session=next_session,
+        recent_npcs=[NPCRead.model_validate(n) for n in dashboard.recent_npcs],
+        recent_locations=[
+            LocationRead.model_validate(loc) for loc in dashboard.recent_locations
+        ],
+        pending_handouts=[
+            DashboardHandoutRead.model_validate(h) for h in dashboard.pending_handouts
+        ],
+        pending_handouts_count=dashboard.pending_handouts_count,
+    )
 
 
 @router.post("/invites/redeem", response_model=CampaignMemberRead)
