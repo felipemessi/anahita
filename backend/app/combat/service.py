@@ -29,7 +29,11 @@ from app.catalog.models import (
     Monster,
     MonsterAction,
     MonsterActionDamage,
+    MonsterLegendaryAction,
+    MonsterLegendaryActionDamage,
     MonsterProficiency,
+    MonsterReaction,
+    MonsterReactionDamage,
     Proficiency,
     SkillDefinition,
     Spell,
@@ -71,8 +75,11 @@ from app.combat.schemas import (
     EncounterRead,
     MechanicalEffectRead,
     WSDeclareActionPayload,
+    WSTriggerReactionPayload,
+    WSUseLegendaryActionPayload,
 )
 from app.sessions.models import Session
+from app.world.models import NPC
 from engine.abilities import calculate_modifier, calculate_skill_bonus
 from engine.conditions import get_condition_effects
 from engine.dice import roll, roll_d20
@@ -89,7 +96,9 @@ _ENCOUNTER_LOAD_OPTIONS = (
 )
 
 
-def participant_to_read(participant: EncounterParticipant) -> EncounterParticipantRead:
+def participant_to_read(
+    participant: EncounterParticipant, *, concentration_dc: int | None = None
+) -> EncounterParticipantRead:
     """Build a participant's read schema, resolving its conditions' effects.
 
     `engine.conditions.get_condition_effects` has no notion of exhaustion
@@ -125,6 +134,9 @@ def participant_to_read(participant: EncounterParticipant) -> EncounterParticipa
             EncounterConditionRead.model_validate(c) for c in participant.conditions
         ],
         effects=effects,
+        concentration_dc=concentration_dc,
+        legendary_actions_used=participant.legendary_actions_used,
+        reactions_used=participant.reactions_used,
     )
 
 
@@ -404,6 +416,10 @@ class CombatService:
             next_up = next(
                 p for p in encounter.participants if p.id == result.participant_id
             )
+            # Legendary actions/reactions spend resets at the start of the
+            # participant's own turn (Fase 7) — harmless no-op for a PC.
+            next_up.legendary_actions_used = 0
+            next_up.reactions_used = 0
             self._log(
                 db,
                 encounter,
@@ -448,12 +464,15 @@ class CombatService:
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
         participant = self._find_participant_or_404(encounter, participant_id)
 
+        concentration_dc: int | None = None
         if hit_point_current is not None:
             if hit_point_current > participant.hit_point_max:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="hit_point_current cannot exceed hit_point_max",
                 )
+            damage = participant.hit_point_current - hit_point_current
+            concentration_dc = await self._concentration_dc(participant, damage, db)
             self._log_hp_change(db, encounter, participant, hit_point_current)
             participant.hit_point_current = hit_point_current
         if temporary_hit_points is not None:
@@ -502,7 +521,9 @@ class CombatService:
             .options(selectinload(EncounterParticipant.conditions))
             .execution_options(populate_existing=True)
         )
-        return participant_to_read(result.scalar_one())
+        return participant_to_read(
+            result.scalar_one(), concentration_dc=concentration_dc
+        )
 
     async def roll_initiative(
         self,
@@ -683,12 +704,41 @@ class CombatService:
         db: AsyncSession,
     ) -> DeclareActionResultRead:
         """Resolve `attack_weapon`/`attack_spell`: to-hit roll, then damage."""
-        attack_bonus, damage_expression, damage_type, source_desc = (
-            await self._resolve_attack_source(attacker, data, db)
+        source = await self._resolve_attack_source(attacker, data, db)
+        return await self._resolve_and_apply_attack(
+            encounter,
+            attacker,
+            target,
+            source,
+            action_type=data.action_type,
+            manual_attack_roll=data.manual_attack_roll,
+            manual_damage_roll=data.manual_damage_roll,
+            db=db,
         )
 
-        if data.manual_attack_roll is not None:
-            attack_roll = data.manual_attack_roll
+    async def _resolve_and_apply_attack(
+        self,
+        encounter: Encounter,
+        attacker: EncounterParticipant,
+        target: EncounterParticipant,
+        source: tuple[int, str | None, str | None, str],
+        *,
+        action_type: ActionType,
+        manual_attack_roll: int | None,
+        manual_damage_roll: int | None,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Roll to-hit and damage against `target`, logging and applying it.
+
+        Shared core for `declare_action`'s `attack_weapon`/`attack_spell`
+        and (Fase 7) a monster's legendary action / reaction — every caller
+        first resolves its own `(attack_bonus, damage_expression,
+        damage_type, source_desc)` tuple, then hands it here.
+        """
+        attack_bonus, damage_expression, damage_type, source_desc = source
+
+        if manual_attack_roll is not None:
+            attack_roll = manual_attack_roll
         else:
             attack_roll = roll_d20(bonus=attack_bonus).total
 
@@ -699,9 +749,10 @@ class CombatService:
             f"{'hit' if hit else 'miss'}"
         )
         damage_rolled: int | None = None
+        concentration_dc: int | None = None
         if hit:
-            if data.manual_damage_roll is not None:
-                damage_rolled = data.manual_damage_roll
+            if manual_damage_roll is not None:
+                damage_rolled = manual_damage_roll
             elif damage_expression is not None:
                 damage_rolled = roll(damage_expression).total
             else:
@@ -716,6 +767,9 @@ class CombatService:
             new_hp = max(0, target.hit_point_current - damage_rolled)
             self._log_hp_change(db, encounter, target, new_hp)
             target.hit_point_current = new_hp
+            concentration_dc = await self._concentration_dc(
+                target, damage_rolled, db
+            )
             description += (
                 f", dealing {damage_rolled} {damage_type or ''} damage".rstrip()
             )
@@ -725,24 +779,25 @@ class CombatService:
             encounter,
             actor_id=attacker.id,
             target_id=target.id,
-            action_type=data.action_type,
+            action_type=action_type,
             description=description,
             damage_dealt=damage_rolled if hit else None,
             damage_type=damage_type if hit else None,
             rolled_by_system=(
-                data.manual_attack_roll is None and data.manual_damage_roll is None
+                manual_attack_roll is None and manual_damage_roll is None
             ),
         )
         return DeclareActionResultRead(
             actor_id=attacker.id,
             target_id=target.id,
-            action_type=data.action_type,
+            action_type=action_type,
             attack_roll=attack_roll,
             attack_bonus=attack_bonus,
             hit=hit,
             damage_rolled=damage_rolled,
             damage_type=damage_type if hit else None,
             description=description,
+            concentration_dc=concentration_dc,
         )
 
     async def _resolve_attack_source(
@@ -1013,6 +1068,187 @@ class CombatService:
             action.damages[0].damage_type.index or "",
             action.name,
         )
+
+    #: Every SRD monster with legendary actions gets 3 per round — the
+    #: catalog doesn't carry a per-monster override (a documented
+    #: simplification, see `WSUseLegendaryActionPayload`).
+    _LEGENDARY_ACTIONS_PER_ROUND = 3
+
+    async def _resolve_stat_block_monster_id(
+        self, participant: EncounterParticipant, db: AsyncSession
+    ) -> uuid.UUID | None:
+        """The catalog `Monster` id backing a participant, if any.
+
+        Direct for a `monster_id` participant; for an `npc_id` one, looked
+        up via `NPC.stat_block_id` (Fase 7) — `None` for a purely manual
+        participant or an NPC with no stat block.
+        """
+        if participant.monster_id is not None:
+            return participant.monster_id
+        if participant.npc_id is not None:
+            result = await db.execute(
+                select(NPC).where(NPC.id == participant.npc_id)
+            )
+            npc = result.scalar_one_or_none()
+            return npc.stat_block_id if npc is not None else None
+        return None
+
+    async def use_legendary_action(
+        self,
+        encounter_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: WSUseLegendaryActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Resolve a monster's legendary action against a target (Fase 7). DM only.
+
+        Rejected on the acting participant's own turn, and once its
+        `_LEGENDARY_ACTIONS_PER_ROUND` budget for the round is spent (reset
+        at the start of its own turn by `advance_turn`).
+        """
+        encounter = await self._load_encounter_or_404(encounter_id, db)
+        await self._require_dm_for_session(encounter.session_id, requester_id, db)
+        attacker = self._find_participant_or_404(encounter, data.participant_id)
+        target = self._find_participant_or_404(encounter, data.target_id)
+
+        monster_id = await self._resolve_stat_block_monster_id(attacker, db)
+        if monster_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This participant has no monster stat block",
+            )
+        if attacker.turn_order == encounter.current_turn_order:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Legendary actions can't be used on the monster's own turn",
+            )
+        if attacker.legendary_actions_used >= self._LEGENDARY_ACTIONS_PER_ROUND:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="No legendary actions remaining this round",
+            )
+
+        result = await db.execute(
+            select(MonsterLegendaryAction)
+            .where(
+                MonsterLegendaryAction.id == data.legendary_action_id,
+                MonsterLegendaryAction.monster_id == monster_id,
+            )
+            .options(
+                selectinload(MonsterLegendaryAction.damages).selectinload(
+                    MonsterLegendaryActionDamage.damage_type
+                )
+            )
+        )
+        action = result.scalar_one_or_none()
+        if action is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Legendary action not found on the attacker's stat block",
+            )
+        if action.attack_bonus is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This legendary action has no attack roll",
+            )
+        damage_expression = (
+            "+".join(d.damage_dice for d in action.damages)
+            if action.damages
+            else None
+        )
+        damage_type = action.damages[0].damage_type.index if action.damages else None
+        source = (action.attack_bonus, damage_expression, damage_type, action.name)
+
+        attacker.legendary_actions_used += 1
+        outcome = await self._resolve_and_apply_attack(
+            encounter,
+            attacker,
+            target,
+            source,
+            action_type=ActionType.legendary_action,
+            manual_attack_roll=data.manual_attack_roll,
+            manual_damage_roll=data.manual_damage_roll,
+            db=db,
+        )
+        await db.commit()
+        return outcome
+
+    async def trigger_reaction(
+        self,
+        encounter_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: WSTriggerReactionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Resolve a monster's reaction against a target (Fase 7). DM only.
+
+        Once per round (reset at the start of the reacting monster's own
+        turn by `advance_turn`) — unlike a legendary action, usable on
+        anyone's turn including its own (PHB rule).
+        """
+        encounter = await self._load_encounter_or_404(encounter_id, db)
+        await self._require_dm_for_session(encounter.session_id, requester_id, db)
+        attacker = self._find_participant_or_404(encounter, data.participant_id)
+        target = self._find_participant_or_404(encounter, data.target_id)
+
+        monster_id = await self._resolve_stat_block_monster_id(attacker, db)
+        if monster_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This participant has no monster stat block",
+            )
+        if attacker.reactions_used >= 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="No reaction remaining this round",
+            )
+
+        result = await db.execute(
+            select(MonsterReaction)
+            .where(
+                MonsterReaction.id == data.reaction_id,
+                MonsterReaction.monster_id == monster_id,
+            )
+            .options(
+                selectinload(MonsterReaction.damages).selectinload(
+                    MonsterReactionDamage.damage_type
+                )
+            )
+        )
+        reaction = result.scalar_one_or_none()
+        if reaction is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Reaction not found on the attacker's stat block",
+            )
+        if reaction.attack_bonus is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This reaction has no attack roll",
+            )
+        damage_expression = (
+            "+".join(d.damage_dice for d in reaction.damages)
+            if reaction.damages
+            else None
+        )
+        damage_type = (
+            reaction.damages[0].damage_type.index if reaction.damages else None
+        )
+        source = (reaction.attack_bonus, damage_expression, damage_type, reaction.name)
+
+        attacker.reactions_used += 1
+        outcome = await self._resolve_and_apply_attack(
+            encounter,
+            attacker,
+            target,
+            source,
+            action_type=ActionType.reaction,
+            manual_attack_roll=data.manual_attack_roll,
+            manual_damage_roll=data.manual_damage_roll,
+            db=db,
+        )
+        await db.commit()
+        return outcome
 
     async def _character_ability_modifier(
         self, character_id: uuid.UUID, ability: AbilityScore, db: AsyncSession
@@ -1300,6 +1536,29 @@ class CombatService:
             description=description,
             damage_dealt=damage_dealt,
         )
+
+    async def _concentration_dc(
+        self,
+        participant: EncounterParticipant,
+        damage: int,
+        db: AsyncSession,
+    ) -> int | None:
+        """DC for the target's concentration check, if damage broke it (Fase 7).
+
+        `max(10, damage // 2)`, PHB rule — only computed for a Character
+        participant currently concentrating on a spell; the client resolves
+        the actual CON saving throw (backlog Fase 6's manual/auto roll flow
+        already covers that).
+        """
+        if damage <= 0 or participant.character_id is None:
+            return None
+        result = await db.execute(
+            select(Character).where(Character.id == participant.character_id)
+        )
+        character = result.scalar_one_or_none()
+        if character is None or character.concentrating_spell_id is None:
+            return None
+        return max(10, damage // 2)
 
     def _find_participant_or_404(
         self, encounter: Encounter, participant_id: uuid.UUID

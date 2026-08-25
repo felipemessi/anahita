@@ -11,19 +11,26 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.domain import AbilityScore
-from app.catalog.models import Race, Spell, SpellClass
+from app.catalog.models import Feat, Race, Spell, SpellClass
+from app.characters.domain import Skill
+from app.characters.models import CharacterSkill
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterClassCreate,
+    CharacterConcentrationRequest,
     CharacterCreate,
     CharacterCurrencyRequest,
+    CharacterDeathSaveRequest,
     CharacterEquipmentCreate,
     CharacterEquipmentUpdate,
+    CharacterHitDiceSpend,
+    CharacterLevelUpRequest,
     CharacterRead,
     CharacterRestRequest,
     CharacterSpellCastRequest,
     CharacterSpellCreate,
     CharacterSpellUpdate,
+    CharacterUpdate,
 )
 from app.characters.service import CharacterService
 from tests.characters.conftest import spell_ids_for_class
@@ -50,6 +57,23 @@ async def _make_user(db: AsyncSession, *, email: str) -> User:
     db.add(user)
     await db.flush()
     return user
+
+
+async def _spell_id_for_class(
+    db: AsyncSession, class_id: str, *, level: int, concentration: bool
+) -> str:
+    """Return one spell id of `level` castable by `class_id` matching `concentration`."""
+    result = await db.execute(
+        select(Spell.id)
+        .join(SpellClass, SpellClass.spell_id == Spell.id)
+        .where(
+            SpellClass.class_definition_id == uuid.UUID(class_id),
+            Spell.level == level,
+            Spell.concentration == concentration,
+        )
+        .limit(1)
+    )
+    return str(result.scalars().one())
 
 
 async def _make_membership(db: AsyncSession, owner: User) -> CampaignMember:
@@ -649,6 +673,773 @@ async def test_short_rest_does_not_restore_spell_slots(
     )
     used_slot = next(s for s in character.spell_slots if s.spell_level == 1)
     assert used_slot.used == 1
+
+
+async def test_short_rest_spend_hit_dice_heals_and_tracks_usage(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Spending hit dice on a short rest heals and marks the dice used."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id, level=3
+    )
+    service = CharacterService()
+    character = await service.update_character(
+        character_id,
+        owner.id,
+        CharacterUpdate(hit_point_current=1),
+        db,
+    )
+    class_entry_id = character.classes[0].id
+
+    character = await service.rest(
+        character_id,
+        owner.id,
+        CharacterRestRequest(
+            rest_type="short",
+            hit_dice_spent=[
+                CharacterHitDiceSpend(
+                    character_class_id=class_entry_id, count=2, manual_roll=7
+                )
+            ],
+        ),
+        db,
+    )
+
+    assert character.hit_point_current == 8  # 1 + 7 (well under hit_point_max of 11)
+    assert character.classes[0].hit_dice_used == 2
+
+
+async def test_short_rest_spend_hit_dice_caps_at_max_hp(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Healing from hit dice never exceeds `hit_point_max`."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id, level=3
+    )
+    service = CharacterService()
+    character = await service.update_character(
+        character_id,
+        owner.id,
+        CharacterUpdate(hit_point_current=10),
+        db,
+    )
+    class_entry_id = character.classes[0].id
+
+    character = await service.rest(
+        character_id,
+        owner.id,
+        CharacterRestRequest(
+            rest_type="short",
+            hit_dice_spent=[
+                CharacterHitDiceSpend(
+                    character_class_id=class_entry_id, count=1, manual_roll=20
+                )
+            ],
+        ),
+        db,
+    )
+
+    assert character.hit_point_current == 11  # hit_point_max, not 30
+
+
+async def test_short_rest_spend_more_hit_dice_than_available_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Spending more hit dice than the class has left is a 422."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id, level=1
+    )
+    service = CharacterService()
+    character = await service.get_character(character_id, owner.id, db)
+    class_entry_id = character.classes[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.rest(
+            character_id,
+            owner.id,
+            CharacterRestRequest(
+                rest_type="short",
+                hit_dice_spent=[
+                    CharacterHitDiceSpend(
+                        character_class_id=class_entry_id, count=2, manual_roll=10
+                    )
+                ],
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_long_rest_restores_half_hit_dice_minimum_one(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A long rest restores up to half the character's total hit dice (min 1)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id, level=4
+    )
+    service = CharacterService()
+    character = await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=1), db
+    )
+    class_entry_id = character.classes[0].id
+
+    # Spend all 4 hit dice on a short rest first.
+    character = await service.rest(
+        character_id,
+        owner.id,
+        CharacterRestRequest(
+            rest_type="short",
+            hit_dice_spent=[
+                CharacterHitDiceSpend(
+                    character_class_id=class_entry_id, count=4, manual_roll=1
+                )
+            ],
+        ),
+        db,
+    )
+    assert character.classes[0].hit_dice_used == 4
+
+    # Long rest restores half of 4 = 2.
+    character = await service.rest(
+        character_id, owner.id, CharacterRestRequest(rest_type="long"), db
+    )
+    assert character.classes[0].hit_dice_used == 2
+
+
+async def test_death_save_natural_20_restores_1_hp(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A natural 20 on a death save restores 1 HP and resets the track."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+
+    character = await service.death_save(
+        character_id, owner.id, CharacterDeathSaveRequest(manual_roll=20), db
+    )
+    assert character.hit_point_current == 1
+    assert character.death_save_successes == 0
+    assert character.death_save_failures == 0
+    assert character.is_dead is False
+
+
+async def test_death_save_natural_1_counts_two_failures(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A natural 1 on a death save counts as two failures."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+
+    character = await service.death_save(
+        character_id, owner.id, CharacterDeathSaveRequest(manual_roll=1), db
+    )
+    assert character.death_save_failures == 2
+    assert character.is_dead is False
+
+
+async def test_death_save_three_failures_marks_dead(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A sequence of failing death saves eventually marks the character dead."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+
+    for _ in range(3):
+        character = await service.death_save(
+            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=5), db
+        )
+    assert character.death_save_failures == 3
+    assert character.is_dead is True
+
+
+async def test_death_save_three_successes_stabilizes(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A sequence of successful death saves stabilizes and resets the track."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+
+    for _ in range(3):
+        character = await service.death_save(
+            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=15), db
+        )
+    assert character.death_save_successes == 0
+    assert character.death_save_failures == 0
+    assert character.is_dead is False
+    assert character.hit_point_current == 0
+
+
+async def test_death_save_rejected_above_zero_hp(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Death saves are only valid at 0 hit points."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.death_save(
+            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=15), db
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_damage_at_zero_hp_counts_death_save_failure(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Taking damage while already at 0 HP (still floored at 0) is a failure."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+
+    character = await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+    assert character.death_save_failures == 1
+
+
+async def test_healing_above_zero_resets_death_save_counters(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Healing above 0 HP resets the death-save track."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=0), db
+    )
+    await service.death_save(
+        character_id, owner.id, CharacterDeathSaveRequest(manual_roll=5), db
+    )
+
+    character = await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=3), db
+    )
+    assert character.death_save_successes == 0
+    assert character.death_save_failures == 0
+
+
+async def test_cast_concentration_spell_sets_concentrating_spell(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a concentration spell records it as the active concentration."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_id = await _spell_id_for_class(
+        db, sorcerer_class_id, level=1, concentration=True
+    )
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    character = await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+    assert character.concentrating_spell_id == uuid.UUID(spell_id)
+
+
+async def test_cast_second_concentration_spell_replaces_first(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a new concentration spell drops whatever was concentrated before."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id, level=3
+    )
+    service = CharacterService()
+    result = await db.execute(
+        select(Spell.id)
+        .join(SpellClass, SpellClass.spell_id == Spell.id)
+        .where(
+            SpellClass.class_definition_id == uuid.UUID(sorcerer_class_id),
+            Spell.level == 1,
+            Spell.concentration.is_(True),
+        )
+        .limit(2)
+    )
+    spell_ids = [str(row) for row in result.scalars().all()]
+    assert len(spell_ids) >= 2
+
+    for spell_id in spell_ids:
+        character = await service.add_spell(
+            character_id,
+            owner.id,
+            CharacterSpellCreate(
+                spell_id=uuid.UUID(spell_id), source_class="sorcerer"
+            ),
+            db,
+        )
+    entry_by_spell = {str(s.spell_id): s.id for s in character.spells}
+
+    character = await service.cast_spell(
+        character_id,
+        entry_by_spell[spell_ids[0]],
+        owner.id,
+        CharacterSpellCastRequest(),
+        db,
+    )
+    assert character.concentrating_spell_id == uuid.UUID(spell_ids[0])
+
+    character = await service.cast_spell(
+        character_id,
+        entry_by_spell[spell_ids[1]],
+        owner.id,
+        CharacterSpellCastRequest(),
+        db,
+    )
+    assert character.concentrating_spell_id == uuid.UUID(spell_ids[1])
+
+
+async def test_set_concentration_end_clears_it(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Ending concentration explicitly clears `concentrating_spell_id`."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_id = await _spell_id_for_class(
+        db, sorcerer_class_id, level=1, concentration=True
+    )
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+    await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+
+    character = await service.set_concentration(
+        character_id, owner.id, CharacterConcentrationRequest(spell_id=None), db
+    )
+    assert character.concentrating_spell_id is None
+
+
+async def test_set_concentration_non_concentration_spell_rejected(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Starting concentration on a spell that doesn't require it is a 422."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_id = await _spell_id_for_class(
+        db, sorcerer_class_id, level=1, concentration=False
+    )
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
+        db,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.set_concentration(
+            character_id,
+            owner.id,
+            CharacterConcentrationRequest(spell_id=uuid.UUID(spell_id)),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_passive_perception_defaults_to_ten_plus_bonus(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Passive skills default to `10 + bonus` with no proficiency."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.get_character(character_id, owner.id, db)
+
+    # WIS 10 -> +0 modifier; INT 12 -> +1 modifier; no proficiency.
+    assert character.passive_perception == 10
+    assert character.passive_investigation == 11
+    assert character.passive_insight == 10
+
+
+async def test_passive_perception_reflects_proficiency(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Passive Perception adds the skill's proficiency bonus when proficient."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    result = await db.execute(
+        select(CharacterSkill).where(
+            CharacterSkill.character_id == character_id,
+            CharacterSkill.skill == Skill.perception,
+        )
+    )
+    skill = result.scalar_one()
+    skill.proficient = True
+    await db.commit()
+
+    service = CharacterService()
+    character = await service.get_character(character_id, owner.id, db)
+
+    # WIS 10 -> +0 modifier; level 1 proficiency bonus +2.
+    assert character.passive_perception == 12
+    # INT 12 -> +1 modifier; unaffected by Perception's proficiency.
+    assert character.passive_investigation == 11
+
+
+async def test_level_up_increases_hp_and_proficiency_bonus(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Leveling up rolls (or takes manual) HP and recalculates derived fields."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    before = await service.get_character(character_id, owner.id, db)
+    assert before.hit_point_max == 11  # d10 + CON +1
+
+    character = await service.level_up(
+        character_id,
+        owner.id,
+        CharacterLevelUpRequest(
+            class_definition_id=uuid.UUID(fighter_class_id), manual_hit_die_roll=6
+        ),
+        db,
+    )
+    assert character.level == 2
+    assert character.classes[0].level == 2
+    assert character.hit_point_max == 18  # 11 + (6 + CON +1)
+    assert character.hit_point_current == 18
+    assert character.proficiency_bonus == 2  # still +2 at level 2
+
+
+async def test_level_up_at_asi_level_accepts_ability_score_increases(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """An ASI level accepts a point distribution, raising the ability score."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    for level in (2, 3, 4):
+        character = await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(fighter_class_id),
+                manual_hit_die_roll=6,
+                ability_score_increases=(
+                    {AbilityScore.str: 2} if level == 4 else None
+                ),
+            ),
+            db,
+        )
+    assert character.level == 4
+    str_score = next(
+        s for s in character.ability_scores if s.ability == AbilityScore.str
+    )
+    assert str_score.asi_bonus == 2
+    assert str_score.modifier == 3  # STR 15 + 2 = 17 -> +3
+
+
+async def test_level_up_ability_score_increases_and_feat_mutually_exclusive(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Supplying both ability_score_increases and feat_id is a 422."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    feat_result = await db.execute(select(Feat).where(Feat.index == "grappler"))
+    feat = feat_result.scalar_one()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(fighter_class_id),
+                ability_score_increases={AbilityScore.str: 2},
+                feat_id=feat.id,
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_level_up_asi_not_at_asi_level_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Requesting an ASI at a level that doesn't grant one is a 422."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(fighter_class_id),
+                ability_score_increases={AbilityScore.str: 2},
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_level_up_feat_with_unmet_prerequisite_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A feat whose ability score prerequisite isn't met is a 422."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    service = CharacterService()
+    character = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Weak",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=[
+                CharacterAbilityScoreCreate(ability=ability, base_score=score)
+                for ability, score in {
+                    **_STANDARD_ARRAY,
+                    AbilityScore.str: 10,
+                }.items()
+            ],
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+        ),
+        db,
+    )
+    feat_result = await db.execute(select(Feat).where(Feat.index == "grappler"))
+    feat = feat_result.scalar_one()
+
+    for level in (2, 3):
+        await service.level_up(
+            character.id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(fighter_class_id),
+                manual_hit_die_roll=6,
+            ),
+            db,
+        )
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character.id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(fighter_class_id),
+                manual_hit_die_roll=6,
+                feat_id=feat.id,
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_level_up_feat_records_character_feature(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Choosing a feat whose prerequisites are met records it as a feature."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    feat_result = await db.execute(select(Feat).where(Feat.index == "grappler"))
+    feat = feat_result.scalar_one()
+
+    for level in (2, 3, 4):
+        character = await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(fighter_class_id),
+                manual_hit_die_roll=6,
+                feat_id=feat.id if level == 4 else None,
+            ),
+            db,
+        )
+    assert any(f.feature_name.lower() == "grappler" for f in character.features)
+
+
+async def test_use_resource_consumes_and_rejects_past_limit(
+    db: AsyncSession, human_race_id: str, barbarian_class_id: str
+) -> None:
+    """Using a resource consumes it, and rejects once at its limit."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, barbarian_class_id
+    )
+    service = CharacterService()
+
+    character = await service.use_resource(
+        character_id, owner.id, "rage_count", db
+    )
+    resource = next(r for r in character.resources if r.resource_key == "rage_count")
+    assert resource.used == 1
+    assert resource.max == 2  # level 1 Barbarian
+
+    character = await service.use_resource(
+        character_id, owner.id, "rage_count", db
+    )
+    resource = next(r for r in character.resources if r.resource_key == "rage_count")
+    assert resource.used == 2
+
+    with pytest.raises(HTTPException) as exc:
+        await service.use_resource(character_id, owner.id, "rage_count", db)
+    assert exc.value.status_code == 422
+
+
+async def test_use_resource_untrackable_key_rejected(
+    db: AsyncSession, human_race_id: str, barbarian_class_id: str
+) -> None:
+    """A resource_key outside `_RESOURCE_RECHARGE` is rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, barbarian_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.use_resource(character_id, owner.id, "brutal_critical_dice", db)
+    assert exc.value.status_code == 422
+
+
+async def test_use_resource_character_class_does_not_grant_it_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A resource no class of the character grants is rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.use_resource(character_id, owner.id, "rage_count", db)
+    assert exc.value.status_code == 422
+
+
+async def test_long_rest_restores_resources(
+    db: AsyncSession, human_race_id: str, barbarian_class_id: str
+) -> None:
+    """A long rest restores a long-recharge resource (rage)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, barbarian_class_id
+    )
+    service = CharacterService()
+    await service.use_resource(character_id, owner.id, "rage_count", db)
+    await service.use_resource(character_id, owner.id, "rage_count", db)
+
+    character = await service.rest(
+        character_id, owner.id, CharacterRestRequest(rest_type="long"), db
+    )
+    resource = next(r for r in character.resources if r.resource_key == "rage_count")
+    assert resource.used == 0
+
+
+async def test_short_rest_does_not_restore_long_recharge_resource(
+    db: AsyncSession, human_race_id: str, barbarian_class_id: str
+) -> None:
+    """A short rest doesn't restore a long-recharge resource (rage)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, barbarian_class_id
+    )
+    service = CharacterService()
+    await service.use_resource(character_id, owner.id, "rage_count", db)
+
+    character = await service.rest(
+        character_id, owner.id, CharacterRestRequest(rest_type="short"), db
+    )
+    resource = next(r for r in character.resources if r.resource_key == "rage_count")
+    assert resource.used == 1
 
 
 async def test_update_equipment_toggle_and_quantity(

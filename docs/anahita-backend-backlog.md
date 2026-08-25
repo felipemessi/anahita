@@ -23,7 +23,7 @@
 | 4    | Loot, Inventário, Handouts         | Completo (handouts com upload/reveal em tempo real via WebSocket de combate, inventário compartilhado, loot com item de catálogo/magic item/custom e moeda, claim por personagem) | 2026-08-24 |
 | 5    | Registro e Lore                   | Completo (diário DM-only, recap via `summary` de sessão, timeline híbrida sessões+eventos manuais, wiki linkável a NPCs/locais/facções na busca cross-entidade) | 2026-08-24 |
 | 6    | Interatividade de Ficha e Combate | Completo (magias por círculo com limites/slots, inventário editável, moeda, sessão aberta populando combate com iniciativa obrigatória, ações declaradas resolvidas automaticamente via `engine/dice.py` com override manual, visibilidade de ficha restrita a dono/DM) | 2026-08-24 |
-| 7    | Sobrevivência, Descanso e Recursos | Pendente | 2026-08-24 |
+| 7    | Sobrevivência, Descanso e Recursos | Completo (dados de vida em descanso curto/longo por classe, testes de morte automáticos, concentração com DC exposta, perícias passivas, subida de nível com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com controle de uso e recarga) | 2026-08-25 |
 
 ---
 
@@ -392,44 +392,51 @@
 
 > Objetivo: itens de interatividade complementares levantados junto com a Fase 6, mas de escopo próprio (sobrevivência em combate, descanso, recursos de classe, progressão de nível) — separados em fase própria para não inflar a Fase 6 e para poderem ser priorizados/validados com o grupo independentemente dela. Depende da Fase 6 (spell slots e descanso já entram lá; esta fase estende o mesmo `POST /characters/{id}/rest`) e da Fase 2 (Combat). Levantado em 2026-08-24.
 
-- **Como jogador, quero gastar dados de vida num descanso curto para recuperar pontos de vida.**
-  - [ ] `Character` ganha `hit_dice_used` (dados de vida já gastos; o total disponível é `level`, o dado em si vem do `hit_die` da classe primária — multiclasse com dados de tipos diferentes fica registrado por classe, não só um total agregado)
-  - [ ] Migração Alembic
-  - [ ] `POST /characters/{id}/rest` (Fase 6) ganha, no modo `short`, um parâmetro `hit_dice_spent` — rola `hit_dice_spent` dados do tipo certo + modificador de CON cada, soma ao PV atual (capado em `hit_point_max`), marca os dados como usados
-  - [ ] Modo `long` (já existente da Fase 6) passa também a restaurar até metade do total de dados de vida do personagem (mínimo 1), regra padrão do PHB
-  - [ ] Testes: gasto de dado de vida cura o esperado e não ultrapassa `hit_point_max`, dados insuficientes disponíveis é rejeitado (422), descanso longo restaura a fração certa
+- **Como jogador, quero gastar dados de vida num descanso curto para recuperar pontos de vida. ✅ (2026-08-25)**
+  - [x] `Character` ganha `hit_dice_used` (dados de vida já gastos; o total disponível é `level`, o dado em si vem do `hit_die` da classe primária — multiclasse com dados de tipos diferentes fica registrado por classe, não só um total agregado)
+  - [x] Migração Alembic
+  - [x] `POST /characters/{id}/rest` (Fase 6) ganha, no modo `short`, um parâmetro `hit_dice_spent` — rola `hit_dice_spent` dados do tipo certo + modificador de CON cada, soma ao PV atual (capado em `hit_point_max`), marca os dados como usados
+  - [x] Modo `long` (já existente da Fase 6) passa também a restaurar até metade do total de dados de vida do personagem (mínimo 1), regra padrão do PHB
+  - [x] Testes: gasto de dado de vida cura o esperado e não ultrapassa `hit_point_max`, dados insuficientes disponíveis é rejeitado (422), descanso longo restaura a fração certa
+  - Notas: `hit_dice_used` fica em `CharacterClass` (por classe, não em `Character`) para suportar multiclasse com dados de tipos diferentes. `hit_dice_spent` aceita `manual_roll` por classe gasta (mesma convenção de override manual da Fase 6). Restauração do descanso longo distribui a metade (mínimo 1) classe a classe, na ordem em que aparecem no personagem.
 
-- **Como jogador, quero fazer testes de morte automaticamente quando meu personagem chega a 0 pontos de vida.**
-  - [ ] `Character` ganha `death_save_successes`/`death_save_failures` (0-3, resetados ao estabilizar/curar)
-  - [ ] `POST /characters/{id}/death-save` — só aceito com `hit_point_current == 0`; rola 1d20 via `engine/dice.py` (Fase 6): 1 conta como duas falhas, 20 restaura 1 PV e consciência, 10+ é sucesso, resto é falha; 3 falhas marca o personagem como morto (estado a definir — reaproveita `EncounterCondition`/campo próprio), 3 sucessos estabiliza
-  - [ ] Regra: qualquer cura ou dano recebido enquanto em 0 PV zera os contadores (dano quando já em 0 conta como falha adicional, e crítico conta como duas — regra do PHB)
-  - [ ] Testes: sequência de sucessos estabiliza, sequência de falhas mata, 20 natural restaura 1 PV, 1 natural conta duas falhas, dano em 0 PV zera e conta falha
+- **Como jogador, quero fazer testes de morte automaticamente quando meu personagem chega a 0 pontos de vida. ✅ (2026-08-25)**
+  - [x] `Character` ganha `death_save_successes`/`death_save_failures` (0-3, resetados ao estabilizar/curar)
+  - [x] `POST /characters/{id}/death-save` — só aceito com `hit_point_current == 0`; rola 1d20 via `engine/dice.py` (Fase 6): 1 conta como duas falhas, 20 restaura 1 PV e consciência, 10+ é sucesso, resto é falha; 3 falhas marca o personagem como morto (estado a definir — reaproveita `EncounterCondition`/campo próprio), 3 sucessos estabiliza
+  - [x] Regra: qualquer cura ou dano recebido enquanto em 0 PV zera os contadores (dano quando já em 0 conta como falha adicional, e crítico conta como duas — regra do PHB)
+  - [x] Testes: sequência de sucessos estabiliza, sequência de falhas mata, 20 natural restaura 1 PV, 1 natural conta duas falhas, dano em 0 PV zera e conta falha
+  - Notas: estado "morto" ficou em campo próprio (`Character.is_dead`), não reaproveitando `EncounterCondition` — o personagem existe fora de combate também, então um campo no próprio `Character` é mais direto que um estado só válido dentro de um encontro. A regra de "dano em 0 PV" é detectada comparando o HP antigo e o novo em `_register_hp_change` (chamado tanto por `update_character` quanto pelo gasto de dados de vida): manter em 0 PV conta como falha adicional, subir acima de 0 zera os contadores. O dobro de falha em crítico não é modelado no editor de HP genérico (`update_character`), que não carrega informação de crítico — só o próprio `death_save` (1 natural) aplica o dobro.
 
-- **Como jogador, quero indicar quando estou concentrando numa magia e receber automaticamente a DC do teste de concentração ao sofrer dano em combate.**
-  - [ ] `Character` (ou `EncounterParticipant`, para o estado só valer durante o combate — decisão de implementação) ganha `concentrating_spell_id` nullable
-  - [ ] `POST /characters/{id}/concentration` (iniciar/encerrar concentração numa magia conhecida) e limpar automaticamente ao conjurar outra magia de concentração (só uma por vez, regra do PHB)
-  - [ ] Ao aplicar dano a um participante concentrando (via `update_participant`/`declare_action` da Fase 6), a resposta do evento inclui a DC do teste de concentração (`max(10, floor(dano/2))`) para o cliente resolver a rolagem de resistência de CON — o servidor não resolve o teste sozinho, só calcula e expõe a DC (o resultado da resistência já é coberto pelo fluxo de rolagem da Fase 6)
-  - [ ] Testes: dano com concentração ativa retorna a DC correta; dano sem concentração não retorna DC; conjurar nova magia de concentração encerra a anterior
+- **Como jogador, quero indicar quando estou concentrando numa magia e receber automaticamente a DC do teste de concentração ao sofrer dano em combate. ✅ (2026-08-25)**
+  - [x] `Character` (ou `EncounterParticipant`, para o estado só valer durante o combate — decisão de implementação) ganha `concentrating_spell_id` nullable
+  - [x] `POST /characters/{id}/concentration` (iniciar/encerrar concentração numa magia conhecida) e limpar automaticamente ao conjurar outra magia de concentração (só uma por vez, regra do PHB)
+  - [x] Ao aplicar dano a um participante concentrando (via `update_participant`/`declare_action` da Fase 6), a resposta do evento inclui a DC do teste de concentração (`max(10, floor(dano/2))`) para o cliente resolver a rolagem de resistência de CON — o servidor não resolve o teste sozinho, só calcula e expõe a DC (o resultado da resistência já é coberto pelo fluxo de rolagem da Fase 6)
+  - [x] Testes: dano com concentração ativa retorna a DC correta; dano sem concentração não retorna DC; conjurar nova magia de concentração encerra a anterior
+  - Notas: `concentrating_spell_id` ficou em `Character` (não em `EncounterParticipant`) — mais simples e cobre concentração fora de combate também. `CombatService._concentration_dc` é o helper compartilhado usado tanto por `live_update_participant` (WS `update_participant`) quanto por `declare_action`'s `_resolve_and_apply_attack`.
 
-- **Como jogador, quero ver minhas perícias passivas (Percepção, Investigação, Intuição) na minha ficha.**
-  - [ ] `CharacterRead` ganha `passive_perception`/`passive_investigation`/`passive_insight` (`10 + bônus da perícia correspondente`, mesmo padrão de campo calculado de `CharacterSkillRead.bonus`)
-  - [ ] Testes: passiva bate com `10 + bonus` da perícia correspondente, inclusive com proficiência/expertise
+- **Como jogador, quero ver minhas perícias passivas (Percepção, Investigação, Intuição) na minha ficha. ✅ (2026-08-25)**
+  - [x] `CharacterRead` ganha `passive_perception`/`passive_investigation`/`passive_insight` (`10 + bônus da perícia correspondente`, mesmo padrão de campo calculado de `CharacterSkillRead.bonus`)
+  - [x] Testes: passiva bate com `10 + bonus` da perícia correspondente, inclusive com proficiência/expertise
+  - Notas: não existe endpoint para setar proficiência de perícia neste app ainda (gap pré-existente, fora do escopo desta história) — o teste de proficiência escreve direto no `CharacterSkill` via sessão de banco para validar a fórmula.
 
-- **Como jogador, quero subir de nível meu personagem, ganhando pontos de vida e escolhendo melhoria de habilidade ou talento.**
-  - [ ] `POST /characters/{id}/level-up` (`class_definition_id`, incremento de 1 nível numa classe já possuída ou nova via multiclasse — reaproveita a validação de `add_class`) — recalcula `hit_point_max` (rolagem do dado de vida da classe + modificador de CON, ou média, a decidir) e `proficiency_bonus`
-  - [ ] Nos níveis de ASI da classe (dado por `ClassLevel`), o corpo aceita `ability_score_increases` (até dois pontos distribuídos) **ou** `feat_id` (mutuamente exclusivos, valida contra o catálogo de Feats e seus pré-requisitos)
-  - [ ] Testes: subir de nível soma PV corretamente, nível de ASI aceita distribuição de pontos ou talento (não os dois), talento com pré-requisito não satisfeito é rejeitado (422)
+- **Como jogador, quero subir de nível meu personagem, ganhando pontos de vida e escolhendo melhoria de habilidade ou talento. ✅ (2026-08-25)**
+  - [x] `POST /characters/{id}/level-up` (`class_definition_id`, incremento de 1 nível numa classe já possuída ou nova via multiclasse — reaproveita a validação de `add_class`) — recalcula `hit_point_max` (rolagem do dado de vida da classe + modificador de CON, ou média, a decidir) e `proficiency_bonus`
+  - [x] Nos níveis de ASI da classe (dado por `ClassLevel`), o corpo aceita `ability_score_increases` (até dois pontos distribuídos) **ou** `feat_id` (mutuamente exclusivos, valida contra o catálogo de Feats e seus pré-requisitos)
+  - [x] Testes: subir de nível soma PV corretamente, nível de ASI aceita distribuição de pontos ou talento (não os dois), talento com pré-requisito não satisfeito é rejeitado (422)
+  - Notas: HP ganho é rolado via `engine/dice.py` (`1d{hit_die} + CON`, mínimo 1), com `manual_hit_die_roll` como override manual — mesma convenção do resto do app, em vez de usar a média fixa do PHB.
 
-- **Como DM, quero que monstros usem ações lendárias e reações do próprio stat block durante o combate.**
-  - [ ] Novo comando WS `use_legendary_action`/`trigger_reaction` (DM only, para participantes NPC/monstro) — resolve a partir de `MonsterLegendaryAction`/`MonsterReaction` do catálogo (via `npc_id`/`stat_block_id`), aplicando dano/efeito como uma ação declarada normal (reaproveita a resolução de ataque/dano da Fase 6)
-  - [ ] Regra: ações lendárias só disponíveis fora do próprio turno do monstro e limitadas ao número descrito no stat block por rodada (contador resetado a cada início de rodada do próprio monstro)
-  - [ ] Testes: ação lendária disponível só fora do turno do monstro e respeita o limite por rodada, reação dispara e aplica o efeito do stat block
+- **Como DM, quero que monstros usem ações lendárias e reações do próprio stat block durante o combate. ✅ (2026-08-25)**
+  - [x] Novo comando WS `use_legendary_action`/`trigger_reaction` (DM only, para participantes NPC/monstro) — resolve a partir de `MonsterLegendaryAction`/`MonsterReaction` do catálogo (via `npc_id`/`stat_block_id`), aplicando dano/efeito como uma ação declarada normal (reaproveita a resolução de ataque/dano da Fase 6)
+  - [x] Regra: ações lendárias só disponíveis fora do próprio turno do monstro e limitadas ao número descrito no stat block por rodada (contador resetado a cada início de rodada do próprio monstro)
+  - [x] Testes: ação lendária disponível só fora do turno do monstro e respeita o limite por rodada, reação dispara e aplica o efeito do stat block
+  - Notas: o catálogo não modela um número de ações lendárias por monstro — todo stat block usa um orçamento fixo de 3 por rodada (`CombatService._LEGENDARY_ACTIONS_PER_ROUND`), simplificação documentada. `EncounterParticipant` ganhou `legendary_actions_used`/`reactions_used`, resetados no início do próprio turno em `advance_turn`. `_resolve_attack` foi refatorado em `_resolve_and_apply_attack` (núcleo compartilhado de rolagem/dano/log) para reaproveitar exatamente a resolução de ataque da Fase 6.
 
-- **Como jogador, quero usar recursos de classe em combate (fúria, ki, etc.) com controle de uso e recarga em descanso.**
-  - [ ] `app/characters/models.py`: `CharacterResource` (`character_id`, `resource_key`, `used`) — o máximo por nível é derivado de `ClassLevelResource` na leitura, mesmo padrão de `CharacterSpellSlot` (Fase 6)
-  - [ ] Migração Alembic
-  - [ ] `POST /characters/{id}/resources/{resource_key}/use` — rejeita se já no limite (422)
-  - [ ] `POST /characters/{id}/rest` (Fase 6/7) restaura os recursos conforme a recarga de cada `resource_key` (curto ou longo — tabela de recarga por recurso, a mapear a partir do SRD)
-  - [ ] Testes: uso consome corretamente, uso acima do limite é rejeitado, descanso do tipo certo restaura o recurso, descanso do tipo errado não restaura
+- **Como jogador, quero usar recursos de classe em combate (fúria, ki, etc.) com controle de uso e recarga em descanso. ✅ (2026-08-25)**
+  - [x] `app/characters/models.py`: `CharacterResource` (`character_id`, `resource_key`, `used`) — o máximo por nível é derivado de `ClassLevelResource` na leitura, mesmo padrão de `CharacterSpellSlot` (Fase 6)
+  - [x] Migração Alembic
+  - [x] `POST /characters/{id}/resources/{resource_key}/use` — rejeita se já no limite (422)
+  - [x] `POST /characters/{id}/rest` (Fase 6/7) restaura os recursos conforme a recarga de cada `resource_key` (curto ou longo — tabela de recarga por recurso, a mapear a partir do SRD)
+  - [x] Testes: uso consome corretamente, uso acima do limite é rejeitado, descanso do tipo certo restaura o recurso, descanso do tipo errado não restaura
+  - Notas: `ClassLevelResource` carrega várias chaves que não são "recursos consumíveis" (ex. `sneak_attack_dice`, `spells_known`) — só as chaves em `CharacterService._RESOURCE_RECHARGE` (rage_count, ki_points, sorcery_points, action_surges, channel_divinity_charges, indomitable_uses, bardic_inspiration_die) são utilizáveis via este endpoint; a tabela de recarga curto/longo foi mapeada manualmente a partir do PHB, já que o catálogo não carrega esse dado.
 
 ---

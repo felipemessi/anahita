@@ -5,9 +5,10 @@ PRD §10: envelope `{"event_type": "...", "payload": {...}}`. Server → clients
 `action_resolved` (plus an `error` event for rejected/invalid commands, not in
 the PRD table but needed to give the DM's client feedback). Client (DM only)
 → server: `advance_turn`, `update_participant`, `add_participant`,
-`remove_participant`, `end_encounter`. Client (any campaign member) →
-server: `roll_initiative`, `declare_action` (a player only for their own
-character's participant, the DM for any).
+`remove_participant`, `end_encounter`, `use_legendary_action`,
+`trigger_reaction` (Fase 7, monster/NPC participants only). Client (any
+campaign member) → server: `roll_initiative`, `declare_action` (a player
+only for their own character's participant, the DM for any).
 """
 
 import uuid
@@ -34,7 +35,9 @@ from app.combat.schemas import (
     WSDeclareActionPayload,
     WSRemoveParticipantPayload,
     WSRollInitiativePayload,
+    WSTriggerReactionPayload,
     WSUpdateParticipantPayload,
+    WSUseLegendaryActionPayload,
 )
 from app.combat.service import CombatService, encounter_to_read
 from app.combat.ws_manager import manager
@@ -50,6 +53,8 @@ _DM_COMMANDS = frozenset(
         "add_participant",
         "remove_participant",
         "end_encounter",
+        "use_legendary_action",
+        "trigger_reaction",
     }
 )
 #: Unlike `_DM_COMMANDS`, allowed for any campaign member — the service
@@ -211,6 +216,22 @@ async def _handle_message(
             action_data = WSDeclareActionPayload.model_validate(payload)
             action_result = await service.declare_action(
                 encounter_id, user_id, action_data, db
+            )
+            await manager.broadcast(
+                encounter_id, _envelope("action_resolved", action_result)
+            )
+        elif event_type == "use_legendary_action":
+            legendary_data = WSUseLegendaryActionPayload.model_validate(payload)
+            action_result = await service.use_legendary_action(
+                encounter_id, user_id, legendary_data, db
+            )
+            await manager.broadcast(
+                encounter_id, _envelope("action_resolved", action_result)
+            )
+        elif event_type == "trigger_reaction":
+            reaction_data = WSTriggerReactionPayload.model_validate(payload)
+            action_result = await service.trigger_reaction(
+                encounter_id, user_id, reaction_data, db
             )
             await manager.broadcast(
                 encounter_id, _envelope("action_resolved", action_result)

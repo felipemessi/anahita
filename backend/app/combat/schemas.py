@@ -96,6 +96,14 @@ class EncounterParticipantRead(BaseModel):
     is_active: bool
     conditions: list[EncounterConditionRead]
     effects: list[MechanicalEffectRead]
+    # Only set when this update just dealt damage to a participant who was
+    # concentrating on a spell — the client resolves the CON saving throw
+    # itself (Fase 7); `max(10, damage // 2)`, PHB rule.
+    concentration_dc: int | None = None
+    # Legendary actions/reactions spent this round (Fase 7) — meaningful
+    # only for an NPC/monster participant; reset at the start of its turn.
+    legendary_actions_used: int = 0
+    reactions_used: int = 0
 
 
 class CombatLogRead(BaseModel):
@@ -214,6 +222,41 @@ class DeclareActionResultRead(BaseModel):
     attacker_check: int | None = None
     target_check: int | None = None
     description: str
+    # Same convention as `EncounterParticipantRead.concentration_dc`.
+    concentration_dc: int | None = None
+
+
+class WSUseLegendaryActionPayload(BaseModel):
+    """Payload for the `use_legendary_action` command (Fase 7). DM only.
+
+    Only for an NPC/monster participant, and only outside its own turn
+    (PHB rule) — resolved from `MonsterLegendaryAction`
+    (`catalog_monster_legendary_actions`, via the acting participant's
+    stat block) the same way `declare_action` resolves a monster's normal
+    attack. Every stat block gets a flat 3-per-round budget — the SRD data
+    this app seeds from doesn't carry a per-monster override, a documented
+    simplification (see `CombatService._LEGENDARY_ACTIONS_PER_ROUND`).
+    """
+
+    participant_id: uuid.UUID
+    target_id: uuid.UUID
+    legendary_action_id: uuid.UUID
+    manual_attack_roll: int | None = None
+    manual_damage_roll: int | None = None
+
+
+class WSTriggerReactionPayload(BaseModel):
+    """Payload for the `trigger_reaction` command (Fase 7). DM only.
+
+    Only for an NPC/monster participant, once per round — resolved from
+    `MonsterReaction` the same way a legendary action is.
+    """
+
+    participant_id: uuid.UUID
+    target_id: uuid.UUID
+    reaction_id: uuid.UUID
+    manual_attack_roll: int | None = None
+    manual_damage_roll: int | None = None
 
 
 class WSRollInitiativePayload(BaseModel):

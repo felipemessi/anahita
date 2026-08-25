@@ -1,7 +1,7 @@
 """CharacterService orchestrates character sheet creation and reads."""
 
 import uuid
-from typing import Protocol
+from typing import Literal, Protocol
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -12,11 +12,12 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
 from app.catalog.domain import AbilityScore
-from app.catalog.models import ClassDefinition, ClassLevel, Spell
+from app.catalog.models import ClassDefinition, ClassLevel, ClassLevelResource, Spell
 from app.characters.domain import (
     MULTICLASS_ABILITY_REQUIREMENTS,
     SKILL_ABILITY,
     CrossCampaignCatalogReferenceError,
+    FeatureSourceType,
     Skill,
     parse_saving_throw_proficiencies,
     validate_catalog_reference,
@@ -27,6 +28,7 @@ from app.characters.models import (
     CharacterClass,
     CharacterEquipment,
     CharacterFeature,
+    CharacterResource,
     CharacterSkill,
     CharacterSpell,
     CharacterSpellSlot,
@@ -37,13 +39,18 @@ from app.characters.schemas import (
     CharacterClassCreate,
     CharacterClassRead,
     CharacterCreate,
+    CharacterConcentrationRequest,
     CharacterCurrencyRequest,
+    CharacterDeathSaveRequest,
     CharacterEquipmentCreate,
     CharacterEquipmentRead,
     CharacterEquipmentUpdate,
     CharacterFeatureCreate,
     CharacterFeatureRead,
+    CharacterHitDiceSpend,
+    CharacterLevelUpRequest,
     CharacterRead,
+    CharacterResourceRead,
     CharacterRestRequest,
     CharacterSkillRead,
     CharacterSpellCastRequest,
@@ -60,6 +67,7 @@ from engine.abilities import (
     calculate_saving_throw_bonus,
     calculate_skill_bonus,
 )
+from engine import dice
 from engine.armor_class import calculate_ac
 from engine.hit_points import calculate_max_hp
 from engine.spellcasting import (
@@ -78,7 +86,26 @@ _CHARACTER_LOAD_OPTIONS = (
     selectinload(Character.spell_slots),
     selectinload(Character.equipment),
     selectinload(Character.features),
+    selectinload(Character.resources),
 )
+
+#: `ClassLevelResource.resource_key` -> which rest type recharges it
+#: (Fase 7). `ClassLevelResource` also carries plenty of non-consumable,
+#: catalog-only scaling values (`sneak_attack_dice`, `spells_known`,
+#: `unarmored_movement`, ...) that a player never "spends" — only the
+#: keys listed here are trackable through `CharacterService.use_resource`;
+#: everything else 422s. Recharge type isn't itself SRD-structured data in
+#: this catalog, so it's hand-mapped from the PHB rather than read from a
+#: column.
+_RESOURCE_RECHARGE: dict[str, Literal["short", "long"]] = {
+    "rage_count": "long",
+    "ki_points": "short",
+    "sorcery_points": "long",
+    "action_surges": "short",
+    "channel_divinity_charges": "short",
+    "indomitable_uses": "long",
+    "bardic_inspiration_die": "long",
+}
 
 
 class _CatalogScopedEntity(Protocol):
@@ -208,7 +235,8 @@ class CharacterService:
         await self._require_viewer(character, requester_id, db)
         spell_catalog = await self._resolve_spell_catalog(character, db)
         max_slots = await self._max_spell_slots(character, db)
-        return self._to_read(character, spell_catalog, max_slots)
+        max_resources = await self._max_resources(character, db)
+        return self._to_read(character, spell_catalog, max_slots, max_resources)
 
     async def add_class(
         self,
@@ -285,6 +313,227 @@ class CharacterService:
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
+    async def level_up(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterLevelUpRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Level up a character by one level in one class. Owner only.
+
+        `class_definition_id` may be a class the character already has
+        (leveled up by one) or a new one (multiclassed into at level 1,
+        reusing `add_class`'s PHB prerequisite check). Always recalculates
+        `hit_point_max`/`hit_point_current` (class hit die + CON modifier)
+        and `proficiency_bonus`. At an ASI level (`ClassLevel`'s
+        `ability_score_bonuses` set for the new level in this class),
+        `ability_score_increases` or `feat_id` may be supplied — see
+        `CharacterLevelUpRequest`.
+        """
+        if (
+            data.ability_score_increases is not None
+            and data.feat_id is not None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="ability_score_increases and feat_id are mutually exclusive",
+            )
+
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        member = await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+
+        class_def = await catalog_service.get_class(db, data.class_definition_id)
+        if class_def is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Class not found"
+            )
+        self._validate_reference(class_def, member.campaign_id)
+
+        class_entry = next(
+            (
+                c
+                for c in character.classes
+                if c.class_definition_id == data.class_definition_id
+            ),
+            None,
+        )
+        if class_entry is None:
+            # New class — multiclassing in, same prerequisite check as
+            # `add_class`.
+            if class_def.index is not None:
+                current_class_indices = await self._current_class_indices(
+                    character, db
+                )
+                ability_scores = {
+                    EngineAbility(score.ability.value): (
+                        score.base_score + score.asi_bonus + score.misc_bonus
+                    )
+                    for score in character.ability_scores
+                }
+                validation = validate_multiclass(
+                    current_class_indices,
+                    class_def.index,
+                    ability_scores,
+                    MULTICLASS_ABILITY_REQUIREMENTS,
+                )
+                if not validation.is_valid:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail="; ".join(validation.errors),
+                    )
+            class_entry = CharacterClass(
+                character_id=character.id,
+                class_definition_id=data.class_definition_id,
+                subclass_id=data.subclass_id,
+                level=0,
+            )
+            db.add(class_entry)
+            new_level_in_class = 1
+        else:
+            if class_entry.level >= 20:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="This class is already at level 20",
+                )
+            new_level_in_class = class_entry.level + 1
+
+        class_entry.level = new_level_in_class
+        character.level += 1
+        character.proficiency_bonus = calculate_proficiency_bonus(character.level)
+
+        con_mod = self._ability_modifier(character, "con")
+        if data.manual_hit_die_roll is not None:
+            hp_gained = max(1, data.manual_hit_die_roll + con_mod)
+        else:
+            hp_gained = max(1, dice.roll(f"1d{class_def.hit_die}").total + con_mod)
+        character.hit_point_max += hp_gained
+        character.hit_point_current += hp_gained
+
+        class_level_row = self._class_level_row(class_def, new_level_in_class)
+        is_asi_level = (
+            class_level_row is not None
+            and class_level_row.ability_score_bonuses is not None
+        )
+        wants_asi_or_feat = (
+            data.ability_score_increases is not None or data.feat_id is not None
+        )
+        if wants_asi_or_feat and not is_asi_level:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"Level {new_level_in_class} of {class_def.index} doesn't "
+                    "grant an ability score improvement"
+                ),
+            )
+
+        if data.ability_score_increases is not None:
+            await self._apply_ability_score_increases(
+                character, data.ability_score_increases
+            )
+        elif data.feat_id is not None:
+            await self._apply_feat_selection(character, data.feat_id, db)
+
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def _apply_ability_score_increases(
+        self, character: Character, increases: dict[AbilityScore, int]
+    ) -> None:
+        """Apply an ASI's point distribution — up to 2 points, max 2 per ability."""
+        total_points = sum(increases.values())
+        if total_points != 2 or any(
+            points < 0 or points > 2 for points in increases.values()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "ability_score_increases must distribute exactly 2 points, "
+                    "at most 2 to a single ability"
+                ),
+            )
+        for ability, points in increases.items():
+            if points == 0:
+                continue
+            score = next(
+                (s for s in character.ability_scores if s.ability == ability), None
+            )
+            if score is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Character has no {ability} score",
+                )
+            new_total = score.base_score + score.asi_bonus + score.misc_bonus + points
+            if new_total > 20:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"{ability} cannot exceed 20",
+                )
+            score.asi_bonus += points
+
+    async def _apply_feat_selection(
+        self, character: Character, feat_id: uuid.UUID, db: AsyncSession
+    ) -> None:
+        """Validate a feat's prerequisites and record it as a character feature."""
+        feat = await catalog_service.get_feat(db, feat_id)
+        if feat is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Feat not found"
+            )
+        for prereq in feat.prerequisites:
+            if prereq.ability_score_id is None:
+                continue
+            ability_def = await catalog_service.get_ability_score(
+                db, prereq.ability_score_id
+            )
+            if ability_def is None:
+                continue
+            score = next(
+                (
+                    s
+                    for s in character.ability_scores
+                    if s.ability.value == ability_def.index
+                ),
+                None,
+            )
+            current = (
+                score.base_score + score.asi_bonus + score.misc_bonus
+                if score is not None
+                else 0
+            )
+            if current < prereq.minimum_score:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"Doesn't meet this feat's prerequisite: "
+                        f"{ability_def.index} {prereq.minimum_score}"
+                    ),
+                )
+
+        feat_read = await catalog_service.get_feat_translated(db, feat_id)
+        feat_name = feat_read.name if feat_read is not None else "Feat"
+        db.add(
+            CharacterFeature(
+                character_id=character.id,
+                source_type=FeatureSourceType.feat,
+                source_name=feat_name,
+                feature_name=feat_name,
+                description=feat_read.description if feat_read is not None else None,
+                level_acquired=character.level,
+            )
+        )
+
     async def list_characters_for_campaign(
         self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
     ) -> list[CharacterRead | CharacterSummaryRead]:
@@ -337,7 +586,10 @@ class CharacterService:
             )
             if is_dm or owns_it:
                 max_slots = await self._max_spell_slots(c, db)
-                reads.append(self._to_read(c, spell_catalog, max_slots))
+                max_resources = await self._max_resources(c, db)
+                reads.append(
+                    self._to_read(c, spell_catalog, max_slots, max_resources)
+                )
             else:
                 reads.append(self._to_summary(c))
         return reads
@@ -385,7 +637,9 @@ class CharacterService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="hit_point_current cannot exceed hit_point_max",
                 )
+            old_hp = character.hit_point_current
             character.hit_point_current = data.hit_point_current
+            self._register_hp_change(character, old_hp, data.hit_point_current)
         if data.temporary_hit_points is not None:
             character.temporary_hit_points = data.temporary_hit_points
         if data.armor_class is not None:
@@ -536,7 +790,13 @@ class CharacterService:
                 detail="Spell must be prepared to cast",
             )
 
+        # Casting any concentration spell replaces whatever the character was
+        # already concentrating on — only one at a time (PHB rule).
+        if spell.concentration:
+            character.concentrating_spell_id = spell.id
+
         if spell.level == 0 or data.as_ritual:
+            await db.commit()
             return await self._reload_as_read(character.id, db)
 
         cast_at_level = data.cast_at_level or spell.level
@@ -583,9 +843,16 @@ class CharacterService:
     ) -> CharacterRead:
         """Take a short or long rest. Owner only.
 
-        A long rest resets every spell slot's `used` count to 0. A short
-        rest doesn't affect slots by default — Warlock's short-rest slot
-        recovery is a separate class rule, out of scope here.
+        A long rest resets every spell slot's `used` count to 0, and
+        restores spent hit dice up to half the character's total hit dice
+        (minimum 1), PHB rule — dice are restored class by class, in the
+        order the character's classes were added, until that cap is spent.
+        A short rest doesn't affect slots by default — Warlock's
+        short-rest slot recovery is a separate class rule, out of scope
+        here — but may spend hit dice (`data.hit_dice_spent`) to heal. Both
+        rest types also restore class resources (rage, ki, ...) whose
+        `_RESOURCE_RECHARGE` entry matches — a long rest restores short-rest
+        resources too, PHB rule.
         """
         character = await self._load_character_owned_by(
             character_id, requester_id, db
@@ -593,6 +860,214 @@ class CharacterService:
         if data.rest_type == "long":
             for slot in character.spell_slots:
                 slot.used = 0
+            total_dice = sum(c.level for c in character.classes)
+            remaining = max(1, total_dice // 2)
+            for class_entry in character.classes:
+                if remaining <= 0:
+                    break
+                restored = min(class_entry.hit_dice_used, remaining)
+                class_entry.hit_dice_used -= restored
+                remaining -= restored
+        else:
+            await self._spend_hit_dice(character, data.hit_dice_spent, db)
+        for resource in character.resources:
+            recharge = _RESOURCE_RECHARGE.get(resource.resource_key)
+            if recharge == "short" or (
+                recharge == "long" and data.rest_type == "long"
+            ):
+                resource.used = 0
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def _spend_hit_dice(
+        self,
+        character: Character,
+        spends: list[CharacterHitDiceSpend],
+        db: AsyncSession,
+    ) -> None:
+        """Roll and apply healing for each class's hit dice spent on a short rest.
+
+        Each die rolled is the spending class's `hit_die` plus the
+        character's CON modifier (never healing below 0, and never past
+        `hit_point_max`), unless `manual_roll` is supplied instead.
+        """
+        con_mod = self._ability_modifier(character, "con")
+        for spend in spends:
+            class_entry = next(
+                (c for c in character.classes if c.id == spend.character_class_id),
+                None,
+            )
+            if class_entry is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Character class not found on this character",
+                )
+            available = class_entry.level - class_entry.hit_dice_used
+            if spend.count > available:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"Not enough hit dice available "
+                        f"({available} left, {spend.count} requested)"
+                    ),
+                )
+            if spend.manual_roll is not None:
+                healed = spend.manual_roll
+            else:
+                class_def = await catalog_service.get_class(
+                    db, class_entry.class_definition_id
+                )
+                if class_def is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Class not found",
+                    )
+                roll_result = dice.roll(f"{spend.count}d{class_def.hit_die}")
+                healed = max(0, roll_result.total + con_mod * spend.count)
+            old_hp = character.hit_point_current
+            character.hit_point_current = min(
+                character.hit_point_max, character.hit_point_current + healed
+            )
+            self._register_hp_change(character, old_hp, character.hit_point_current)
+            class_entry.hit_dice_used += spend.count
+
+    async def use_resource(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        resource_key: str,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Spend one use of a class resource (rage, ki, ...). Owner only.
+
+        Rejects a `resource_key` the character doesn't have (either not in
+        `_RESOURCE_RECHARGE`, or granted by none of their classes at their
+        current level) or one already at its limit. Restored by `rest`.
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        if resource_key not in _RESOURCE_RECHARGE:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"{resource_key} isn't a trackable class resource",
+            )
+        max_resources = await self._max_resources(character, db)
+        limit = max_resources.get(resource_key, 0)
+        if limit <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Character doesn't have the {resource_key} resource",
+            )
+
+        entry = next(
+            (r for r in character.resources if r.resource_key == resource_key), None
+        )
+        used = entry.used if entry is not None else 0
+        if used >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"No {resource_key} uses remaining ({used}/{limit} used)",
+            )
+
+        if entry is None:
+            entry = CharacterResource(
+                character_id=character.id, resource_key=resource_key, used=0
+            )
+            db.add(entry)
+        entry.used += 1
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def death_save(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterDeathSaveRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Roll a death saving throw. Owner only, only at 0 hit points.
+
+        1 counts as two failures; 20 restores 1 HP and consciousness
+        (resetting the track); 10+ is a success, anything else a failure.
+        Three failures marks the character dead; three successes
+        stabilizes them (track resets, still unconscious at 0 HP).
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        if character.is_dead:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Character is already dead",
+            )
+        if character.hit_point_current != 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Death saves only apply at 0 hit points",
+            )
+
+        if data.manual_roll is not None:
+            roll_result = data.manual_roll
+        else:
+            roll_result = dice.roll("1d20").total
+
+        if roll_result == 1:
+            character.death_save_failures = min(3, character.death_save_failures + 2)
+        elif roll_result == 20:
+            character.hit_point_current = 1
+            character.death_save_successes = 0
+            character.death_save_failures = 0
+        elif roll_result >= 10:
+            character.death_save_successes = min(3, character.death_save_successes + 1)
+        else:
+            character.death_save_failures = min(3, character.death_save_failures + 1)
+
+        if character.death_save_failures >= 3:
+            character.is_dead = True
+        elif character.death_save_successes >= 3:
+            character.death_save_successes = 0
+            character.death_save_failures = 0
+
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def set_concentration(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterConcentrationRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Start or end concentration on a known spell. Owner only.
+
+        Starting replaces whatever the character was already concentrating
+        on — only one at a time (PHB rule); see also `cast_spell`, which
+        does the same automatically when casting a concentration spell.
+        """
+        character = await self._load_character_owned_by(
+            character_id, requester_id, db
+        )
+        if data.spell_id is None:
+            character.concentrating_spell_id = None
+            await db.commit()
+            return await self._reload_as_read(character.id, db)
+
+        entry = next(
+            (s for s in character.spells if s.spell_id == data.spell_id), None
+        )
+        if entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Spell not known by this character",
+            )
+        spell = await catalog_service.get_spell(db, data.spell_id)
+        if spell is None or not spell.concentration:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This spell doesn't require concentration",
+            )
+        character.concentrating_spell_id = data.spell_id
         await db.commit()
         return await self._reload_as_read(character.id, db)
 
@@ -826,6 +1301,62 @@ class CharacterService:
                 )
         return totals
 
+    async def _max_resources(
+        self, character: Character, db: AsyncSession
+    ) -> dict[str, int]:
+        """Sum each class's trackable resource maxima, keyed by `resource_key`.
+
+        Only keys in `_RESOURCE_RECHARGE` are included — see its docstring.
+        A `ClassLevelResource.value` that isn't a plain integer (a few are,
+        e.g. `sneak_attack_dice: "2d6"`) is skipped; none of the currently
+        trackable keys are dice expressions, but this keeps a future
+        catalog addition from crashing instead of just being ignored.
+        """
+        totals: dict[str, int] = {}
+        for class_entry in character.classes:
+            class_def = await catalog_service.get_class(
+                db, class_entry.class_definition_id
+            )
+            if class_def is None:
+                continue
+            class_level = self._class_level_row(class_def, class_entry.level)
+            if class_level is None:
+                continue
+            for resource in class_level.resources:
+                if resource.resource_key not in _RESOURCE_RECHARGE:
+                    continue
+                try:
+                    value = int(resource.value)
+                except ValueError:
+                    continue
+                totals[resource.resource_key] = (
+                    totals.get(resource.resource_key, 0) + value
+                )
+        return totals
+
+    def _register_hp_change(
+        self, character: Character, old_hp: int, new_hp: int
+    ) -> None:
+        """Apply death-save bookkeeping for a change to `hit_point_current`.
+
+        Rising above 0 (healed) resets the death-save track. Taking more
+        damage while already at 0 — the caller floors HP at 0 before
+        calling, same convention `app.combat.service` uses for
+        `EncounterParticipant` — counts as one more failure, marking the
+        character dead at three. A natural-20 crit doubling this failure
+        isn't modeled here: this generic HP setter carries no crit context,
+        unlike `death_save`'s own 1d20 roll where a natural 1 does double.
+        """
+        if new_hp > 0:
+            character.death_save_successes = 0
+            character.death_save_failures = 0
+            return
+        if old_hp == 0 and new_hp == 0:
+            character.death_save_successes = 0
+            character.death_save_failures = min(3, character.death_save_failures + 1)
+            if character.death_save_failures >= 3:
+                character.is_dead = True
+
     def _ability_modifier(self, character: Character, ability_code: str) -> int:
         """Return the character's modifier for a short ability code (e.g. `wis`)."""
         for score in character.ability_scores:
@@ -1031,7 +1562,8 @@ class CharacterService:
         character = result.scalar_one()
         spell_catalog = await self._resolve_spell_catalog(character, db)
         max_slots = await self._max_spell_slots(character, db)
-        return self._to_read(character, spell_catalog, max_slots)
+        max_resources = await self._max_resources(character, db)
+        return self._to_read(character, spell_catalog, max_slots, max_resources)
 
     async def _resolve_spell_catalog(
         self, character: Character, db: AsyncSession
@@ -1047,6 +1579,7 @@ class CharacterService:
         character: Character,
         spell_catalog: dict[uuid.UUID, Spell],
         max_slots: dict[int, int],
+        max_resources: dict[str, int],
     ) -> CharacterRead:
         """Build the read schema, computing ability modifiers and skill bonuses."""
         modifier_by_ability = {
@@ -1088,6 +1621,10 @@ class CharacterService:
             )
             for skill in character.skills
         ]
+        bonus_by_skill = {s.skill: s.bonus for s in skills}
+        passive_perception = 10 + bonus_by_skill.get(Skill.perception, 0)
+        passive_investigation = 10 + bonus_by_skill.get(Skill.investigation, 0)
+        passive_insight = 10 + bonus_by_skill.get(Skill.insight, 0)
         classes = [CharacterClassRead.model_validate(c) for c in character.classes]
         spells = [
             CharacterSpellRead(
@@ -1121,6 +1658,15 @@ class CharacterService:
         features = [
             CharacterFeatureRead.model_validate(f) for f in character.features
         ]
+        used_by_resource_key = {r.resource_key: r.used for r in character.resources}
+        resources = [
+            CharacterResourceRead(
+                resource_key=resource_key,
+                used=used_by_resource_key.get(resource_key, 0),
+                max=max_count,
+            )
+            for resource_key, max_count in sorted(max_resources.items())
+        ]
         return CharacterRead(
             id=character.id,
             campaign_member_id=character.campaign_member_id,
@@ -1139,6 +1685,14 @@ class CharacterService:
             inspiration=character.inspiration,
             proficiency_bonus=character.proficiency_bonus,
             currency_cp=character.currency_cp,
+            death_save_successes=character.death_save_successes,
+            death_save_failures=character.death_save_failures,
+            is_dead=character.is_dead,
+            concentrating_spell_id=character.concentrating_spell_id,
+            passive_perception=passive_perception,
+            passive_investigation=passive_investigation,
+            passive_insight=passive_insight,
+            resources=resources,
             ability_scores=ability_scores,
             skills=skills,
             classes=classes,
