@@ -119,6 +119,17 @@ _RESOURCE_RECHARGE: dict[str, Literal["short", "long"]] = {
     "bardic_inspiration_die": "long",
 }
 
+#: `resource_key` -> the catalog `Feature.index` values that group its named
+#: options (Fase 8) — e.g. Cleric's and Paladin's Channel Divinity each have
+#: their own parent feature ("channel-divinity-1-rest"/"channel-divinity",
+#: see `_CHANNEL_DIVINITY_PARENT_OVERRIDES` in `convert_srd.py`), but both
+#: back the same `channel_divinity_charges` resource. A resource_key not
+#: listed here has no option concept — `use_resource` never requires or
+#: records one for it.
+_RESOURCE_OPTION_PARENT_FEATURES: dict[str, tuple[str, ...]] = {
+    "channel_divinity_charges": ("channel-divinity-1-rest", "channel-divinity"),
+}
+
 
 class _CatalogScopedEntity(Protocol):
     """Structural type for catalog entities checked by `_validate_reference`."""
@@ -1047,12 +1058,20 @@ class CharacterService:
         requester_id: uuid.UUID,
         resource_key: str,
         db: AsyncSession,
+        *,
+        option_id: uuid.UUID | None = None,
     ) -> CharacterRead:
         """Spend one use of a class resource (rage, ki, ...). Owner only.
 
         Rejects a `resource_key` the character doesn't have (either not in
         `_RESOURCE_RECHARGE`, or granted by none of their classes at their
         current level) or one already at its limit. Restored by `rest`.
+
+        `option_id` records which named option the use spent (e.g. a
+        Paladin's Channel Divinity: Sacred Weapon vs. Turn the Unholy) —
+        required when the character has more than one option for this
+        resource, optional (and ignored) when they have none or exactly
+        one, see `_RESOURCE_OPTION_PARENT_FEATURES`.
         """
         character = await self._load_character_owned_by(
             character_id, requester_id, db
@@ -1080,14 +1099,79 @@ class CharacterService:
                 detail=f"No {resource_key} uses remaining ({used}/{limit} used)",
             )
 
+        options = await self._resource_options(character, resource_key, db)
+        if len(options) > 1:
+            option_ids = {o.id for o in options}
+            if option_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"{resource_key} has more than one option for this "
+                        "character — option_id is required"
+                    ),
+                )
+            if option_id not in option_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"{option_id} is not a {resource_key} option",
+                )
+
         if entry is None:
             entry = CharacterResource(
                 character_id=character.id, resource_key=resource_key, used=0
             )
             db.add(entry)
         entry.used += 1
+        if option_id is not None:
+            entry.last_feature_option_id = option_id
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def _resource_options(
+        self, character: Character, resource_key: str, db: AsyncSession
+    ) -> list[Feature]:
+        """Return the named options available to `character` for `resource_key`.
+
+        Empty when `resource_key` has no option concept, or when none of
+        its parent features (`_RESOURCE_OPTION_PARENT_FEATURES`) match a
+        class/subclass the character actually has.
+        """
+        parent_indexes = _RESOURCE_OPTION_PARENT_FEATURES.get(resource_key)
+        if not parent_indexes:
+            return []
+
+        class_ids = {c.class_definition_id for c in character.classes}
+        subclass_ids = {
+            c.subclass_id for c in character.classes if c.subclass_id is not None
+        }
+
+        parents_result = await db.execute(
+            select(Feature).where(Feature.index.in_(parent_indexes))
+        )
+        relevant_parent_ids = [
+            p.id
+            for p in parents_result.scalars().all()
+            if (p.class_definition_id is None or p.class_definition_id in class_ids)
+            and (
+                p.subclass_definition_id is None
+                or p.subclass_definition_id in subclass_ids
+            )
+        ]
+        if not relevant_parent_ids:
+            return []
+
+        options_result = await db.execute(
+            select(Feature).where(Feature.parent_feature_id.in_(relevant_parent_ids))
+        )
+        return [
+            o
+            for o in options_result.scalars().all()
+            if (o.class_definition_id is None or o.class_definition_id in class_ids)
+            and (
+                o.subclass_definition_id is None
+                or o.subclass_definition_id in subclass_ids
+            )
+        ]
 
     async def death_save(
         self,
@@ -1773,11 +1857,15 @@ class CharacterService:
             for c in character.feature_choices
         ]
         used_by_resource_key = {r.resource_key: r.used for r in character.resources}
+        last_option_by_resource_key = {
+            r.resource_key: r.last_feature_option_id for r in character.resources
+        }
         resources = [
             CharacterResourceRead(
                 resource_key=resource_key,
                 used=used_by_resource_key.get(resource_key, 0),
                 max=max_count,
+                last_feature_option_id=last_option_by_resource_key.get(resource_key),
             )
             for resource_key, max_count in sorted(max_resources.items())
         ]

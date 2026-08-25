@@ -11,7 +11,14 @@ import app.auth.models  # noqa: F401 — registers models with Base
 import app.campaigns.models  # noqa: F401 — registers models with Base
 import app.catalog.models  # noqa: F401 — registers models with Base
 import app.characters.models  # noqa: F401 — registers models with Base
-from app.catalog.models import ClassDefinition, Item, Race, Spell, SpellClass
+from app.catalog.models import (
+    ClassDefinition,
+    Item,
+    Race,
+    Spell,
+    SpellClass,
+    SubclassDefinition,
+)
 from app.catalog.seeds.seed import seed_catalog
 from app.database import Base
 
@@ -88,6 +95,25 @@ async def ranger_class_id(db: AsyncSession) -> str:
     await seed_catalog(db)
     result = await db.execute(
         select(ClassDefinition).where(ClassDefinition.index == "ranger")
+    )
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def cleric_class_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Cleric class's id."""
+    await seed_catalog(db)
+    result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "cleric")
+    )
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def cleric_life_subclass_id(db: AsyncSession, cleric_class_id: str) -> str:
+    """Return the SRD Cleric's Life domain subclass id."""
+    result = await db.execute(
+        select(SubclassDefinition).where(SubclassDefinition.index == "life")
     )
     return str(result.scalar_one().id)
 

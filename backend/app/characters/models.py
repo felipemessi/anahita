@@ -302,6 +302,14 @@ class CharacterResource(Base):
     character_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("characters.id"))
     resource_key: Mapped[str] = mapped_column(String(100))
     used: Mapped[int] = mapped_column(Integer, default=0)
+    # Which named option (a catalog `Feature`, e.g. "Channel Divinity:
+    # Preserve Life") the most recent use spent, for resources with more
+    # than one option (Fase 8) — see
+    # `CharacterService._RESOURCE_OPTION_PARENT_FEATURES`. `None` for a
+    # resource with no option concept, or before its first recorded use.
+    last_feature_option_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("catalog_features.id")
+    )
 
     character: Mapped[Character] = relationship(back_populates="resources")
 

@@ -679,7 +679,13 @@ async def _seed_classes(session: AsyncSession) -> None:
                     )
                 )
 
+        # Class-wide (base + every subclass), so a subclass option can name
+        # a base-class feature as its `parent_index` (e.g. Paladin's
+        # "Channel Divinity: Sacred Weapon", a Devotion subclass feature,
+        # under the base "Channel Divinity" feature) — see
+        # `_CHANNEL_DIVINITY_PARENT_OVERRIDES`.
         features_by_index: dict[str, Feature] = {}
+        all_feats: list[dict[str, Any]] = list(entry.get("features", []))
         pending_prerequisites: list[tuple[Feature, dict[str, Any]]] = []
         for feat in entry.get("features", []):
             feature = await _seed_class_feature(
@@ -706,7 +712,6 @@ async def _seed_classes(session: AsyncSession) -> None:
                     spell_id=None,
                 )
             )
-        _link_feature_options(entry.get("features", []), features_by_index)
 
         for sc in entry.get("subclasses", []):
             subclass = SubclassDefinition(
@@ -719,7 +724,6 @@ async def _seed_classes(session: AsyncSession) -> None:
             await _seed_i18n(session, SubclassDefinitionI18n, subclass.id, sc["i18n"])
 
             subclass_levels: dict[int, ClassLevel] = {}
-            subclass_features_by_index: dict[str, Feature] = {}
             for feat in sc.get("features", []):
                 subclass_feature = await _seed_class_feature(
                     session,
@@ -729,8 +733,10 @@ async def _seed_classes(session: AsyncSession) -> None:
                     feature_subclass_definition_id=subclass.id,
                     class_level_by_level=subclass_levels,
                 )
-                subclass_features_by_index[feat["index"]] = subclass_feature
-            _link_feature_options(sc.get("features", []), subclass_features_by_index)
+                features_by_index[feat["index"]] = subclass_feature
+            all_feats.extend(sc.get("features", []))
+
+        _link_feature_options(all_feats, features_by_index)
 
 
 def _link_feature_options(
@@ -739,9 +745,11 @@ def _link_feature_options(
     """Set `Feature.parent_feature_id` for every feat that named a `parent_index`.
 
     A named option under a broader choice feature (e.g. "Fighting Style:
-    Defense" under "Fighting Style") — both rows always come from the same
-    `features` list (class-level or one subclass's), so `features_by_index`
-    built from that same list is enough to resolve the link.
+    Defense" under "Fighting Style", or a subclass option under a
+    base-class feature — e.g. Paladin's Devotion-only "Channel Divinity:
+    Sacred Weapon" under the base "Channel Divinity") — `features_by_index`
+    must span every feature the option or its parent could come from
+    (caller passes one map per whole class: base + every subclass).
     """
     for feat in feats:
         parent_index = feat.get("parent_index")

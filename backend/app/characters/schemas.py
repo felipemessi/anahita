@@ -231,6 +231,7 @@ class CharacterResourceRead(BaseModel):
     resource_key: str
     used: int
     max: int
+    last_feature_option_id: uuid.UUID | None = None
 
 
 class CharacterEquipmentCreate(BaseModel):

@@ -1588,6 +1588,134 @@ async def test_use_resource_consumes_and_rejects_past_limit(
     assert exc.value.status_code == 422
 
 
+async def _create_cleric_of_life(
+    db: AsyncSession,
+    owner: User,
+    member: CampaignMember,
+    human_race_id: str,
+    cleric_class_id: str,
+    cleric_life_subclass_id: str,
+) -> uuid.UUID:
+    """Create a level-2 Cleric of the Life domain (has Channel Divinity)."""
+    service = CharacterService()
+    character = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Priestess",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(
+                    class_definition_id=uuid.UUID(cleric_class_id),
+                    subclass_id=uuid.UUID(cleric_life_subclass_id),
+                    level=2,
+                )
+            ],
+        ),
+        db,
+    )
+    return character.id
+
+
+async def test_use_resource_multiple_options_requires_option_id(
+    db: AsyncSession,
+    human_race_id: str,
+    cleric_class_id: str,
+    cleric_life_subclass_id: str,
+) -> None:
+    """A Life Cleric has 2 Channel Divinity options — using it needs option_id."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_cleric_of_life(
+        db, owner, member, human_race_id, cleric_class_id, cleric_life_subclass_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.use_resource(
+            character_id, owner.id, "channel_divinity_charges", db
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_use_resource_records_which_option_was_spent(
+    db: AsyncSession,
+    human_race_id: str,
+    cleric_class_id: str,
+    cleric_life_subclass_id: str,
+) -> None:
+    """A valid option_id is recorded on the resource entry."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_cleric_of_life(
+        db, owner, member, human_race_id, cleric_class_id, cleric_life_subclass_id
+    )
+    service = CharacterService()
+    preserve_life_result = await db.execute(
+        select(Feature).where(Feature.index == "channel-divinity-preserve-life")
+    )
+    preserve_life_id = preserve_life_result.scalar_one().id
+
+    character = await service.use_resource(
+        character_id,
+        owner.id,
+        "channel_divinity_charges",
+        db,
+        option_id=preserve_life_id,
+    )
+
+    resource = next(
+        r for r in character.resources if r.resource_key == "channel_divinity_charges"
+    )
+    assert resource.used == 1
+    assert resource.last_feature_option_id == preserve_life_id
+
+
+async def test_use_resource_invalid_option_rejected(
+    db: AsyncSession,
+    human_race_id: str,
+    cleric_class_id: str,
+    cleric_life_subclass_id: str,
+) -> None:
+    """An option_id that isn't one of the character's options is rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_cleric_of_life(
+        db, owner, member, human_race_id, cleric_class_id, cleric_life_subclass_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.use_resource(
+            character_id,
+            owner.id,
+            "channel_divinity_charges",
+            db,
+            option_id=uuid.uuid4(),
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_use_resource_single_option_does_not_require_option_id(
+    db: AsyncSession, human_race_id: str, barbarian_class_id: str
+) -> None:
+    """A resource with no option concept (rage) never requires option_id."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, barbarian_class_id
+    )
+    service = CharacterService()
+
+    character = await service.use_resource(
+        character_id, owner.id, "rage_count", db
+    )
+    resource = next(r for r in character.resources if r.resource_key == "rage_count")
+    assert resource.used == 1
+    assert resource.last_feature_option_id is None
+
+
 async def test_use_resource_untrackable_key_rejected(
     db: AsyncSession, human_race_id: str, barbarian_class_id: str
 ) -> None:
