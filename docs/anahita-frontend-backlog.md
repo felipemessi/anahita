@@ -261,11 +261,11 @@
   - [x] Teste: conjurar consome o slot certo; ritual não consome; upcast exige e consome o slot do nível escolhido; sem slot disponível o botão de conjurar fica desabilitado com tooltip explicando
   - Notas: o seletor de nível só aparece quando há mais de uma opção de slot disponível para upcast; quando só existe uma opção diferente do círculo próprio da magia (ex. slot do próprio nível esgotado, só sobra o de cima), o botão "conjurar" já usa esse nível por padrão sem precisar do seletor.
 
-- **Como jogador, quero adicionar, editar, ver detalhes e remover itens do meu inventário, e registrar ganho/gasto de moedas.**
-  - [ ] `lib/api/characters.ts`: `updateCharacterEquipment`, `removeCharacterEquipment`, `updateCharacterCurrency`; estender `hooks/use-character.ts`
-  - [ ] `components/characters/equipment-list.tsx` (substitui a seção inline de equipamento em `character-sheet.tsx`): toggle equipado/attunement, editor de quantidade, botão remover, expansível de detalhe (descrição do item do catálogo)
-  - [ ] `components/characters/currency-tracker.tsx`: saldo atual por tipo de moeda + form rápido de ganho/gasto (mutação otimista, reverte em erro de saldo negativo)
-  - [ ] Teste: editar/remover item atualiza a lista; gasto acima do saldo mostra erro e reverte o otimismo
+- **Como jogador, quero adicionar, editar, ver detalhes e remover itens do meu inventário, e registrar ganho/gasto de moedas.** ✅ (2026-08-25)
+  - [x] `lib/api/characters.ts`: `updateCharacterEquipment`, `removeCharacterEquipment`, `updateCharacterCurrency`; estender `hooks/use-character.ts`
+  - [x] `components/characters/equipment-list.tsx` (substitui a seção inline de equipamento em `character-sheet.tsx`): toggle equipado/attunement, editor de quantidade, botão remover, expansível de detalhe (descrição do item do catálogo)
+  - [x] `components/characters/currency-tracker.tsx`: saldo atual por tipo de moeda + form rápido de ganho/gasto (mutação otimista, reverte em erro de saldo negativo)
+  - [x] Teste: editar/remover item atualiza a lista; gasto acima do saldo mostra erro e reverte o otimismo
 
 - **Como DM, quero abrir uma sessão para ser jogada; como grupo, quero que o combate já comece com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.**
   - [ ] `lib/api/sessions.ts`: `openSession`; botão "Abrir sessão" em `sessions/[sessionId]/page.tsx` (DM only)
