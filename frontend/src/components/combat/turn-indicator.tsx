@@ -2,11 +2,20 @@
 
 import { useCombat } from "@/hooks/use-combat";
 
-/** Fixed footer button that advances the current turn (DM only). */
+/**
+ * Fixed footer button that advances the current turn (DM only). Hidden
+ * while any active participant hasn't rolled initiative yet — the server
+ * would reject `advance_turn` anyway (see `InitiativePrompt`, which takes
+ * over in that case).
+ */
 export function TurnIndicator() {
   const { encounter, advanceTurn } = useCombat();
 
   if (!encounter || encounter.status !== "active") return null;
+  const missingInitiative = encounter.participants.some(
+    (p) => p.is_active && p.initiative === null,
+  );
+  if (missingInitiative) return null;
 
   return (
     <button

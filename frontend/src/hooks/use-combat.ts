@@ -3,8 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createEncounter, listEncounters, startEncounter } from "@/lib/api/combat";
+import type { WSDeclareActionPayload } from "@/lib/ws/types";
 import { useCombatContext } from "@/providers/combat-provider";
 import type {
+  CombatActionType,
   Condition,
   EncounterCreate,
   EncounterParticipantCreate,
@@ -93,6 +95,35 @@ export function useCombat() {
     sendCommand({ event_type: "end_encounter" });
   }
 
+  /**
+   * Roll initiative for `participantId` — a player only for their own
+   * character's participant, the DM for any (server-enforced). Omitting
+   * `initiative` rolls `1d20 + DEX` server-side; passing it uses that value
+   * as a manual roll instead (backlog Fase 6 história 6).
+   */
+  function rollInitiative(participantId: string, initiative?: number): void {
+    sendCommand({
+      event_type: "roll_initiative",
+      payload: { participant_id: participantId, initiative },
+    });
+  }
+
+  /**
+   * Declare a combat action (attack/grapple/shove) — same ownership rule as
+   * `rollInitiative`. See `WSDeclareActionPayload` for the full field docs.
+   */
+  function declareAction(
+    data: Omit<WSDeclareActionPayload, "action_type"> & {
+      actionType: CombatActionType;
+    },
+  ): void {
+    const { actionType, ...rest } = data;
+    sendCommand({
+      event_type: "declare_action",
+      payload: { ...rest, action_type: actionType },
+    });
+  }
+
   return {
     encounter,
     lastError,
@@ -102,5 +133,7 @@ export function useCombat() {
     addParticipant,
     removeParticipant,
     endEncounter,
+    rollInitiative,
+    declareAction,
   };
 }

@@ -10,13 +10,19 @@ import {
   useEncounters,
   useStartEncounter,
 } from "@/hooks/use-combat";
-import { useSessions } from "@/hooks/use-session";
+import { useOpenSession, useSessions } from "@/hooks/use-session";
 import { NoteEditor } from "@/components/sessions/note-editor";
 
 const ENCOUNTER_STATUS_LABEL: Record<string, string> = {
   preparing: "Preparando",
   active: "Em andamento",
   completed: "Concluído",
+};
+
+const SESSION_STATUS_LABEL: Record<string, string> = {
+  planned: "Planejada",
+  in_progress: "Em andamento",
+  completed: "Concluída",
 };
 
 /**
@@ -38,6 +44,7 @@ export default function SessionDetailPage() {
   const [encounterName, setEncounterName] = useState("");
   const createEncounter = useCreateEncounter(sessionId);
   const startEncounter = useStartEncounter();
+  const openSession = useOpenSession(campaignId);
 
   function handleCreateEncounter(event: React.FormEvent) {
     event.preventDefault();
@@ -59,9 +66,25 @@ export default function SessionDetailPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-8 px-6 py-10">
       <div>
-        <h1 className="text-2xl font-bold">
-          Sessão {session.session_number} — {session.title}
-        </h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold">
+            Sessão {session.session_number} — {session.title}
+          </h1>
+          {isDm && session.status === "planned" ? (
+            <button
+              type="button"
+              onClick={() => openSession.mutate(session.id)}
+              disabled={openSession.isPending}
+              className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              Abrir sessão
+            </button>
+          ) : (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {SESSION_STATUS_LABEL[session.status] ?? session.status}
+            </span>
+          )}
+        </div>
         {session.scheduled_date ? (
           <p className="text-sm text-muted-foreground">{session.scheduled_date}</p>
         ) : null}

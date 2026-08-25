@@ -39,3 +39,8 @@ export function addNote(
     body: JSON.stringify(data),
   });
 }
+
+/** Open a planned session for play; only the campaign's DM may do this. */
+export function openSession(sessionId: string): Promise<GameSession> {
+  return apiFetch<GameSession>(`/sessions/${sessionId}/open`, { method: "POST" });
+}
