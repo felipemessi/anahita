@@ -63,7 +63,12 @@ class EncounterParticipant(Base):
     # pattern as `app.catalog.models.Race.campaign_id`.
     npc_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     name: Mapped[str] = mapped_column(String(255))
-    initiative: Mapped[int] = mapped_column(Integer)
+    # Nullable: PCs auto-added by `CombatService.start_encounter` and manual
+    # participants alike start without a roll — `advance_turn` refuses to
+    # proceed while any active participant's initiative is still unset (see
+    # `CombatService.advance_turn`), and the `roll_initiative` WS command is
+    # the only way to set it (PRD §10.2, backlog Fase 6 história 4).
+    initiative: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hit_point_max: Mapped[int] = mapped_column(Integer)
     hit_point_current: Mapped[int] = mapped_column(Integer)
     temporary_hit_points: Mapped[int] = mapped_column(Integer, default=0)

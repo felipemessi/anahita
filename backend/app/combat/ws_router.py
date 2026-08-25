@@ -5,7 +5,8 @@ PRD §10: envelope `{"event_type": "...", "payload": {...}}`. Server → clients
 (plus an `error` event for rejected/invalid commands, not in the PRD table but
 needed to give the DM's client feedback). Client (DM only) → server:
 `advance_turn`, `update_participant`, `add_participant`, `remove_participant`,
-`end_encounter`.
+`end_encounter`. Client (any campaign member) → server: `roll_initiative`
+(a player only for their own character's participant, the DM for any).
 """
 
 import uuid
@@ -29,6 +30,7 @@ from app.combat.schemas import (
     EncounterParticipantRead,
     EncounterRead,
     WSRemoveParticipantPayload,
+    WSRollInitiativePayload,
     WSUpdateParticipantPayload,
 )
 from app.combat.service import CombatService, encounter_to_read
@@ -47,6 +49,9 @@ _DM_COMMANDS = frozenset(
         "end_encounter",
     }
 )
+#: Unlike `_DM_COMMANDS`, allowed for any campaign member — the service
+#: enforces per-participant ownership (own character only, DM any).
+_MEMBER_COMMANDS = frozenset({"roll_initiative"})
 
 
 async def _authenticate(token: str) -> uuid.UUID | None:
@@ -129,12 +134,12 @@ async def _handle_message(
     event_type = message.get("event_type")
     payload = message.get("payload") or {}
 
-    if event_type not in _DM_COMMANDS:
+    if event_type not in _DM_COMMANDS and event_type not in _MEMBER_COMMANDS:
         await websocket.send_json(
             _envelope("error", {"detail": f"Unknown event_type '{event_type}'"})
         )
         return
-    if not is_dm:
+    if event_type in _DM_COMMANDS and not is_dm:
         await websocket.send_json(
             _envelope("error", {"detail": "Only the DM can send commands"})
         )
@@ -184,6 +189,18 @@ async def _handle_message(
                 encounter_id, remove_data.participant_id, user_id, db
             )
             await manager.broadcast(encounter_id, _envelope("state_sync", encounter))
+        elif event_type == "roll_initiative":
+            roll_data = WSRollInitiativePayload.model_validate(payload)
+            participant = await service.roll_initiative(
+                encounter_id,
+                roll_data.participant_id,
+                user_id,
+                roll_data.initiative,
+                db,
+            )
+            await manager.broadcast(
+                encounter_id, _envelope("participant_updated", participant)
+            )
         elif event_type == "end_encounter":
             encounter = await service.end_encounter(encounter_id, user_id, db)
             await manager.broadcast(

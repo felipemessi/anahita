@@ -360,11 +360,12 @@
   - [x] Testes: editar/remover item, saldo não fica negativo, ganho/gasto refletem na leitura da ficha
   - Notas: decisão tomada por engenharia — uma única coluna `currency_cp` normalizada em copper, consistente com a convenção já usada para preços de itens do catálogo (`convert_srd._cost_in_cp`); simplifica o saldo pra um inteiro só. Conversão pra denominações (cp/sp/ep/gp/pp) fica pro frontend exibir. PRD §7.3 atualizado com a decisão (e com `CharacterSpellSlot`, que também estava faltando).
 
-- **Como DM, quero abrir uma sessão para ser jogada e iniciar um combate populado com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.**
-  - [ ] `Session` ganha `status` (`planned`/`open`/`closed`; seção 7.5 do PRD a atualizar) — `POST /sessions/{id}/open` (DM only)
-  - [ ] `POST /encounters/{id}/start`: além de mudar `preparing`→`active`, adiciona automaticamente como participante todo personagem (PC) da campanha ainda ausente do encontro (monstros/NPCs continuam adicionados manualmente, como hoje)
-  - [ ] Encontro só aceita `advance_turn` depois que **todo** participante tem `initiative` definida — novo comando WS `roll_initiative` (jogador rola a própria; DM rola pelas dele e pelos NPCs/monstros)
-  - [ ] Testes: abrir sessão sem ser DM rejeitado, `start` popula todos os PCs da campanha, `advance_turn` rejeitado enquanto falta iniciativa de algum participante, `roll_initiative` seta o valor e libera o encontro quando completo
+- **Como DM, quero abrir uma sessão para ser jogada e iniciar um combate populado com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.** ✅ (2026-08-24)
+  - [x] `Session` ganha `status` (`planned`/`open`/`closed`; seção 7.5 do PRD a atualizar) — `POST /sessions/{id}/open` (DM only)
+  - [x] `POST /encounters/{id}/start`: além de mudar `preparing`→`active`, adiciona automaticamente como participante todo personagem (PC) da campanha ainda ausente do encontro (monstros/NPCs continuam adicionados manualmente, como hoje)
+  - [x] Encontro só aceita `advance_turn` depois que **todo** participante tem `initiative` definida — novo comando WS `roll_initiative` (jogador rola a própria; DM rola pelas dele e pelos NPCs/monstros)
+  - [x] Testes: abrir sessão sem ser DM rejeitado, `start` popula todos os PCs da campanha, `advance_turn` rejeitado enquanto falta iniciativa de algum participante, `roll_initiative` seta o valor e libera o encontro quando completo
+  - Notas: `SessionStatus` já existia (`planned`/`in_progress`/`completed`) — reaproveitado em vez de renomear pra `open`/`closed` (mesmo conceito, sem quebrar o enum já em produção); `POST /sessions/{id}/open` faz a transição `planned`→`in_progress`. `EncounterParticipant.initiative` virou nullable (migração) pra permitir participante sem rolagem ainda. `roll_initiative` é o primeiro comando WS não-DM-only — o gate em `ws_router.py` foi ajustado pra distinguir comandos DM-only de comandos de qualquer membro, com posse verificada no service (jogador só a própria ficha, DM qualquer participante).
 
 - **Como jogador/DM, quero declarar ações de combate (ataque com arma, magia, ações especiais) que resolvem automaticamente acerto e dano/efeito.**
   - [ ] `ActionType` (`app/combat/domain.py`) ganha `attack_weapon`, `attack_spell`, `grapple`, `shove`, `search` (hoje cobertos genericamente por `attack`/`spell`/`other`)

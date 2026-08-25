@@ -111,3 +111,63 @@ async def test_dm_creates_session_and_private_note_hidden_from_player(
         headers={"Authorization": f"Bearer {dm_token}"},
     )
     assert len(dm_notes_resp.json()) == 1
+
+
+async def test_dm_opens_session_over_http(client: AsyncClient) -> None:
+    """The DM can open a planned session for play over HTTP."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Session One"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+
+    open_resp = await client.post(
+        f"/sessions/{session_id}/open",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert open_resp.status_code == 200
+    assert open_resp.json()["status"] == "in_progress"
+
+
+async def test_player_cannot_open_session_over_http(client: AsyncClient) -> None:
+    """A player cannot open a session over HTTP."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Session One"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    open_resp = await client.post(
+        f"/sessions/{session_id}/open",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert open_resp.status_code == 403

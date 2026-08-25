@@ -56,6 +56,18 @@ async def list_sessions(
     return await service.list_sessions(campaign_id, user.id, db)
 
 
+@router.post("/sessions/{session_id}/open", response_model=SessionRead)
+async def open_session(
+    session_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[SessionService, Depends(get_session_service)],
+) -> SessionRead:
+    """Open a planned session for play; only the campaign's DM may do this."""
+    session = await service.open_session(session_id, user.id, db)
+    return SessionRead.model_validate(session)
+
+
 @router.post(
     "/sessions/{session_id}/notes",
     response_model=SessionNoteRead,

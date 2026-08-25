@@ -8,7 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
-from app.sessions.domain import OnlyDmCanWritePrivateNoteError, validate_note_author
+from app.sessions.domain import (
+    OnlyDmCanWritePrivateNoteError,
+    SessionStatus,
+    validate_note_author,
+)
 from app.sessions.models import Session, SessionNote
 from app.sessions.schemas import SessionCreate, SessionNoteCreate, SessionRead
 
@@ -81,6 +85,33 @@ class SessionService:
             )
             for s in result.scalars().all()
         ]
+
+    async def open_session(
+        self, session_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> Session:
+        """Open a `planned` session for play. DM only.
+
+        "Open" here is `SessionStatus.planned` -> `in_progress` — the
+        backlog's "planned/open/closed" wording maps onto the enum this
+        domain already had (`planned`/`in_progress`/`completed`).
+        """
+        session, member = await self._require_session_membership(
+            session_id, requester_id, db
+        )
+        if member.role != CampaignRole.dm:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the campaign's DM can open sessions",
+            )
+        if session.status != SessionStatus.planned:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only a planned session can be opened",
+            )
+        session.status = SessionStatus.in_progress
+        await db.commit()
+        await db.refresh(session)
+        return session
 
     async def add_note(
         self,
