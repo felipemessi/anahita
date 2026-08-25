@@ -620,6 +620,9 @@ class CombatService:
         prompting live, a documented simplification) resolved server-side;
         applies `grappled` on a successful grapple (repositioning for a
         shove isn't tracked — no position/map model in this app yet).
+        Every other `action_type` (dash, dodge, disengage, help, hide,
+        ready, search, ...) has nothing to roll — just logged as taken,
+        for the turn-by-turn record (frontend's `action-picker.tsx`).
 
         Unlike the DM-only WS commands, only the attacker's own
         player (or the DM) may declare for it — mirrors `roll_initiative`.
@@ -643,13 +646,33 @@ class CombatService:
         elif data.action_type in (ActionType.grapple, ActionType.shove):
             result = await self._resolve_contest(encounter, attacker, target, data, db)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"declare_action doesn't resolve action_type={data.action_type}",
-            )
+            result = self._resolve_flavor_action(encounter, attacker, data, db)
 
         await db.commit()
         return result
+
+    def _resolve_flavor_action(
+        self,
+        encounter: Encounter,
+        attacker: EncounterParticipant,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Log an action with nothing to roll (dash, dodge, help, search, ...)."""
+        description = f"{attacker.name} takes the {data.action_type.value} action"
+        self._log(
+            db,
+            encounter,
+            actor_id=attacker.id,
+            action_type=data.action_type,
+            description=description,
+        )
+        return DeclareActionResultRead(
+            actor_id=attacker.id,
+            target_id=data.target_id,
+            action_type=data.action_type,
+            description=description,
+        )
 
     async def _resolve_attack(
         self,

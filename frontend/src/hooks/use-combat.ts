@@ -51,7 +51,7 @@ export function useStartEncounter() {
  * hides the controls that would call them.
  */
 export function useCombat() {
-  const { encounter, lastError, isConnected, sendCommand } = useCombatContext();
+  const { encounter, lastError, actionLog, isConnected, sendCommand } = useCombatContext();
 
   function advanceTurn(): void {
     sendCommand({ event_type: "advance_turn" });
@@ -127,6 +127,7 @@ export function useCombat() {
   return {
     encounter,
     lastError,
+    actionLog,
     isConnected,
     advanceTurn,
     updateParticipant,

@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 
 import { useMyMembership } from "@/hooks/use-campaign";
 import { useCombat } from "@/hooks/use-combat";
+import { ActionLog } from "@/components/combat/action-log";
+import { ActionPicker } from "@/components/combat/action-picker";
 import { ConditionBadges } from "@/components/combat/condition-badges";
 import { DamageDialog } from "@/components/combat/damage-dialog";
 import { InitiativePrompt } from "@/components/combat/initiative-prompt";
@@ -26,6 +28,13 @@ export default function CombatPage() {
   const isDm = membership?.role === "dm";
   const { encounter, isConnected, lastError, removeParticipant } = useCombat();
   const [showAddParticipant, setShowAddParticipant] = useState(false);
+
+  const currentTurnParticipant =
+    encounter?.status === "active"
+      ? encounter.participants.find(
+          (p) => p.is_active && p.turn_order === encounter.current_turn_order,
+        )
+      : undefined;
 
   function renderDmActions(participant: EncounterParticipant) {
     return (
@@ -84,6 +93,18 @@ export default function CombatPage() {
             encounter={encounter}
             renderActions={isDm ? renderDmActions : undefined}
           />
+
+          {currentTurnParticipant ? (
+            <ActionPicker
+              campaignId={campaignId}
+              participant={currentTurnParticipant}
+              otherParticipants={encounter.participants.filter(
+                (p) => p.id !== currentTurnParticipant.id,
+              )}
+            />
+          ) : null}
+
+          <ActionLog />
 
           {isDm ? (
             <div>

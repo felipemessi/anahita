@@ -133,4 +133,57 @@ describe("combatReducer", () => {
     expect(state.lastError).toBe("Only the DM can send commands");
     expect(state.encounter).toEqual(encounter);
   });
+  it("action_resolved prepends the result to actionLog, capped at 10", () => {
+    let state = initialCombatState;
+    for (let i = 0; i < 12; i++) {
+      state = combatReducer(state, {
+        event_type: "action_resolved",
+        payload: {
+          actor_id: "p-1",
+          target_id: "p-2",
+          action_type: "attack_weapon",
+          attack_roll: 15,
+          attack_bonus: 5,
+          hit: true,
+          damage_rolled: 6,
+          damage_type: "slashing",
+          condition_applied: null,
+          attacker_check: null,
+          target_check: null,
+          description: `attack #${i}`,
+        },
+      });
+    }
+
+    expect(state.actionLog).toHaveLength(10);
+    expect(state.actionLog[0]?.description).toBe("attack #11");
+  });
+
+  it("state_sync doesn't discard the accumulated actionLog", () => {
+    const withAction = combatReducer(initialCombatState, {
+      event_type: "action_resolved",
+      payload: {
+        actor_id: "p-1",
+        target_id: "p-2",
+        action_type: "grapple",
+        attack_roll: null,
+        attack_bonus: null,
+        hit: true,
+        damage_rolled: null,
+        damage_type: null,
+        condition_applied: "grappled",
+        attacker_check: 15,
+        target_check: 10,
+        description: "grapple succeeds",
+      },
+    });
+
+    const resynced = combatReducer(withAction, {
+      event_type: "state_sync",
+      payload: encounter,
+    });
+
+    expect(resynced.actionLog).toHaveLength(1);
+  });
+
 });

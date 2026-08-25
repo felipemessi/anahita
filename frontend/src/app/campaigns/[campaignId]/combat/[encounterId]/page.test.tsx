@@ -15,6 +15,15 @@ vi.mock("@/hooks/use-combat", () => ({
   useCombat: () => useCombat(),
 }));
 
+vi.mock("@/hooks/use-character", () => ({
+  useCharacter: () => ({ data: undefined }),
+}));
+
+vi.mock("@/hooks/use-catalog", () => ({
+  useCatalogEntry: () => ({ data: undefined }),
+  useCatalogList: () => ({ data: undefined }),
+}));
+
 import CombatPage from "./page";
 
 const baseEncounter = {
@@ -51,6 +60,7 @@ describe("CombatPage", () => {
       encounter: baseEncounter,
       isConnected: true,
       lastError: null,
+      actionLog: [],
       removeParticipant: vi.fn(),
     });
   });
@@ -96,6 +106,7 @@ describe("CombatPage", () => {
       },
       isConnected: true,
       lastError: null,
+      actionLog: [],
       removeParticipant: vi.fn(),
     });
     rerender(<CombatPage />);
