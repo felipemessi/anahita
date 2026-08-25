@@ -1,4 +1,8 @@
+import { RollButton } from "@/components/characters/roll-button";
+import { useCatalogEntry } from "@/hooks/use-catalog";
+import { useCharacter } from "@/hooks/use-character";
 import { CONDITION_LABEL } from "@/lib/utils/conditions";
+import { calculateModifier } from "@/lib/utils/dnd-rules";
 import type { EncounterParticipant } from "@/types/combat";
 
 /**
@@ -69,12 +73,45 @@ export function ParticipantCard({
       ) : null}
 
       {participant.concentration_dc !== null ? (
-        <p role="alert" className="mt-2 text-xs font-medium text-amber-500">
-          Teste de concentração: CD {participant.concentration_dc}
-        </p>
+        <ConcentrationSaveCallout participant={participant} dc={participant.concentration_dc} />
       ) : null}
 
       {children ? <div className="mt-3">{children}</div> : null}
     </li>
+  );
+}
+
+/**
+ * The CD text plus a click-to-roll CON save shortcut — the modifier comes
+ * from the participant's own Character (its computed `save_bonus`, so
+ * proficiency is already folded in) or, for a catalog monster, its raw
+ * Constitution score (a monster's own saving-throw proficiency bonus isn't
+ * resolved here, a documented simplification: `MonsterProficiency` only
+ * points at a generic `Proficiency` row, not distinctly "CON save" vs.
+ * anything else, without another catalog round-trip). A purely manual/NPC
+ * participant with no resolvable score rolls at +0.
+ */
+function ConcentrationSaveCallout({
+  participant,
+  dc,
+}: {
+  participant: EncounterParticipant;
+  dc: number;
+}) {
+  const { data: character } = useCharacter(participant.character_id ?? "");
+  const { data: monster } = useCatalogEntry("monsters", participant.monster_id ?? "");
+  const conModifier =
+    character?.ability_scores.find((s) => s.ability === "con")?.save_bonus ??
+    (monster ? calculateModifier(monster.constitution) : 0);
+
+  return (
+    <p role="alert" className="mt-2 flex items-center gap-2 text-xs font-medium text-amber-500">
+      <span>Teste de concentração: CD {dc}</span>
+      <RollButton
+        label="Resistência de Constituição"
+        modifier={conModifier}
+        className="underline hover:text-foreground"
+      />
+    </p>
   );
 }
