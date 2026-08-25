@@ -25,7 +25,7 @@ class EncounterParticipantCreate(BaseModel):
     character_id: uuid.UUID | None = None
     npc_id: uuid.UUID | None = None
     name: str = Field(min_length=1, max_length=255)
-    initiative: int
+    initiative: int | None = None
     hit_point_max: int = Field(ge=1)
     hit_point_current: int | None = Field(default=None, ge=0)
     armor_class: int = Field(ge=0)
@@ -82,7 +82,7 @@ class EncounterParticipantRead(BaseModel):
     character_id: uuid.UUID | None
     npc_id: uuid.UUID | None
     name: str
-    initiative: int
+    initiative: int | None
     hit_point_max: int
     hit_point_current: int
     temporary_hit_points: int
@@ -153,3 +153,15 @@ class WSRemoveParticipantPayload(BaseModel):
     """Payload for the `remove_participant` command."""
 
     participant_id: uuid.UUID
+
+
+class WSRollInitiativePayload(BaseModel):
+    """Payload for the `roll_initiative` command.
+
+    Unlike the other WS commands this one isn't DM-only: a player may send
+    it for their own character's participant; the DM may send it for any
+    participant (see `CombatService.roll_initiative`).
+    """
+
+    participant_id: uuid.UUID
+    initiative: int

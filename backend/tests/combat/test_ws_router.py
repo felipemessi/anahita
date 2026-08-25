@@ -320,3 +320,75 @@ def test_reconnect_receives_fresh_state_sync(client: TestClient) -> None:
         assert frame["event_type"] == "state_sync"
         assert len(frame["payload"]["participants"]) == 1
         assert frame["payload"]["participants"][0]["name"] == "Goblin"
+
+
+def test_player_can_roll_initiative_for_own_participant(client: TestClient) -> None:
+    """A player can roll_initiative for their own participant; it broadcasts."""
+    dm_token = _register_and_login(client, "dm@example.com")
+    encounter_id = _make_campaign_session_and_encounter(client, dm_token)
+    player_token = _invite_player(client, dm_token)
+
+    add_resp = client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={
+            "name": "Goblin",
+            "initiative": 10,
+            "hit_point_max": 7,
+            "armor_class": 15,
+            "turn_order": 0,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    participant_id = add_resp.json()["participants"][0]["id"]
+
+    with (
+        client.websocket_connect(
+            f"/ws/combat/{encounter_id}?token={dm_token}"
+        ) as dm_ws,
+        client.websocket_connect(
+            f"/ws/combat/{encounter_id}?token={player_token}"
+        ) as player_ws,
+    ):
+        dm_ws.receive_json()  # initial state_sync
+        player_ws.receive_json()  # initial state_sync
+
+        # A player rolling for an NPC (not their own character) is rejected.
+        player_ws.send_json(
+            {
+                "event_type": "roll_initiative",
+                "payload": {"participant_id": participant_id, "initiative": 12},
+            }
+        )
+        frame = player_ws.receive_json()
+        assert frame["event_type"] == "error"
+
+
+def test_dm_roll_initiative_broadcasts_participant_updated(client: TestClient) -> None:
+    """The DM rolling initiative for an NPC broadcasts participant_updated."""
+    dm_token = _register_and_login(client, "dm@example.com")
+    encounter_id = _make_campaign_session_and_encounter(client, dm_token)
+
+    add_resp = client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={
+            "name": "Goblin",
+            "hit_point_max": 7,
+            "armor_class": 15,
+            "turn_order": 0,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    participant_id = add_resp.json()["participants"][0]["id"]
+
+    with client.websocket_connect(f"/ws/combat/{encounter_id}?token={dm_token}") as ws:
+        ws.receive_json()  # initial state_sync
+
+        ws.send_json(
+            {
+                "event_type": "roll_initiative",
+                "payload": {"participant_id": participant_id, "initiative": 9},
+            }
+        )
+        frame = ws.receive_json()
+        assert frame["event_type"] == "participant_updated"
+        assert frame["payload"]["initiative"] == 9

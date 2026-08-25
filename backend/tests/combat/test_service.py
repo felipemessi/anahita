@@ -245,3 +245,144 @@ async def test_get_encounter_rejects_non_member(
     with pytest.raises(HTTPException) as exc_info:
         await service.get_encounter(encounter.id, fx.outsider_id, db)
     assert exc_info.value.status_code == 403
+
+
+async def test_start_encounter_auto_adds_campaign_pcs(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """Starting an encounter adds every campaign PC not already a participant."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.start_encounter(encounter.id, fx.dm_id, db)
+
+    assert len(encounter.participants) == 1
+    pc_participant = encounter.participants[0]
+    assert pc_participant.character_id == fx.player_character_id
+    assert pc_participant.name == "Aldric"
+    assert pc_participant.initiative is None
+
+
+async def test_start_encounter_does_not_duplicate_manually_added_pc(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """A PC already added manually isn't duplicated when the encounter starts."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.add_participant(
+        encounter.id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            character_id=fx.player_character_id,
+            name="Aldric",
+            initiative=15,
+            hit_point_max=10,
+            armor_class=14,
+            turn_order=0,
+        ),
+        db,
+    )
+    encounter = await service.start_encounter(encounter.id, fx.dm_id, db)
+
+    assert len(encounter.participants) == 1
+    assert encounter.participants[0].initiative == 15
+
+
+async def test_advance_turn_rejected_while_initiative_missing(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """advance_turn is rejected until every active participant has rolled."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.start_encounter(encounter.id, fx.dm_id, db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.advance_turn(encounter.id, fx.dm_id, db)
+    assert exc_info.value.status_code == 422
+
+
+async def test_roll_initiative_by_owning_player(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """A player can roll initiative for their own character's participant."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.start_encounter(encounter.id, fx.dm_id, db)
+    participant_id = encounter.participants[0].id
+
+    participant = await service.roll_initiative(
+        encounter.id, participant_id, fx.player_id, 17, db
+    )
+    assert participant.initiative == 17
+
+
+async def test_roll_initiative_rejected_for_other_players_character(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """A player cannot roll initiative for someone else's character."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.start_encounter(encounter.id, fx.dm_id, db)
+    participant_id = encounter.participants[0].id
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.roll_initiative(
+            encounter.id, participant_id, fx.outsider_id, 10, db
+        )
+    assert exc_info.value.status_code == 403
+
+
+async def test_roll_initiative_unlocks_advance_turn(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """Once every participant has rolled, advance_turn succeeds."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.start_encounter(encounter.id, fx.dm_id, db)
+    participant_id = encounter.participants[0].id
+    await service.roll_initiative(encounter.id, participant_id, fx.player_id, 17, db)
+
+    encounter, result = await service.advance_turn(encounter.id, fx.dm_id, db)
+    assert result.participant_id == participant_id
+
+
+async def test_dm_can_roll_initiative_for_npc(
+    db: AsyncSession, campaign_with_session: _CampaignFixture
+) -> None:
+    """The DM can roll initiative for a manually-added NPC/monster."""
+    fx = campaign_with_session
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.add_participant(
+        encounter.id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            name="Goblin", hit_point_max=7, armor_class=15, turn_order=0
+        ),
+        db,
+    )
+    participant_id = encounter.participants[0].id
+
+    participant = await service.roll_initiative(
+        encounter.id, participant_id, fx.dm_id, 8, db
+    )
+    assert participant.initiative == 8

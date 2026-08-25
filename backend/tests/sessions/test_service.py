@@ -178,3 +178,42 @@ async def test_non_member_cannot_access_sessions(db: AsyncSession) -> None:
     with pytest.raises(HTTPException) as exc:
         await service.list_sessions(campaign.id, outsider.id, db)
     assert exc.value.status_code == 403
+
+
+async def test_dm_can_open_planned_session(db: AsyncSession) -> None:
+    """The DM can open a planned session for play."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="The Beginning"), db
+    )
+
+    opened = await service.open_session(session.id, dm.id, db)
+    assert opened.status == "in_progress"
+
+
+async def test_player_cannot_open_session(db: AsyncSession) -> None:
+    """A non-DM member cannot open a session."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="The Beginning"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.open_session(session.id, player.id, db)
+    assert exc.value.status_code == 403
+
+
+async def test_open_session_twice_conflicts(db: AsyncSession) -> None:
+    """Opening an already-opened session is rejected."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="The Beginning"), db
+    )
+    await service.open_session(session.id, dm.id, db)
+
+    with pytest.raises(HTTPException) as exc:
+        await service.open_session(session.id, dm.id, db)
+    assert exc.value.status_code == 409

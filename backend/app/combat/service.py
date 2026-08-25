@@ -21,6 +21,7 @@ from sqlalchemy.orm import selectinload
 
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
+from app.characters.models import Character
 from app.combat.domain import (
     ActionType,
     ConditionType,
@@ -130,19 +131,60 @@ class CombatService:
     async def start_encounter(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
     ) -> EncounterRead:
-        """Transition an encounter from `preparing` to `active`. DM only."""
+        """Transition an encounter from `preparing` to `active`. DM only.
+
+        Also auto-adds every campaign PC not already a participant, without
+        an initiative — monsters/NPCs are still added manually. Nobody can
+        advance turns until every active participant has rolled (see
+        `advance_turn`).
+        """
         encounter = await self._load_encounter_or_404(encounter_id, db)
-        await self._require_dm_for_session(encounter.session_id, requester_id, db)
+        session = await self._require_dm_for_session(
+            encounter.session_id, requester_id, db
+        )
 
         if encounter.status != EncounterStatus.preparing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Only a preparing encounter can be started",
             )
+        await self._add_missing_campaign_pcs(encounter, session.campaign_id, db)
         encounter.status = EncounterStatus.active
         encounter.current_round = 1
         await db.commit()
         return encounter_to_read(await self._reload_encounter(encounter.id, db))
+
+    async def _add_missing_campaign_pcs(
+        self, encounter: Encounter, campaign_id: uuid.UUID, db: AsyncSession
+    ) -> None:
+        """Add every campaign PC not already a participant, initiative unset."""
+        existing_character_ids = {
+            p.character_id for p in encounter.participants if p.character_id is not None
+        }
+        result = await db.execute(
+            select(Character)
+            .join(CampaignMember, CampaignMember.id == Character.campaign_member_id)
+            .where(CampaignMember.campaign_id == campaign_id)
+        )
+        next_turn_order = (
+            max((p.turn_order for p in encounter.participants), default=-1) + 1
+        )
+        for character in result.scalars().all():
+            if character.id in existing_character_ids:
+                continue
+            db.add(
+                EncounterParticipant(
+                    encounter_id=encounter.id,
+                    character_id=character.id,
+                    name=character.name,
+                    initiative=None,
+                    hit_point_max=character.hit_point_max,
+                    hit_point_current=character.hit_point_current,
+                    armor_class=character.armor_class,
+                    turn_order=next_turn_order,
+                )
+            )
+            next_turn_order += 1
 
     async def list_encounters(
         self, session_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
@@ -292,9 +334,25 @@ class CombatService:
     async def advance_turn(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
     ) -> tuple[EncounterRead, TurnAdvanceResult]:
-        """Advance to the next active participant's turn (live, WS-driven). DM only."""
+        """Advance to the next active participant's turn (live, WS-driven). DM only.
+
+        Rejected while any active participant hasn't rolled initiative yet
+        (see `roll_initiative`) — 422, not blocked silently.
+        """
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
+
+        missing_initiative = [
+            p for p in encounter.participants if p.is_active and p.initiative is None
+        ]
+        if missing_initiative:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "All participants must roll initiative before turns can "
+                    "advance"
+                ),
+            )
 
         turn_participants = [
             TurnParticipant(id=p.id, turn_order=p.turn_order, is_active=p.is_active)
@@ -410,6 +468,72 @@ class CombatService:
             .execution_options(populate_existing=True)
         )
         return participant_to_read(result.scalar_one())
+
+    async def roll_initiative(
+        self,
+        encounter_id: uuid.UUID,
+        participant_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        initiative: int,
+        db: AsyncSession,
+    ) -> EncounterParticipantRead:
+        """Set a participant's initiative (live, WS-driven).
+
+        Unlike other WS commands this isn't DM-only: a player may roll for
+        their own character's participant; the DM may roll for any
+        participant (their own characters, NPCs, monsters).
+        """
+        encounter = await self._load_encounter_or_404(encounter_id, db)
+        session = await self._require_session(encounter.session_id, db)
+        member = await self._require_membership(session.campaign_id, requester_id, db)
+        participant = self._find_participant_or_404(encounter, participant_id)
+
+        if member.role != CampaignRole.dm:
+            owns = await self._participant_owned_by(participant, requester_id, db)
+            if not owns:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only roll initiative for your own character",
+                )
+
+        participant.initiative = initiative
+        self._log(
+            db,
+            encounter,
+            actor_id=participant.id,
+            description=f"{participant.name} rolled initiative: {initiative}",
+        )
+        await db.commit()
+        result = await db.execute(
+            select(EncounterParticipant)
+            .where(EncounterParticipant.id == participant.id)
+            .options(selectinload(EncounterParticipant.conditions))
+            .execution_options(populate_existing=True)
+        )
+        return participant_to_read(result.scalar_one())
+
+    async def _participant_owned_by(
+        self,
+        participant: EncounterParticipant,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+    ) -> bool:
+        """Whether `requester_id` owns the campaign membership behind `participant`."""
+        if participant.character_id is None:
+            return False
+        result = await db.execute(
+            select(Character).where(Character.id == participant.character_id)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            return False
+        member_result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.id == character.campaign_member_id
+            )
+        )
+        member = member_result.scalar_one_or_none()
+        return member is not None and member.user_id == requester_id
 
     async def get_log(
         self, encounter_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession

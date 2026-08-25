@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import app.auth.models  # noqa: F401 — registers models with Base
@@ -16,6 +17,7 @@ import app.sessions.models  # noqa: F401 — registers models with Base
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
+from app.characters.models import Character
 from app.database import Base
 from app.sessions.domain import SessionStatus
 from app.sessions.models import Session
@@ -49,12 +51,14 @@ class _CampaignFixture:
         dm_id: uuid.UUID,
         player_id: uuid.UUID,
         outsider_id: uuid.UUID,
+        player_character_id: uuid.UUID | None = None,
     ) -> None:
         self.campaign_id = campaign_id
         self.session_id = session_id
         self.dm_id = dm_id
         self.player_id = player_id
         self.outsider_id = outsider_id
+        self.player_character_id = player_character_id
 
 
 @pytest.fixture
@@ -97,4 +101,49 @@ async def campaign_with_session(db: AsyncSession) -> _CampaignFixture:
         dm_id=dm.id,
         player_id=player.id,
         outsider_id=outsider.id,
+    )
+
+
+@pytest.fixture
+async def campaign_with_pc(
+    db: AsyncSession, campaign_with_session: _CampaignFixture
+) -> _CampaignFixture:
+    """Extend `campaign_with_session` with a Character for the player's PC.
+
+    Built directly via the ORM (not `CharacterService`) — SQLite tests don't
+    enforce FK constraints, so `race_id` doesn't need a real catalog row for
+    this fixture's purposes (combat's PC-population logic only reads
+    `Character`'s own columns).
+    """
+    fx = campaign_with_session
+    result = await db.execute(
+        select(CampaignMember).where(
+            CampaignMember.campaign_id == fx.campaign_id,
+            CampaignMember.user_id == fx.player_id,
+        )
+    )
+    player_member = result.scalar_one()
+
+    character = Character(
+        campaign_member_id=player_member.id,
+        name="Aldric",
+        race_id=uuid.uuid4(),
+        level=1,
+        hit_point_max=10,
+        hit_point_current=10,
+        armor_class=14,
+        speed=30,
+        proficiency_bonus=2,
+    )
+    db.add(character)
+    await db.commit()
+    await db.refresh(character)
+
+    return _CampaignFixture(
+        campaign_id=fx.campaign_id,
+        session_id=fx.session_id,
+        dm_id=fx.dm_id,
+        player_id=fx.player_id,
+        outsider_id=fx.outsider_id,
+        player_character_id=character.id,
     )
