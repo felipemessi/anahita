@@ -24,6 +24,7 @@
 | 5    | Registro e Lore                   | Completo (diário DM-only, recap via `summary` de sessão, timeline híbrida sessões+eventos manuais, wiki linkável a NPCs/locais/facções na busca cross-entidade) | 2026-08-24 |
 | 6    | Interatividade de Ficha e Combate | Completo (magias por círculo com limites/slots, inventário editável, moeda, sessão aberta populando combate com iniciativa obrigatória, ações declaradas resolvidas automaticamente via `engine/dice.py` com override manual, visibilidade de ficha restrita a dono/DM) | 2026-08-24 |
 | 7    | Sobrevivência, Descanso e Recursos | Completo (dados de vida em descanso curto/longo por classe, testes de morte automáticos, concentração com DC exposta, perícias passivas, subida de nível com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com controle de uso e recarga) | 2026-08-25 |
+| 8    | Dashboard e Refinamentos de Ficha  | Pendente | 2026-08-25 |
 
 ---
 
@@ -438,5 +439,57 @@
   - [x] `POST /characters/{id}/rest` (Fase 6/7) restaura os recursos conforme a recarga de cada `resource_key` (curto ou longo — tabela de recarga por recurso, a mapear a partir do SRD)
   - [x] Testes: uso consome corretamente, uso acima do limite é rejeitado, descanso do tipo certo restaura o recurso, descanso do tipo errado não restaura
   - Notas: `ClassLevelResource` carrega várias chaves que não são "recursos consumíveis" (ex. `sneak_attack_dice`, `spells_known`) — só as chaves em `CharacterService._RESOURCE_RECHARGE` (rage_count, ki_points, sorcery_points, action_surges, channel_divinity_charges, indomitable_uses, bardic_inspiration_die) são utilizáveis via este endpoint; a tabela de recarga curto/longo foi mapeada manualmente a partir do PHB, já que o catálogo não carrega esse dado.
+
+---
+
+## Fase 8 — Dashboard e Refinamentos de Ficha
+
+> Levantado pelo grupo em 2026-08-25 (revisão de Dashboard/Ficha em uso). Depende das Fases 1 (Characters), 3 (World), 4 (Handouts), 6 e 7 (spellcasting/rest/resources), todas completas. Vários itens levantados pelo grupo já têm suporte mecânico correto no backend (descanso, bônus de perícia, ataque com arma equipada) — os gaps reais de backend estão listados abaixo; o restante é só integração/UX de frontend (ver `docs/anahita-frontend-backlog.md`, Fase 8).
+
+- **Como jogador, quero ver no dashboard da campanha a próxima sessão, NPCs/locais recentes e handouts pendentes sem o frontend precisar fazer várias chamadas.**
+  - [ ] `app/queries/dashboard_queries.py`: query cross-domain que resolve a próxima sessão (`scheduled_date` mais próxima ainda não passada, com `status` `planned`/`in_progress`), NPCs/locais mais recentes (`ORDER BY created_at DESC LIMIT N`) e handouts com `is_revealed=false` (contagem + lista), tudo escopado a uma campanha
+  - [ ] `router.py`: `GET /campaigns/{campaign_id}/dashboard` — visão por papel (DM recebe tudo; jogador recebe só o que já é visível a ele hoje: handouts revelados não entram como "pendente" pra jogador, já que ele nunca via os não revelados)
+  - [ ] Testes: próxima sessão retorna a mais próxima no futuro (não a mais recente no passado), handouts pendentes só aparecem pro DM, NPCs/locais recentes respeitam o limite e a ordenação
+  - Notas: `Session.scheduled_date` (`app/sessions/models.py`) já existe — não é campo novo, só a query de "próxima" que falta. Reaproveita os modelos de `app/sessions`, `app/world`, `app/handouts` já existentes; nenhuma migração nova esperada.
+
+- **Como jogador, quero escolher a estratégia de geração de atributos (standard array, point buy, custom ou rolagem) ao criar meu personagem.**
+  - [ ] `Character`/`CharacterCreate` ganha `generation_method` (enum: `standard_array`/`point_buy`/`custom`/`roll`), persistido para referência futura (nullable, sem afetar personagens já criados)
+  - [ ] Migração Alembic
+  - [ ] `domain.py`: quando `generation_method=point_buy`, valida orçamento de 27 pontos (tabela de custo 8–15 do PHB); quando `standard_array`, valida que os 6 valores enviados são exatamente `{15,14,13,12,10,8}` permutados; `custom`/`roll` não validam os valores (o cliente decide os números)
+  - [ ] Testes: point buy dentro do orçamento passa, acima do orçamento é rejeitado (422); standard array com valores certos passa, com valor fora do conjunto é rejeitado; custom/roll aceitam qualquer combinação
+  - Notas: `CharacterCreate.ability_scores` hoje já aceita os valores finais diretamente — esta história só adiciona validação condicionada ao método declarado, sem mudar o formato do payload de ability scores.
+
+- **Como jogador, quero que o subir de nível me pergunte as escolhas mecânicas que ganho no nível (estilo de luta, pacto, domínio etc.), e que essas opções sejam pesquisáveis como o resto do catálogo.**
+  - [ ] `models.py`: `FeatureOption` (feature-pai + opções nomeadas, ex. "Estilo de Luta: Defesa"/"Estilo de Luta: Duelismo", "Pacto da Lâmina"/"Pacto do Tomo"), `CharacterFeatureChoice` (`character_id`, `feature_id`, `feature_option_id`)
+  - [ ] Migração Alembic
+  - [ ] `GET /catalog/features?parent_feature_id=` — lista as opções de uma feature com o mesmo suporte de busca/filtro que as demais categorias de catálogo (reaproveita o padrão de `list_*_translated`)
+  - [ ] `POST /characters/{id}/level-up`: quando uma feature do nível ganho tem opções (`FeatureOption` associadas), a resposta sinaliza `requires_choice: true` + a lista de opções; o corpo da requisição aceita `feature_choices: [{feature_id, feature_option_id}]`, validado contra as opções reais da feature (422 se a opção não pertence à feature)
+  - [ ] Testes: nível com feature de escolha exige `feature_choices` (422 se ausente), escolha inválida (opção de outra feature) rejeitada, escolha persistida aparece na leitura da ficha, nível sem feature de escolha não exige nada
+  - Notas: cobre também o pedido de "características pesquisáveis com integração mecânica" — a listagem de opções é só mais uma entrada de catálogo filtrável, e a escolha persistida (`CharacterFeatureChoice`) é o que a ficha usa pra refletir a integração (ex. bônus de Estilo de Luta), não um registro de texto solto.
+
+- **Como jogador de Paladin/Cleric, quero que o backend saiba qual opção de Canalizar Divindade eu usei quando tenho mais de uma disponível.**
+  - [ ] Vincular `FeatureOption` (história anterior) ao recurso `channel_divinity_charges`: `CharacterResource` ou uma tabela de uso dedicada passa a registrar qual `feature_option_id` foi gasto em cada uso
+  - [ ] `POST /characters/{id}/resources/{resource_key}/use` ganha um `option_id` opcional — obrigatório quando o recurso tem mais de uma opção disponível para o personagem (422 se ausente nesse caso), ignorado/opcional quando só há uma opção ou nenhuma
+  - [ ] Testes: uso de `channel_divinity_charges` com múltiplas opções exige `option_id`, uso registra qual opção foi gasta, personagem com uma única opção não é obrigado a informar
+  - Notas: estende a mesma modelagem de `FeatureOption`/escolha da história anterior — Canalizar Divindade é o caso mais concreto de um recurso com "múltiplas opções de uso", mas a modelagem serve pra qualquer recurso futuro no mesmo formato.
+
+- **Como jogador/DM, quero que toda magia tenha um tipo de ação claro (ataque, resistência ou só conjuração) e um alvo definido (aliado, inimigo, a própria criatura, área), para a UI saber o que pedir ao conjurar.**
+  - [ ] `Spell` ganha `action_type` (enum: `attack_roll`/`saving_throw`/`cast_only`), `save_ability_score_id` (FK nullable para `AbilityScoreDefinition`) e `target_type` (enum: `self`/`ally`/`enemy`/`area`/`object`)
+  - [ ] Migração Alembic
+  - [ ] `convert_srd.py`: derivar os três campos a partir do texto do SRD (heurística por padrões conhecidos + lista manual de exceções) e regenerar `spells.json`; reseed
+  - [ ] `POST /characters/{id}/spells/{spell_id}/cast` passa a aceitar `target_participant_id` opcional; quando `action_type=saving_throw`, a resposta inclui a DC (`8 + prof + ability_mod` do conjurador), mesmo padrão já usado pela DC de concentração (Fase 7)
+  - [ ] Testes: spell de ataque (ex. Fire Bolt) tem `action_type=attack_roll`, spell de resistência (ex. Fireball) tem `action_type=saving_throw` + DC calculada corretamente, spell só de efeito (ex. Mage Armor) tem `action_type=cast_only` sem rolagem nenhuma
+  - Notas: o PRD (§7.4.5) já documentava que dano de magia não é estruturado além do texto livre — esta história não resolve dano estruturado (fora de escopo, mantido como estava), só classifica o *tipo* de resolução e o alvo esperado.
+
+- **Como jogador, quero que a CA da minha ficha reflita a armadura/escudo que estou usando, sem precisar editar o valor manualmente.**
+  - [ ] `PATCH /characters/{id}/equipment/{equipment_id}` (toggle `equipped`): quando o item alternado é do tipo `armor` ou `shield` (ou tem `ArmorDetail` associado no catálogo), recalcula `Character.armor_class` via `engine/armor_class.py::calculate_ac` (base da armadura + mod DEX limitado pelo tipo de armadura + bônus de escudo, somando todos os itens `equipped=true` do personagem)
+  - [ ] `PATCH /characters/{id}` continua aceitando `armor_class` manual, para casos que o cálculo automático não cobre (armadura mágica com bônus, feature que altera CA)
+  - [ ] Testes: equipar armadura leve/média/pesada recalcula CA corretamente (limite de mod DEX por tipo), equipar escudo soma bônus, desequipar volta pro cálculo sem o item, override manual via `PATCH /characters/{id}` continua funcionando até o próximo toggle de equipamento
+  - Notas: hoje `armor_class` só é calculado uma vez na criação do personagem (`CharacterService.create_character`) e depois só muda por `PATCH` manual — esta história conecta o cálculo já existente em `engine/armor_class.py` ao ciclo de vida do equipamento.
+
+- **Como QA, quero confirmar que o ataque/dano com arma equipada em combate usa os bônus certos e só rola dano após o acerto ser confirmado.**
+  - [ ] Auditoria de `declare_action` (`attack_weapon`, Fase 6): confirmar resolução do bônus de ataque/dano a partir da arma `equipped=true` do personagem (proficiência + mod de habilidade correto, incluindo finesse) e que o dano só é rolado/aplicado após o acerto ser confirmado
+  - [ ] Testes de regressão: trocar a arma equipada em combate e atacar de novo usa os bônus da nova arma; arma sem proficiência aplica só o mod de habilidade (sem bônus de proficiência)
+  - Notas: comportamento já documentado como correto na Fase 6 (`declare_action`, `_resolve_and_apply_attack`) — esta história é uma auditoria/teste de regressão, não uma reimplementação; só vira trabalho de fato se a auditoria encontrar um caso não coberto.
 
 ---

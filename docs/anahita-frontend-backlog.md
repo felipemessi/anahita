@@ -24,6 +24,7 @@
 | 5    | Registro e Lore                         | Concluída (diário DM-only fora do menu pra jogador, recap cronológico, timeline híbrida com marcos manuais, wiki em markdown linkável ao World e incluída na busca) | 2026-08-24 |
 | 6    | Interatividade de Ficha e Combate       | Concluída (magias por círculo com busca/preparo/slots, inventário e moeda editáveis, sessão aberta + iniciativa obrigatória, ações de combate declaradas com resultado ao vivo, resumo de personagem pra outros jogadores com auto-abertura do próprio, rolagem manual em todo ponto de rolagem de combate) | 2026-08-25 |
 | 7    | Sobrevivência, Descanso e Recursos      | Concluída (dados de vida em descanso curto, testes de morte automáticos com estado estável inferido no cliente, indicador de concentração com DC no combat tracker, perícias passivas, level-up com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com atalho na declaração de ação) | 2026-08-25 |
+| 8    | Dashboard e Refinamentos de Ficha       | Pendente | 2026-08-25 |
 
 ---
 
@@ -337,3 +338,97 @@
   - [x] Descanso curto/longo (já construído na história de dados de vida desta fase) restaura os recursos conforme o tipo de recarga de cada um
   - [x] Teste: usar recurso decrementa e desabilita no limite; descanso do tipo certo restaura, do tipo errado não
   - Notas: o atalho de combate ficou no `action-picker.tsx` (onde o `Character` completo do participante do turno atual já é buscado, via `useCharacter`), em vez de no `participant-card.tsx` — esse último não carrega os dados completos do personagem pra cada participante da lista, só `EncounterParticipant` (sem `resources`); buscar o `Character` por participante ali exigiria N chamadas extras, então o atalho aparece durante a própria declaração de ação de quem está no turno, que é quando faz sentido gastar o recurso mesmo. A restauração por tipo de recarga é inteiramente server-side (já coberta pelos testes do backend) — sem lógica client-side pra testar aqui, só a invalidação de cache já genérica do `useRestCharacter`.
+
+---
+
+## Fase 8 — Dashboard e Refinamentos de Ficha
+
+> Depende do backend Fase 8 (`docs/anahita-backend-backlog.md`), ainda pendente para os itens marcados abaixo como "depende de backend" — os demais já podem ser feitos hoje, sem endpoint novo, contra o que já existe nas Fases 6/7. Levantado pelo grupo em 2026-08-25 (revisão de Dashboard/Ficha em uso).
+
+- **Como jogador/DM, quero ver no dashboard da campanha a próxima sessão, NPCs/locais recentes e handouts pendentes de verdade, não placeholders.**
+  - [ ] `lib/api/campaigns.ts`: `getCampaignDashboard`, `hooks/use-campaign.ts`: `useCampaignDashboard`
+  - [ ] `app/campaigns/[campaignId]/page.tsx`: substituir os três placeholders "em breve" (próxima sessão, NPCs/locais recentes, handouts pendentes) por dados reais do endpoint
+  - [ ] Teste: dashboard renderiza próxima sessão/NPCs recentes/handouts pendentes a partir do mock da API
+  - Depende de backend: `GET /campaigns/{id}/dashboard` (Fase 8 do backend)
+
+- **Como jogador, quero subir de nível adicionando uma classe nova (multiclasse) pela ficha, não só subindo uma classe que já tenho.**
+  - [ ] `level-up-dialog.tsx`: opção "adicionar uma nova classe" — lista as classes do catálogo da campanha que o personagem ainda não possui, reaproveitando o mesmo fluxo de confirmação de PV/ASI já existente
+  - [ ] Teste: escolher uma classe nova envia o payload correto pro mesmo endpoint de level-up; classes já possuídas continuam no fluxo de "subir nível" normal
+  - Notas: `POST /characters/{id}/level-up` já aceita `class_definition_id` de uma classe nova (reaproveita a validação de `add_class`, Fase 7 do backend) — sem mudança de backend nesta história, é só UI que falta.
+
+- **Como jogador, quero que o subir de nível me pergunte as escolhas mecânicas que ganho (estilo de luta, pacto, domínio etc.), de forma pesquisável.**
+  - [ ] `level-up-dialog.tsx`: quando a resposta do backend indicar `requires_choice`, exibir as opções (`FeatureOption`) com campo de busca (reaproveita `catalog-filter-bar.tsx`) antes de confirmar
+  - [ ] Enviar `feature_choices` no corpo da confirmação de level-up
+  - [ ] `character-sheet.tsx`/seção de Características: exibir as escolhas feitas (ex. "Estilo de Luta: Duelismo")
+  - [ ] Teste: nível com escolha obrigatória bloqueia a confirmação até uma opção ser selecionada; nível sem escolha pula essa etapa
+  - Depende de backend: `FeatureOption`/`CharacterFeatureChoice` e o `requires_choice` no retorno do level-up (Fase 8 do backend)
+
+- **Como jogador, quero ver minhas rolagens recentes no rodapé da ficha, não competindo com o resto do conteúdo.**
+  - [ ] `character-sheet.tsx`: reposicionar `roll-log`/histórico de rolagens para o final da ficha (abaixo de todas as seções)
+  - [ ] Teste: rolagem recente aparece na seção do rodapé após um clique de rolagem
+  - Notas: o log de rolagens já existe (Fase 6, interatividade client-side) — esta história é só de reposicionamento de layout, sem lógica nova.
+
+- **Como jogador, quero ver uma animação de dado rolando (~1.5s) antes do resultado aparecer, em todo ponto de rolagem da ficha e do combate.**
+  - [ ] `components/characters/dice-roll-modal.tsx`: modal que anima ~1.5s trocando valores aleatórios e fixa no resultado final; texto final no formato "resultado do dado + modificador = total"
+  - [ ] Integrar o modal em todo `RollButton`/ponto de rolagem existente (ability scores, resistências, perícias, iniciativa, ataque/dano em combate, testes de morte, dados de vida) — a rolagem em si (client-side ou vinda do servidor) não muda, só a apresentação
+  - [ ] Teste: modal exibe a animação por ~1.5s e depois o resultado final correspondente ao valor real rolado
+  - Notas: puramente de apresentação — não altera nenhuma chamada de API existente, só como o resultado já obtido é revelado ao usuário.
+
+- **Como jogador, quero escolher a estratégia de geração de atributos (standard array, point buy, custom ou rolagem) no wizard de criação de personagem.**
+  - [ ] `step-ability-scores.tsx`: seletor de método — `standard array` (distribuir os valores fixos 15/14/13/12/10/8 entre os atributos), `point buy` (orçamento de 27 pontos com custo por valor, feedback do saldo restante), `roll` (4d6 descarta o menor, usando o modal de rolagem da história anterior), `custom` (digitação livre, comportamento atual)
+  - [ ] Enviar `generation_method` no payload de `POST /characters` quando o backend suportar (ver dependência)
+  - [ ] Teste: point buy bloqueia distribuição acima do orçamento; standard array só permite usar cada valor uma vez; roll gera 6 conjuntos de 4d6-menor via o utilitário de dados já existente (`lib/utils/dice.ts`)
+  - Depende de backend (parcial): `generation_method`/validação de orçamento (Fase 8 do backend) — o seletor e a UX de cada método podem ser construídos e validados no cliente antes disso.
+
+- **Como jogador, quero ver minhas perícias com proficiência em destaque e rolar com o bônus certo (incluindo proficiência).**
+  - [ ] `skill-list.tsx`: destaque visual (ícone/cor) para perícias proficientes e com expertise
+  - [ ] Confirmar que o clique-para-rolar de cada perícia usa `CharacterSkillRead.bonus` (já inclui bônus de proficiência calculado no backend), não recalcula só o modificador de habilidade no cliente
+  - [ ] Teste: perícia proficiente renderiza o destaque; rolagem de perícia usa o bônus completo (modificador + proficiência quando aplicável)
+
+- **Como jogador, quero confirmar antes de disparar um descanso curto ou longo, já que isso reseta PV/slots/recursos.**
+  - [ ] Modal de confirmação (`AlertDialog` já usado em outros pontos destrutivos da ficha) antes de `POST /characters/{id}/rest` nos dois modos
+  - [ ] Teste: cancelar o modal não dispara a chamada; confirmar dispara normalmente
+  - Notas: a mecânica de reset já está correta no backend (Fases 6/7) — só falta a confirmação na UI.
+
+- **Como jogador de Paladin/Cleric, quero escolher qual opção de Canalizar Divindade estou usando quando tenho mais de uma.**
+  - [ ] `class-resources.tsx`: para o recurso `channel_divinity_charges`, exibir um seletor das opções disponíveis (`FeatureOption`) antes de confirmar o uso, quando houver mais de uma
+  - [ ] Enviar `option_id` no `POST /characters/{id}/resources/{resource_key}/use`
+  - [ ] Teste: recurso com múltiplas opções exige seleção antes de habilitar o botão "usar"; recurso com uma única opção usa direto, sem seletor
+  - Depende de backend: `option_id` no endpoint de uso de recurso + vínculo `FeatureOption` (Fase 8 do backend)
+
+- **Como jogador, quero escolher o alvo ao conjurar uma magia (aliado/inimigo/eu mesmo) e ver a DC quando ela exigir resistência.**
+  - [ ] `spell-list-by-circle.tsx`/tela de combate: ao conjurar, pedir `target_participant_id` conforme `target_type` da magia (self não pede alvo; enemy/ally listam os participantes do encontro atual)
+  - [ ] Magias `saving_throw`: exibir a DC calculada retornada pelo servidor e um atalho pra rolar a resistência do alvo (reaproveita `RollButton`/`roll-log` já usados na concentração, Fase 7)
+  - [ ] Magias `attack_roll`: reaproveitar o fluxo já existente de `attack_spell` (Fase 6)
+  - [ ] Magias `cast_only`: registrar o efeito sem pedir rolagem nenhuma
+  - [ ] Teste: cada `action_type` de magia mostra o fluxo de UI correspondente (seleção de alvo, DC exibida, ou nenhuma rolagem)
+  - Depende de backend: `action_type`/`target_type`/`save_ability_score_id` em `Spell` + DC no resultado de `cast` (Fase 8 do backend)
+
+- **Bugfix — preparar uma magia está preparando a lista inteira em vez de só a magia clicada.**
+  - [ ] Investigar `spell-list-by-circle.tsx`/hook de toggle `prepared`: identificar se é colisão de chave de cache do TanStack Query, callback compartilhado entre itens da lista, ou estado local não isolado por `CharacterSpell.id`
+  - [ ] Corrigir para que o toggle afete só a entrada clicada
+  - [ ] Teste de regressão: preparar uma magia específica não altera o estado `prepared` das demais da lista
+
+- **Como jogador, quero minhas magias organizadas em seções por círculo, e só poder adicionar uma magia que meu personagem realmente pode ter naquele círculo/classe (com opção de forçar mediante confirmação).**
+  - [ ] `spell-list-by-circle.tsx`: reestruturar em acordeões por círculo (0 = truques) com subtítulo, em vez da lista única atual
+  - [ ] `spell-search.tsx`: verificar, antes de permitir adicionar, se o círculo da magia está disponível para a classe/nível atual do personagem (classes conjuradoras e progressão já resolvidas via `useCatalogEntry("classes", ...)`, mesmo dado usado pelo level-up)
+  - [ ] Se o círculo não estiver disponível, exibir modal de confirmação ("tem certeza que quer adicionar mesmo assim?") antes de enviar o POST
+  - [ ] Teste: magia de círculo disponível adiciona direto; magia de círculo indisponível pede confirmação antes de enviar; usuário pode cancelar
+  - Notas: o backend já rejeita com 422 acima do limite de preparadas/conhecidas (Fase 6) — esta história é uma checagem preventiva de elegibilidade por círculo/classe, complementar a essa validação, não uma substituição dela.
+
+- **Como jogador, quero que minha CA na ficha reflita a armadura/escudo equipados, automaticamente.**
+  - [ ] `equipment-list.tsx`: nenhuma mudança de UI necessária além de garantir que o toggle `equipped` invalida a query da ficha (`useCharacter`) pra reexibir a CA recalculada
+  - [ ] Teste: equipar/desequipar armadura atualiza o valor de CA exibido na ficha após a resposta do servidor
+  - Depende de backend: recalcular `armor_class` no toggle de equipamento (Fase 8 do backend)
+
+- **Como jogador, quero registrar ganho e gasto de moedas por denominação (cobre, prata, ouro, platina), não só um valor abstrato.**
+  - [ ] `currency-tracker.tsx`: inputs separados para as 4 denominações (cp/sp/gp/pp — sem `ep`, decisão do grupo), convertendo o total pro delta em copper esperado por `POST /characters/{id}/currency`
+  - [ ] Exibição do saldo decompõe o valor em copper armazenado pra denominações (maior pra menor: pp→gp→sp→cp), em vez de mostrar só o número bruto de copper
+  - [ ] Teste: ganho/gasto misto (ex. +2 gp -5 sp) calcula o delta certo em copper; exibição decompõe corretamente um saldo conhecido
+  - Notas: sem mudança de backend — `Character.currency_cp` continua como coluna única normalizada (decisão da Fase 6); a conversão por denominação acontece só na UI.
+
+- **Como DM, quero que qualquer lista de catálogo usada para adicionar algo à ficha seja pesquisável, e que adicionar de fato integre o efeito mecânico correspondente.**
+  - [ ] Campo de busca por nome (reaproveitando `catalog-filter-bar.tsx`) em toda lista de seleção usada pra adicionar algo à ficha que hoje não tem busca (features/talentos avulsos, opções de feature da história de level-up acima)
+  - [ ] Ao adicionar um item que concede um recurso/efeito mecânico modelado (ex. talento que dá um recurso de classe, feature que altera CA/ataque), refletir isso nos componentes correspondentes (`class-resources.tsx`, cálculo de CA) em vez de só criar um registro de texto solto em Características
+  - [ ] Teste: busca filtra a lista corretamente; adicionar um item com efeito mecânico modelado aparece refletido no componente correspondente
+  - Depende de backend (parcial): a modelagem de `FeatureOption`/escolhas (Fase 8 do backend) cobre o caso de escolhas de nível; itens sem modelagem mecânica dedicada continuam registrados como texto livre, como hoje.
