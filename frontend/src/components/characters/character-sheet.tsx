@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 import { AbilityScores } from "@/components/characters/ability-scores";
 import { CurrencyTracker } from "@/components/characters/currency-tracker";
+import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
 import { HitDiceTracker } from "@/components/characters/hit-dice-tracker";
 import { RollButton } from "@/components/characters/roll-button";
@@ -142,6 +143,14 @@ export function CharacterSheet({
             </p>
           ) : null}
         </section>
+
+        <DeathSaveTracker
+          characterId={character.id}
+          hitPointCurrent={character.hit_point_current}
+          successes={character.death_save_successes}
+          failures={character.death_save_failures}
+          isDead={character.is_dead}
+        />
 
         <SkillList skills={character.skills} />
 

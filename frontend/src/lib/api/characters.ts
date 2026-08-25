@@ -4,6 +4,7 @@ import type {
   CharacterClassCreate,
   CharacterCreate,
   CharacterCurrencyRequest,
+  CharacterDeathSaveRequest,
   CharacterEquipmentCreate,
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
@@ -114,6 +115,17 @@ export function restCharacter(
   data: CharacterRestRequest,
 ): Promise<Character> {
   return apiFetch<Character>(`/characters/${characterId}/rest`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Roll a death saving throw — only accepted at 0 hit points. */
+export function rollDeathSave(
+  characterId: string,
+  data: CharacterDeathSaveRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/death-save`, {
     method: "POST",
     body: JSON.stringify(data),
   });
