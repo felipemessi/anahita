@@ -19,6 +19,7 @@ from app.characters.schemas import (
     CharacterSpellCastRequest,
     CharacterSpellCreate,
     CharacterSpellUpdate,
+    CharacterSummaryRead,
     CharacterUpdate,
 )
 from app.characters.service import CharacterService
@@ -36,14 +37,17 @@ def get_character_service() -> CharacterService:
     return CharacterService()
 
 
-@router.get("", response_model=list[CharacterRead])
+@router.get("", response_model=list[CharacterRead | CharacterSummaryRead])
 async def list_characters(
     user: CurrentUser,
     db: DB,
     service: Annotated[CharacterService, Depends(get_character_service)],
     campaign_id: Annotated[uuid.UUID, Query()],
-) -> list[CharacterRead]:
-    """List every character in a campaign. Viewable by any of its members."""
+) -> list[CharacterRead | CharacterSummaryRead]:
+    """List every character in a campaign. Viewable by any of its members.
+
+    The owner and the DM get the full sheet; other members get a summary.
+    """
     return await service.list_characters_for_campaign(campaign_id, user.id, db)
 
 

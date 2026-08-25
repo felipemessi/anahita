@@ -587,3 +587,67 @@ async def test_add_spell_forbidden_for_other_player(client: AsyncClient) -> None
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert resp.status_code == 403
+
+
+async def test_list_characters_summary_for_other_player_over_http(
+    client: AsyncClient,
+) -> None:
+    """Listing a campaign's characters over HTTP hides other players' full sheets."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Shared Table"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+
+    async def _join_and_create(email: str, name: str) -> str:
+        invite_resp = await client.post(
+            f"/campaigns/{campaign_id}/invites",
+            json={"role": "player"},
+            headers={"Authorization": f"Bearer {dm_token}"},
+        )
+        invite_code = invite_resp.json()["invite_code"]
+        token = await _register_and_login(client, email)
+        await client.post(
+            "/campaigns/invites/redeem",
+            json={"invite_code": invite_code},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        member_resp = await client.get(
+            f"/campaigns/{campaign_id}/members/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        member_id = member_resp.json()["id"]
+        await client.post(
+            "/characters",
+            json={
+                "campaign_member_id": member_id,
+                "name": name,
+                "race_id": human_race_id,
+                "ability_scores": _STANDARD_ARRAY,
+                "classes": [{"class_definition_id": fighter_class_id}],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        return token
+
+    player_a_token = await _join_and_create("a@example.com", "Aldric")
+    await _join_and_create("b@example.com", "Brenna")
+
+    list_resp = await client.get(
+        "/characters",
+        params={"campaign_id": campaign_id},
+        headers={"Authorization": f"Bearer {player_a_token}"},
+    )
+    assert list_resp.status_code == 200
+    by_name = {c["name"]: c for c in list_resp.json()}
+    assert "hit_point_max" in by_name["Aldric"]
+    assert "hit_point_max" not in by_name["Brenna"]
+    assert "ability_scores" not in by_name["Brenna"]
+    assert by_name["Brenna"]["level"] == 1

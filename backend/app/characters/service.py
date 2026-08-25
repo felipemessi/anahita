@@ -51,6 +51,7 @@ from app.characters.schemas import (
     CharacterSpellRead,
     CharacterSpellSlotRead,
     CharacterSpellUpdate,
+    CharacterSummaryRead,
     CharacterUpdate,
 )
 from engine.abilities import (
@@ -286,19 +287,27 @@ class CharacterService:
 
     async def list_characters_for_campaign(
         self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
-    ) -> list[CharacterRead]:
-        """List every character in `campaign_id`. Viewable by any of its members."""
+    ) -> list[CharacterRead | CharacterSummaryRead]:
+        """List every character in `campaign_id`. Viewable by any of its members.
+
+        The character's own player and the campaign's DM get the full
+        `CharacterRead`; every other member gets a `CharacterSummaryRead`
+        (name/race/classes/level only — no ability scores, HP, spells, or
+        equipment).
+        """
         membership_result = await db.execute(
             select(CampaignMember).where(
                 CampaignMember.campaign_id == campaign_id,
                 CampaignMember.user_id == requester_id,
             )
         )
-        if membership_result.scalar_one_or_none() is None:
+        requester_member = membership_result.scalar_one_or_none()
+        if requester_member is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not a member of this campaign",
             )
+        is_dm = requester_member.role == CampaignRole.dm
 
         result = await db.execute(
             select(Character)
@@ -312,11 +321,38 @@ class CharacterService:
         )
         spells = await catalog_service.get_spells_by_ids(db, all_spell_ids)
         spell_catalog = {s.id: s for s in spells}
-        reads = []
+
+        member_ids = {c.campaign_member_id for c in characters}
+        members_result = await db.execute(
+            select(CampaignMember).where(CampaignMember.id.in_(member_ids))
+        )
+        owner_user_id_by_member_id = {
+            m.id: m.user_id for m in members_result.scalars().all()
+        }
+
+        reads: list[CharacterRead | CharacterSummaryRead] = []
         for c in characters:
-            max_slots = await self._max_spell_slots(c, db)
-            reads.append(self._to_read(c, spell_catalog, max_slots))
+            owns_it = owner_user_id_by_member_id.get(c.campaign_member_id) == (
+                requester_id
+            )
+            if is_dm or owns_it:
+                max_slots = await self._max_spell_slots(c, db)
+                reads.append(self._to_read(c, spell_catalog, max_slots))
+            else:
+                reads.append(self._to_summary(c))
         return reads
+
+    def _to_summary(self, character: Character) -> CharacterSummaryRead:
+        """Build the restricted read schema shown for another player's character."""
+        return CharacterSummaryRead(
+            id=character.id,
+            campaign_member_id=character.campaign_member_id,
+            name=character.name,
+            race_id=character.race_id,
+            subrace_id=character.subrace_id,
+            level=character.level,
+            classes=[CharacterClassRead.model_validate(c) for c in character.classes],
+        )
 
     async def update_character(
         self,
