@@ -229,6 +229,25 @@ class CharacterUpdate(BaseModel):
     inspiration: bool | None = None
 
 
+class CharacterSummaryRead(BaseModel):
+    """Response schema for another player's character on the campaign roster.
+
+    Deliberately excludes ability scores, HP, spells, and equipment — a
+    player should only see identity/build basics for characters they don't
+    own (PRD §7.3 visibility lacuna); the owner and the campaign's DM get
+    the full `CharacterRead` instead — see
+    `CharacterService.list_characters_for_campaign`.
+    """
+
+    id: uuid.UUID
+    campaign_member_id: uuid.UUID
+    name: str
+    race_id: uuid.UUID
+    subrace_id: uuid.UUID | None
+    level: int
+    classes: list[CharacterClassRead]
+
+
 class CharacterRead(BaseModel):
     """Response schema for a character."""
 

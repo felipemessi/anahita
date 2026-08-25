@@ -379,9 +379,10 @@
   - [ ] Regra: jogador só pode informar `manual_result` para rolagens do próprio personagem; DM pode para qualquer participante
   - [ ] Testes: rolagem automática usa `engine/dice.py` com RNG controlado, `manual_result` sobrescreve corretamente e é auditado no log, jogador não pode informar resultado manual de outro participante (403)
 
-- **Lacuna de visibilidade: jogador deve ver apenas um resumo dos personagens de outros jogadores na campanha, não a ficha completa.**
-  - [ ] `GET /characters?campaign_id=` hoje retorna `CharacterRead` completo para qualquer membro — restringir: dono da ficha e DM continuam recebendo `CharacterRead` completo; para os demais membros, um `CharacterSummaryRead` (nome, raça, classe(s), nível — sem atributos/HP/spells/equipment)
-  - [ ] Testes: jogador A não recebe atributos/HP/spells de jogador B na listagem, só o resumo; DM e o próprio dono continuam vendo a ficha completa
+- **Lacuna de visibilidade: jogador deve ver apenas um resumo dos personagens de outros jogadores na campanha, não a ficha completa.** ✅ (2026-08-24)
+  - [x] `GET /characters?campaign_id=` hoje retorna `CharacterRead` completo para qualquer membro — restringir: dono da ficha e DM continuam recebendo `CharacterRead` completo; para os demais membros, um `CharacterSummaryRead` (nome, raça, classe(s), nível — sem atributos/HP/spells/equipment)
+  - [x] Testes: jogador A não recebe atributos/HP/spells de jogador B na listagem, só o resumo; DM e o próprio dono continuam vendo a ficha completa
+  - Notas: `response_model=list[CharacterRead | CharacterSummaryRead]` — o Pydantic v2 "smart union" escolhe o schema certo por instância de retorno (confirmado com teste HTTP end-to-end, não só a nível de service, por ser um ponto sensível a vazamento de dado se a união escolhesse o schema errado).
 
 ---
 

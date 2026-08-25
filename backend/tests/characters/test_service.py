@@ -19,6 +19,7 @@ from app.characters.schemas import (
     CharacterCurrencyRequest,
     CharacterEquipmentCreate,
     CharacterEquipmentUpdate,
+    CharacterRead,
     CharacterRestRequest,
     CharacterSpellCastRequest,
     CharacterSpellCreate,
@@ -773,3 +774,96 @@ async def test_update_currency_negative_balance_rejected(
             character_id, owner.id, CharacterCurrencyRequest(delta=-1), db
         )
     assert exc.value.status_code == 422
+
+
+async def test_list_characters_hides_others_full_sheet_from_player(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A player sees only a summary of another player's character."""
+    dm = await _make_user(db, email="dm@example.com")
+    owner_a = await _make_user(db, email="a@example.com")
+    owner_b = await _make_user(db, email="b@example.com")
+    campaign = Campaign(name="Shared Table", owner_id=dm.id)
+    db.add(campaign)
+    await db.flush()
+    member_a = CampaignMember(
+        campaign_id=campaign.id, user_id=owner_a.id, role=CampaignRole.player
+    )
+    member_b = CampaignMember(
+        campaign_id=campaign.id, user_id=owner_b.id, role=CampaignRole.player
+    )
+    db.add_all([member_a, member_b])
+    await db.commit()
+    await db.refresh(member_a)
+    await db.refresh(member_b)
+
+    service = CharacterService()
+    await service.create_character(
+        owner_a.id,
+        CharacterCreate(
+            campaign_member_id=member_a.id,
+            name="Aldric",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+        ),
+        db,
+    )
+    await service.create_character(
+        owner_b.id,
+        CharacterCreate(
+            campaign_member_id=member_b.id,
+            name="Brenna",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+        ),
+        db,
+    )
+
+    characters = await service.list_characters_for_campaign(campaign.id, owner_a.id, db)
+    by_name = {c.name: c for c in characters}
+    assert isinstance(by_name["Aldric"], CharacterRead)
+    assert hasattr(by_name["Aldric"], "hit_point_max")
+    assert not hasattr(by_name["Brenna"], "hit_point_max")
+    assert not hasattr(by_name["Brenna"], "ability_scores")
+
+
+async def test_list_characters_dm_sees_full_sheets(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """The campaign's DM always sees every character's full sheet."""
+    owner = await _make_user(db, email="dm-owner@example.com")
+    dm_user = await _make_user(db, email="dm@example.com")
+    member = await _make_membership(db, owner)
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.owner_id == owner.id)
+    )
+    campaign = campaign_result.scalar_one()
+    dm_member = CampaignMember(
+        campaign_id=campaign.id, user_id=dm_user.id, role=CampaignRole.dm
+    )
+    db.add(dm_member)
+    await db.commit()
+
+    service = CharacterService()
+    await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Aldric",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+            ],
+        ),
+        db,
+    )
+
+    characters = await service.list_characters_for_campaign(campaign.id, dm_user.id, db)
+    assert hasattr(characters[0], "hit_point_max")
