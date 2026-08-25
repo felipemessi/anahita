@@ -66,6 +66,15 @@ export interface EncounterParticipant {
   is_active: boolean;
   conditions: EncounterCondition[];
   effects: MechanicalEffect[];
+  /**
+   * Only set on the `participant_updated` event right after this update
+   * dealt damage to a participant concentrating on a spell (Fase 7) — the
+   * client resolves the CON saving throw itself, `max(10, damage // 2)`.
+   */
+  concentration_dc: number | null;
+  /** Legendary actions/reactions spent this round (Fase 7) — meaningful only for an NPC/monster participant. */
+  legendary_actions_used: number;
+  reactions_used: number;
 }
 
 export interface Encounter {
@@ -125,6 +134,8 @@ export type CombatActionType =
   | "grapple"
   | "shove"
   | "search"
+  | "legendary_action"
+  | "reaction"
   | "other";
 
 export interface CombatLogEntry {

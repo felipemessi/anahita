@@ -28,6 +28,9 @@ const encounter: Encounter = {
       is_active: true,
       conditions: [],
       effects: [],
+      concentration_dc: null,
+      legendary_actions_used: 0,
+      reactions_used: 0,
     },
     {
       id: "p-2",
@@ -45,6 +48,9 @@ const encounter: Encounter = {
       is_active: true,
       conditions: [],
       effects: [],
+      concentration_dc: null,
+      legendary_actions_used: 0,
+      reactions_used: 0,
     },
   ],
 };
@@ -150,6 +156,7 @@ describe("combatReducer", () => {
           condition_applied: null,
           attacker_check: null,
           target_check: null,
+          concentration_dc: null,
           description: `attack #${i}`,
         },
       });
@@ -174,6 +181,7 @@ describe("combatReducer", () => {
         condition_applied: "grappled",
         attacker_check: 15,
         target_check: 10,
+        concentration_dc: null,
         description: "grapple succeeds",
       },
     });

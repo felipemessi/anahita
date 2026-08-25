@@ -297,12 +297,13 @@
 
 ## Fase 7 — Sobrevivência, Descanso e Recursos
 
-> Depende do backend Fase 7 (`docs/anahita-backend-backlog.md`), ainda pendente. Itens complementares levantados junto com a Fase 6, separados em fase própria por terem escopo e prioridade próprios. Levantado em 2026-08-24.
+> Depende do backend Fase 7 (`docs/anahita-backend-backlog.md`, completo em 2026-08-25). Itens complementares levantados junto com a Fase 6, separados em fase própria por terem escopo e prioridade próprios. Levantado em 2026-08-24.
 
-- **Como jogador, quero gastar dados de vida num descanso curto e ver quantos ainda tenho disponíveis.**
-  - [ ] `components/characters/hit-dice-tracker.tsx`: indicador de dados de vida disponíveis/gastos (mesmo padrão visual do `spell-slots.tsx` da Fase 6) + botão "gastar dado de vida" que informa quantos gastar
-  - [ ] Botão "descanso curto" na ficha aciona o gasto de dados de vida escolhido e atualiza PV (mutação otimista, reverte em erro)
-  - [ ] Teste: gastar dado de vida atualiza PV e o contador de dados restantes; botão desabilita quando não há dados disponíveis
+- **Como jogador, quero gastar dados de vida num descanso curto e ver quantos ainda tenho disponíveis. ✅ (2026-08-25)**
+  - [x] `components/characters/hit-dice-tracker.tsx`: indicador de dados de vida disponíveis/gastos (mesmo padrão visual do `spell-slots.tsx` da Fase 6) + botão "gastar dado de vida" que informa quantos gastar
+  - [x] Botão "descanso curto" na ficha aciona o gasto de dados de vida escolhido e atualiza PV (mutação otimista, reverte em erro)
+  - [x] Teste: gastar dado de vida atualiza PV e o contador de dados restantes; botão desabilita quando não há dados disponíveis
+  - Notas: o gasto de dados de vida acontece pelo próprio botão "Gastar dado de vida" do `hit-dice-tracker.tsx` (que já dispara o descanso curto com a quantidade escolhida), em vez de acoplar a escolha ao botão genérico "Descanso curto" da ficha — mantém os dois fluxos independentes (um descanso curto sem gasto de dados continua possível pelo botão da ficha). Sem mutação otimista: a cura rolada é decidida no servidor, então o valor final só é conhecido após a resposta.
 
 - **Como jogador, quero fazer testes de morte quando meu personagem chega a 0 PV, vendo sucessos/falhas acumulados.**
   - [ ] `components/characters/death-save-tracker.tsx`: aparece automaticamente quando `hit_point_current === 0`, mostra 3 marcadores de sucesso/falha e um botão "rolar" (chama o endpoint de death save)

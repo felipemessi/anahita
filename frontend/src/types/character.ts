@@ -98,8 +98,18 @@ export interface CharacterSpellSlot {
 
 export type RestType = "short" | "long";
 
+/** One class's hit dice spent during a short rest to recover HP. */
+export interface CharacterHitDiceSpend {
+  character_class_id: string;
+  count: number;
+  /** Pre-rolled total HP healed (already including the CON modifier). */
+  manual_roll?: number;
+}
+
 export interface CharacterRestRequest {
   rest_type: RestType;
+  /** Only applies to a short rest — one entry per class spending dice. */
+  hit_dice_spent?: CharacterHitDiceSpend[];
 }
 
 export interface CharacterEquipmentCreate {
@@ -159,6 +169,44 @@ export interface CharacterClass {
   class_definition_id: string;
   subclass_id: string | null;
   level: number;
+  /** Hit dice spent for this class, out of a max of `level` (Fase 7). */
+  hit_dice_used: number;
+}
+
+/** Request body to roll a death saving throw at 0 hit points (Fase 7). */
+export interface CharacterDeathSaveRequest {
+  /** Pre-rolled 1d20 result. */
+  manual_roll?: number;
+}
+
+/**
+ * Request body to start or end concentration on a known spell (Fase 7).
+ * `spell_id` unset ends concentration; set, it starts (replacing whatever
+ * was already being concentrated on).
+ */
+export interface CharacterConcentrationRequest {
+  spell_id?: string | null;
+}
+
+/** One class the character already has, or a new one via multiclass (Fase 7). */
+export interface CharacterLevelUpRequest {
+  class_definition_id: string;
+  subclass_id?: string | null;
+  /** Only at an ASI level — mutually exclusive with `feat_id`. */
+  ability_score_increases?: Partial<Record<AbilityScore, number>>;
+  feat_id?: string;
+  /** Pre-rolled hit die result (before the CON modifier is added). */
+  manual_hit_die_roll?: number;
+}
+
+/**
+ * A trackable class resource (rage, ki, ...) — `max` is derived from the
+ * catalog on read, never persisted (Fase 7).
+ */
+export interface CharacterResource {
+  resource_key: string;
+  used: number;
+  max: number;
 }
 
 export interface CharacterCreate {
@@ -195,6 +243,17 @@ export interface Character {
   proficiency_bonus: number;
   /** Normalized-copper balance (1 cp / 10 sp / 50 ep / 100 gp / 1000 pp). */
   currency_cp: number;
+  /** 0-3, reset on stabilizing/healing (Fase 7). */
+  death_save_successes: number;
+  death_save_failures: number;
+  is_dead: boolean;
+  /** The spell currently being concentrated on, if any (Fase 7). */
+  concentrating_spell_id: string | null;
+  /** `10 + bonus` of the corresponding skill, computed on read (Fase 7). */
+  passive_perception: number;
+  passive_investigation: number;
+  passive_insight: number;
+  resources: CharacterResource[];
   ability_scores: CharacterAbilityScore[];
   skills: CharacterSkill[];
   classes: CharacterClass[];

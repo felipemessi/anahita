@@ -42,6 +42,8 @@ export interface DeclareActionResult {
   attacker_check: number | null;
   target_check: number | null;
   description: string;
+  /** Same convention as `EncounterParticipant.concentration_dc` (Fase 7). */
+  concentration_dc: number | null;
 }
 
 /** Server → client events. */
@@ -103,6 +105,30 @@ export interface WSDeclareActionPayload {
   manual_target_roll?: number;
 }
 
+/**
+ * Payload for the `use_legendary_action` command (Fase 7). DM only, only
+ * for an NPC/monster participant, outside its own turn.
+ */
+export interface WSUseLegendaryActionPayload {
+  participant_id: string;
+  target_id: string;
+  legendary_action_id: string;
+  manual_attack_roll?: number;
+  manual_damage_roll?: number;
+}
+
+/**
+ * Payload for the `trigger_reaction` command (Fase 7). DM only, once per
+ * round for an NPC/monster participant.
+ */
+export interface WSTriggerReactionPayload {
+  participant_id: string;
+  target_id: string;
+  reaction_id: string;
+  manual_attack_roll?: number;
+  manual_damage_roll?: number;
+}
+
 /** Client (DM only) → server commands. */
 export type CombatClientCommand =
   | { event_type: "advance_turn"; payload?: Record<string, never> }
@@ -110,6 +136,8 @@ export type CombatClientCommand =
   | { event_type: "add_participant"; payload: EncounterParticipantCreate }
   | { event_type: "remove_participant"; payload: WSRemoveParticipantPayload }
   | { event_type: "end_encounter"; payload?: Record<string, never> }
+  | { event_type: "use_legendary_action"; payload: WSUseLegendaryActionPayload }
+  | { event_type: "trigger_reaction"; payload: WSTriggerReactionPayload }
   // Client (any campaign member) → server commands.
   | { event_type: "roll_initiative"; payload: WSRollInitiativePayload }
   | { event_type: "declare_action"; payload: WSDeclareActionPayload };

@@ -36,6 +36,9 @@ const fighter = {
   is_active: true,
   conditions: [],
   effects: [],
+  concentration_dc: null,
+  legendary_actions_used: 0,
+  reactions_used: 0,
 };
 
 const goblin = { ...fighter, id: "p-2", name: "Goblin", character_id: null };
