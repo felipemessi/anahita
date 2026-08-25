@@ -9,11 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.characters.schemas import (
     CharacterClassCreate,
+    CharacterConcentrationRequest,
     CharacterCreate,
     CharacterCurrencyRequest,
+    CharacterDeathSaveRequest,
     CharacterEquipmentCreate,
     CharacterEquipmentUpdate,
     CharacterFeatureCreate,
+    CharacterLevelUpRequest,
     CharacterRead,
     CharacterRestRequest,
     CharacterSpellCastRequest,
@@ -83,6 +86,32 @@ async def add_class(
 ) -> CharacterRead:
     """Add a class to a character, enabling multiclass (PHB ability score rules)."""
     return await service.add_class(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/level-up", response_model=CharacterRead)
+async def level_up(
+    character_id: uuid.UUID,
+    body: CharacterLevelUpRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Level up a character by one level in one class. Owner only."""
+    return await service.level_up(character_id, user.id, body, db)
+
+
+@router.post(
+    "/{character_id}/resources/{resource_key}/use", response_model=CharacterRead
+)
+async def use_resource(
+    character_id: uuid.UUID,
+    resource_key: str,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Spend one use of a class resource (rage, ki, ...). Owner only."""
+    return await service.use_resource(character_id, user.id, resource_key, db)
 
 
 @router.patch("/{character_id}", response_model=CharacterRead)
@@ -157,6 +186,30 @@ async def rest(
 ) -> CharacterRead:
     """Take a short or long rest. Owner only."""
     return await service.rest(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/death-save", response_model=CharacterRead)
+async def death_save(
+    character_id: uuid.UUID,
+    body: CharacterDeathSaveRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Roll a death saving throw. Owner only, only at 0 hit points."""
+    return await service.death_save(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/concentration", response_model=CharacterRead)
+async def set_concentration(
+    character_id: uuid.UUID,
+    body: CharacterConcentrationRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Start or end concentration on a known spell. Owner only."""
+    return await service.set_concentration(character_id, user.id, body, db)
 
 
 @router.post("/{character_id}/equipment", response_model=CharacterRead)

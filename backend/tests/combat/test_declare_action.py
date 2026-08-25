@@ -20,13 +20,19 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.models import (
     ClassDefinition,
+    DamageType,
     Item,
     Monster,
     MonsterAction,
+    MonsterLegendaryAction,
+    MonsterLegendaryActionDamage,
+    MonsterReaction,
+    MonsterReactionDamage,
     Race,
     Spell,
 )
 from app.catalog.seeds.seed import seed_catalog
+from app.characters.models import Character
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterClassCreate,
@@ -40,6 +46,8 @@ from app.combat.schemas import (
     EncounterCreate,
     EncounterParticipantCreate,
     WSDeclareActionPayload,
+    WSTriggerReactionPayload,
+    WSUseLegendaryActionPayload,
 )
 from app.combat.service import CombatService
 from app.database import Base
@@ -344,6 +352,276 @@ async def test_declare_monster_attack_uses_stat_block(
     assert result.hit is True
     assert result.damage_rolled is not None
     assert result.damage_type == "slashing"
+
+
+async def test_declare_attack_on_concentrating_target_returns_concentration_dc(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Damaging a concentrating Character target returns the CON save DC (Fase 7)."""
+    fx = fixture_with_fighter
+    spell_result = await db.execute(
+        select(Spell).where(Spell.concentration.is_(True)).limit(1)
+    )
+    spell = spell_result.scalar_one()
+    char_result = await db.execute(
+        select(Character).where(Character.id == fx.character_id)
+    )
+    character = char_result.scalar_one()
+    character.concentrating_spell_id = spell.id
+    await db.commit()
+
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    service = CombatService()
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    action_result = await db.execute(
+        select(MonsterAction).where(
+            MonsterAction.monster_id == goblin.id, MonsterAction.name == "Scimitar"
+        )
+    )
+    scimitar = action_result.scalar_one()
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.dm_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Goblin"],
+            target_id=ids["Aldric"],
+            action_type="attack_weapon",
+            monster_action_id=scimitar.id,
+            manual_attack_roll=20,
+            manual_damage_roll=8,
+        ),
+        db,
+    )
+    assert result.concentration_dc == 10  # max(10, 8 // 2)
+
+
+async def test_declare_attack_without_concentration_no_dc(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """No concentration DC is returned when the target isn't concentrating."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    service = CombatService()
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    action_result = await db.execute(
+        select(MonsterAction).where(
+            MonsterAction.monster_id == goblin.id, MonsterAction.name == "Scimitar"
+        )
+    )
+    scimitar = action_result.scalar_one()
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.dm_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Goblin"],
+            target_id=ids["Aldric"],
+            action_type="attack_weapon",
+            monster_action_id=scimitar.id,
+            manual_attack_roll=20,
+            manual_damage_roll=8,
+        ),
+        db,
+    )
+    assert result.concentration_dc is None
+
+
+async def test_use_legendary_action_outside_own_turn_hits(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """A legendary action resolves like a normal attack, outside its own turn."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    slashing = (
+        await db.execute(select(DamageType).where(DamageType.index == "slashing"))
+    ).scalar_one()
+    legendary_action = MonsterLegendaryAction(
+        monster_id=goblin.id, name="Quick Strike", attack_bonus=4
+    )
+    db.add(legendary_action)
+    await db.flush()
+    db.add(
+        MonsterLegendaryActionDamage(
+            action_id=legendary_action.id,
+            damage_dice="1d6+2",
+            damage_type_id=slashing.id,
+        )
+    )
+    await db.commit()
+
+    service = CombatService()
+    # Default `current_turn_order` (0) is Aldric's, not the Goblin's (1) —
+    # so this is already "outside its own turn".
+    result = await service.use_legendary_action(
+        encounter_id,
+        fx.dm_id,
+        WSUseLegendaryActionPayload(
+            participant_id=ids["Goblin"],
+            target_id=ids["Aldric"],
+            legendary_action_id=legendary_action.id,
+            manual_attack_roll=20,
+            manual_damage_roll=5,
+        ),
+        db,
+    )
+    assert result.hit is True
+    assert result.damage_rolled == 5
+
+    encounter = await service.get_encounter(encounter_id, fx.dm_id, db)
+    goblin_participant = next(
+        p for p in encounter.participants if p.id == ids["Goblin"]
+    )
+    assert goblin_participant.legendary_actions_used == 1
+
+
+async def test_use_legendary_action_on_own_turn_rejected(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """A legendary action can't be used on the acting monster's own turn."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    legendary_action = MonsterLegendaryAction(
+        monster_id=goblin.id, name="Quick Strike", attack_bonus=4
+    )
+    db.add(legendary_action)
+    await db.flush()
+
+    encounter_result = await db.execute(
+        select(Encounter).where(Encounter.id == encounter_id)
+    )
+    encounter_row = encounter_result.scalar_one()
+    encounter_row.current_turn_order = 1  # the Goblin's own turn_order
+    await db.commit()
+
+    service = CombatService()
+    with pytest.raises(HTTPException) as exc:
+        await service.use_legendary_action(
+            encounter_id,
+            fx.dm_id,
+            WSUseLegendaryActionPayload(
+                participant_id=ids["Goblin"],
+                target_id=ids["Aldric"],
+                legendary_action_id=legendary_action.id,
+                manual_attack_roll=20,
+                manual_damage_roll=5,
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_use_legendary_action_respects_per_round_budget(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Legendary actions are capped at the per-round budget."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    legendary_action = MonsterLegendaryAction(
+        monster_id=goblin.id, name="Quick Strike", attack_bonus=4
+    )
+    db.add(legendary_action)
+    await db.commit()
+
+    service = CombatService()
+    for _ in range(CombatService._LEGENDARY_ACTIONS_PER_ROUND):
+        await service.use_legendary_action(
+            encounter_id,
+            fx.dm_id,
+            WSUseLegendaryActionPayload(
+                participant_id=ids["Goblin"],
+                target_id=ids["Aldric"],
+                legendary_action_id=legendary_action.id,
+                manual_attack_roll=1,  # guaranteed miss, no damage needed
+            ),
+            db,
+        )
+    with pytest.raises(HTTPException) as exc:
+        await service.use_legendary_action(
+            encounter_id,
+            fx.dm_id,
+            WSUseLegendaryActionPayload(
+                participant_id=ids["Goblin"],
+                target_id=ids["Aldric"],
+                legendary_action_id=legendary_action.id,
+                manual_attack_roll=1,
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_trigger_reaction_applies_stat_block_effect(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """A reaction resolves like a normal attack and applies its damage."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    slashing = (
+        await db.execute(select(DamageType).where(DamageType.index == "slashing"))
+    ).scalar_one()
+    reaction = MonsterReaction(monster_id=goblin.id, name="Opportunist", attack_bonus=4)
+    db.add(reaction)
+    await db.flush()
+    db.add(
+        MonsterReactionDamage(
+            action_id=reaction.id, damage_dice="1d6+2", damage_type_id=slashing.id
+        )
+    )
+    await db.commit()
+
+    service = CombatService()
+    result = await service.trigger_reaction(
+        encounter_id,
+        fx.dm_id,
+        WSTriggerReactionPayload(
+            participant_id=ids["Goblin"],
+            target_id=ids["Aldric"],
+            reaction_id=reaction.id,
+            manual_attack_roll=20,
+            manual_damage_roll=5,
+        ),
+        db,
+    )
+    assert result.hit is True
+    assert result.damage_rolled == 5
+
+    encounter = await service.get_encounter(encounter_id, fx.dm_id, db)
+    goblin_participant = next(
+        p for p in encounter.participants if p.id == ids["Goblin"]
+    )
+    assert goblin_participant.reactions_used == 1
+
+    with pytest.raises(HTTPException) as exc:
+        await service.trigger_reaction(
+            encounter_id,
+            fx.dm_id,
+            WSTriggerReactionPayload(
+                participant_id=ids["Goblin"],
+                target_id=ids["Aldric"],
+                reaction_id=reaction.id,
+                manual_attack_roll=20,
+                manual_damage_roll=5,
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
 
 
 async def test_declare_grapple_success_applies_condition(

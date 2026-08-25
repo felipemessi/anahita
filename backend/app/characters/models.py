@@ -57,6 +57,19 @@ class Character(Base):
     speed: Mapped[int] = mapped_column(Integer)
     inspiration: Mapped[bool] = mapped_column(Boolean, default=False)
     proficiency_bonus: Mapped[int] = mapped_column(Integer)
+    # Death saving throws, tracked only while `hit_point_current == 0`
+    # (Fase 7) — reset to 0 whenever the character is healed above 0, or
+    # (implicitly, via `is_dead`) once three failures are reached. See
+    # `CharacterService.death_save` and `_register_hp_change`.
+    death_save_successes: Mapped[int] = mapped_column(Integer, default=0)
+    death_save_failures: Mapped[int] = mapped_column(Integer, default=0)
+    is_dead: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The spell currently being concentrated on, if any — only one at a
+    # time (PHB rule), replaced/cleared by `CharacterService.cast_spell`
+    # and `CharacterService.set_concentration` (Fase 7).
+    concentrating_spell_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("catalog_spells.id")
+    )
     # Single normalized-copper balance (1 cp = base unit; 1 sp = 10, 1 ep = 50,
     # 1 gp = 100, 1 pp = 1000 — same convention already used for catalog item
     # prices, see `app.catalog.seeds.convert_srd._cost_in_cp`), rather than
@@ -90,6 +103,9 @@ class Character(Base):
         back_populates="character", cascade="all, delete-orphan"
     )
     equipment: Mapped[list[CharacterEquipment]] = relationship(
+        back_populates="character", cascade="all, delete-orphan"
+    )
+    resources: Mapped[list[CharacterResource]] = relationship(
         back_populates="character", cascade="all, delete-orphan"
     )
 
@@ -141,6 +157,12 @@ class CharacterClass(Base):
         PGUUID(as_uuid=True), ForeignKey("catalog_subclass_definitions.id")
     )
     level: Mapped[int] = mapped_column(Integer, default=1)
+    # Hit dice spent for this class specifically, out of a max of `level`
+    # (the die type itself comes from the class's own `hit_die` in the
+    # catalog) — tracked per class rather than one aggregate character total
+    # so a multiclass character's dice of different types are accounted for
+    # separately (Fase 7).
+    hit_dice_used: Mapped[int] = mapped_column(Integer, default=0)
 
     character: Mapped[Character] = relationship(back_populates="classes")
 
@@ -218,6 +240,31 @@ class CharacterSpellSlot(Base):
     used: Mapped[int] = mapped_column(Integer, default=0)
 
     character: Mapped[Character] = relationship(back_populates="spell_slots")
+
+
+class CharacterResource(Base):
+    """A class resource a character has spent uses of (rage, ki, ...).
+
+    The maximum per level is never persisted here — it's derived on read
+    from `ClassLevelResource`, same "compute on read" pattern as
+    `CharacterSpellSlot` (Fase 7). Only `resource_key`s in
+    `CharacterService._RESOURCE_RECHARGE` are trackable this way — see its
+    docstring for why the rest are catalog-only scaling values.
+    """
+
+    __tablename__ = "character_resources"
+    __table_args__ = (
+        UniqueConstraint(
+            "character_id", "resource_key", name="uq_character_resources"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    character_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("characters.id"))
+    resource_key: Mapped[str] = mapped_column(String(100))
+    used: Mapped[int] = mapped_column(Integer, default=0)
+
+    character: Mapped[Character] = relationship(back_populates="resources")
 
 
 class CharacterEquipment(Base):

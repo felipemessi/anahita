@@ -44,8 +44,10 @@ class ActionType(StrEnum):
     """Category of a logged combat action (`CombatLog.action_type`).
 
     `attack_weapon`/`attack_spell`/`grapple`/`shove`/`search` are resolved
-    server-side by `CombatService.declare_action` — `attack`/`spell`/`other`
-    remain for anything logged outside that flow (e.g. free-text DM notes).
+    server-side by `CombatService.declare_action`, `legendary_action`/
+    `reaction` by `CombatService.use_legendary_action`/`trigger_reaction`
+    (Fase 7) — `attack`/`spell`/`other` remain for anything logged outside
+    those flows (e.g. free-text DM notes).
     """
 
     attack = "attack"
@@ -62,6 +64,8 @@ class ActionType(StrEnum):
     grapple = "grapple"
     shove = "shove"
     search = "search"
+    legendary_action = "legendary_action"
+    reaction = "reaction"
     other = "other"
 
 

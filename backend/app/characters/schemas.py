@@ -70,6 +70,7 @@ class CharacterClassRead(BaseModel):
     class_definition_id: uuid.UUID
     subclass_id: uuid.UUID | None
     level: int
+    hit_dice_used: int
 
 
 class CharacterCreate(BaseModel):
@@ -143,10 +144,81 @@ class CharacterSpellCastRequest(BaseModel):
     as_ritual: bool = False
 
 
+class CharacterHitDiceSpend(BaseModel):
+    """One class's hit dice spent during a short rest to recover HP."""
+
+    character_class_id: uuid.UUID
+    count: int = Field(ge=1)
+    # Pre-rolled total HP healed from these dice (already including the CON
+    # modifier), same manual-override convention as combat's
+    # `manual_damage_roll` — bypasses `engine/dice.py` entirely when set.
+    manual_roll: int | None = Field(default=None, ge=0)
+
+
 class CharacterRestRequest(BaseModel):
-    """Request body to take a short or long rest."""
+    """Request body to take a short or long rest.
+
+    `hit_dice_spent` only applies to a short rest — one entry per class the
+    player is spending dice from (multiclass characters may spend dice from
+    more than one class in the same short rest). A long rest ignores it and
+    instead restores dice automatically per the PHB rule (see
+    `CharacterService.rest`).
+    """
 
     rest_type: Literal["short", "long"]
+    hit_dice_spent: list[CharacterHitDiceSpend] = Field(default_factory=list)
+
+
+class CharacterLevelUpRequest(BaseModel):
+    """Request body to level up a character by one level in one class.
+
+    `class_definition_id` is a class the character already has (levels it
+    up) or a new one (multiclasses into it at level 1) — same PHB
+    prerequisite check as `add_class`. `ability_score_increases` and
+    `feat_id` are mutually exclusive, and only accepted at a level that
+    grants an ASI for that class (`ClassLevel.ability_score_bonuses`);
+    `manual_hit_die_roll` overrides `engine/dice.py` rolling the class's
+    hit die for the HP gained, same manual-override convention as
+    `CharacterHitDiceSpend.manual_roll`.
+    """
+
+    class_definition_id: uuid.UUID
+    subclass_id: uuid.UUID | None = None
+    ability_score_increases: dict[AbilityScore, int] | None = None
+    feat_id: uuid.UUID | None = None
+    manual_hit_die_roll: int | None = Field(default=None, ge=1)
+
+
+class CharacterDeathSaveRequest(BaseModel):
+    """Request body to roll a death saving throw at 0 hit points."""
+
+    # Pre-rolled 1d20 result, same manual-override convention as
+    # `CharacterHitDiceSpend.manual_roll` — bypasses `engine/dice.py`.
+    manual_roll: int | None = Field(default=None, ge=1, le=20)
+
+
+class CharacterConcentrationRequest(BaseModel):
+    """Request body to start or end concentration on a known spell.
+
+    `spell_id=None` ends concentration; a value starts it (replacing
+    whatever the character was already concentrating on, PHB rule).
+    """
+
+    spell_id: uuid.UUID | None = None
+
+
+class CharacterResourceRead(BaseModel):
+    """Response schema for a trackable class resource (rage, ki, ...).
+
+    `max` is derived from `ClassLevelResource` at the character's class
+    level, same computed-field pattern as `CharacterSpellSlotRead.max`
+    (Fase 7) — only resources in `CharacterService._RESOURCE_RECHARGE`
+    (with `max > 0`) appear here.
+    """
+
+    resource_key: str
+    used: int
+    max: int
 
 
 class CharacterEquipmentCreate(BaseModel):
@@ -270,6 +342,16 @@ class CharacterRead(BaseModel):
     inspiration: bool
     proficiency_bonus: int
     currency_cp: int
+    death_save_successes: int
+    death_save_failures: int
+    is_dead: bool
+    concentrating_spell_id: uuid.UUID | None
+    # `10 + bonus` of the corresponding skill — same computed-field pattern
+    # as `CharacterSkillRead.bonus` (Fase 7).
+    passive_perception: int
+    passive_investigation: int
+    passive_insight: int
+    resources: list[CharacterResourceRead]
     ability_scores: list[CharacterAbilityScoreRead]
     skills: list[CharacterSkillRead]
     classes: list[CharacterClassRead]

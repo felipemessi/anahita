@@ -85,6 +85,11 @@ class EncounterParticipant(Base):
     armor_class: Mapped[int] = mapped_column(Integer)
     turn_order: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Legendary actions/reactions spent this round — reset at the start of
+    # this participant's own turn by `CombatService.advance_turn` (Fase 7).
+    # Only meaningful for an NPC/monster participant.
+    legendary_actions_used: Mapped[int] = mapped_column(Integer, default=0)
+    reactions_used: Mapped[int] = mapped_column(Integer, default=0)
 
     encounter: Mapped[Encounter] = relationship(back_populates="participants")
     conditions: Mapped[list[EncounterCondition]] = relationship(
