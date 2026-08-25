@@ -208,6 +208,20 @@ export interface SpellClassRef {
   name: string;
 }
 
+/**
+ * `scaling_key` is a slot level (1-9) when `scaling_type=slot_level`, or a
+ * character-level threshold (1/5/11/17) when `scaling_type=character_level`
+ * (cantrips). `dice_expression` may contain the literal `"MOD"` token
+ * (e.g. `"1d8 + MOD"`) — substituted server-side, never evaluated here.
+ */
+export interface SpellDamage {
+  id: string;
+  damage_type: string;
+  scaling_type: "slot_level" | "character_level";
+  scaling_key: number;
+  dice_expression: string;
+}
+
 export interface Spell {
   id: string;
   index: string | null;
@@ -224,6 +238,7 @@ export interface Spell {
   higher_levels: string | null;
   is_custom: boolean;
   classes: SpellClassRef[];
+  damages: SpellDamage[];
 }
 
 export interface SpellSummary {

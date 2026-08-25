@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { useCharacters } from "@/hooks/use-character";
+import { isFullCharacter } from "@/types/character";
 
 export default function CharactersPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -33,8 +34,10 @@ export default function CharactersPage() {
               >
                 <span>{character.name}</span>
                 <span className="font-mono text-sm text-muted-foreground">
-                  Nível {character.level} · {character.hit_point_current}/
-                  {character.hit_point_max} PV
+                  Nível {character.level}
+                  {isFullCharacter(character)
+                    ? ` · ${character.hit_point_current}/${character.hit_point_max} PV`
+                    : ""}
                 </span>
               </Link>
             </li>

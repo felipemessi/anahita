@@ -155,16 +155,21 @@ async def list_spells(
     school: Annotated[
         str | None, Query(description="Filter by school of magic (index slug)")
     ] = None,
+    class_index: Annotated[
+        str | None,
+        Query(description="Filter by class that can cast it (index slug, e.g. wizard)"),
+    ] = None,
     include_custom: IncludeCustomQ = True,
     campaign_id: CampaignIdQ = None,
     locale: LocaleQ = "en",
 ) -> list[SpellSummary]:
-    """List all spells, optionally filtered by name, level, or school."""
+    """List all spells, optionally filtered by name, level, school, or class."""
     return await service.list_spells_translated(
         db,
         search=search,
         level=level,
         school=school,
+        class_index=class_index,
         include_custom=include_custom,
         campaign_id=campaign_id,
         locale=locale,

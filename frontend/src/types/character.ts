@@ -64,11 +64,42 @@ export interface CharacterSpellCreate {
   source_class?: string | null;
 }
 
+/** Toggle a known spell's `prepared` flag (`PATCH .../spells/{spellId}`). */
+export interface CharacterSpellUpdate {
+  prepared: boolean;
+}
+
+/**
+ * `level` (circle, 0 = cantrip) and `ritual` are resolved from the catalog
+ * on read, never persisted — mirrors `CharacterSpellRead`.
+ */
 export interface CharacterSpell {
   id: string;
   spell_id: string;
   prepared: boolean;
   source_class: string | null;
+  level: number;
+  ritual: boolean;
+}
+
+/** Cast a known spell (`POST .../spells/{spellId}/cast`). */
+export interface CharacterSpellCastRequest {
+  /** Defaults to the spell's own level — set higher to upcast. */
+  cast_at_level?: number | null;
+  as_ritual?: boolean;
+}
+
+/** `max` is derived from the catalog on read, never persisted. */
+export interface CharacterSpellSlot {
+  spell_level: number;
+  used: number;
+  max: number;
+}
+
+export type RestType = "short" | "long";
+
+export interface CharacterRestRequest {
+  rest_type: RestType;
 }
 
 export interface CharacterEquipmentCreate {
@@ -78,12 +109,24 @@ export interface CharacterEquipmentCreate {
   attunement?: boolean;
 }
 
+/** Every field optional — only the ones supplied are changed. */
+export interface CharacterEquipmentUpdate {
+  equipped?: boolean;
+  attunement?: boolean;
+  quantity?: number;
+}
+
 export interface CharacterEquipment {
   id: string;
   item_id: string;
   equipped: boolean;
   quantity: number;
   attunement: boolean;
+}
+
+/** Record a currency gain (positive `delta`) or spend (negative). */
+export interface CharacterCurrencyRequest {
+  delta: number;
 }
 
 export type FeatureSourceType = "class" | "feat";
@@ -150,10 +193,35 @@ export interface Character {
   speed: number;
   inspiration: boolean;
   proficiency_bonus: number;
+  /** Normalized-copper balance (1 cp / 10 sp / 50 ep / 100 gp / 1000 pp). */
+  currency_cp: number;
   ability_scores: CharacterAbilityScore[];
   skills: CharacterSkill[];
   classes: CharacterClass[];
   spells: CharacterSpell[];
+  spell_slots: CharacterSpellSlot[];
   equipment: CharacterEquipment[];
   features: CharacterFeature[];
+}
+
+/**
+ * What a player sees for another player's character on the campaign
+ * roster — the owner and the DM get the full `Character` instead (see
+ * `GET /characters?campaign_id=`, a `Character | CharacterSummary` union).
+ */
+export interface CharacterSummary {
+  id: string;
+  campaign_member_id: string;
+  name: string;
+  race_id: string;
+  subrace_id: string | null;
+  level: number;
+  classes: CharacterClass[];
+}
+
+/** True for the fields only present on the full sheet, narrowing the union. */
+export function isFullCharacter(
+  character: Character | CharacterSummary,
+): character is Character {
+  return "hit_point_max" in character;
 }

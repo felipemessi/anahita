@@ -3,16 +3,27 @@ import type {
   Character,
   CharacterClassCreate,
   CharacterCreate,
+  CharacterCurrencyRequest,
   CharacterEquipmentCreate,
+  CharacterEquipmentUpdate,
   CharacterFeatureCreate,
+  CharacterRestRequest,
+  CharacterSpellCastRequest,
   CharacterSpellCreate,
+  CharacterSpellUpdate,
+  CharacterSummary,
 } from "@/types/character";
 
 /** Calls the characters endpoints exposed by backend/app/characters/router.py. */
 
-/** List every character in a campaign. Viewable by any of its members. */
-export function listCharacters(campaignId: string): Promise<Character[]> {
-  return apiFetch<Character[]>(
+/**
+ * List every character in a campaign. Viewable by any of its members — the
+ * owner and the DM get the full sheet, everyone else a `CharacterSummary`.
+ */
+export function listCharacters(
+  campaignId: string,
+): Promise<(Character | CharacterSummary)[]> {
+  return apiFetch<(Character | CharacterSummary)[]>(
     `/characters?campaign_id=${encodeURIComponent(campaignId)}`,
   );
 }
@@ -63,12 +74,90 @@ export function addCharacterSpell(
   });
 }
 
+/** Toggle a known spell's `prepared` flag. */
+export function updateCharacterSpell(
+  characterId: string,
+  spellEntryId: string,
+  data: CharacterSpellUpdate,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/spells/${spellEntryId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Forget a known spell. */
+export function removeCharacterSpell(
+  characterId: string,
+  spellEntryId: string,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/spells/${spellEntryId}`, {
+    method: "DELETE",
+  });
+}
+
+/** Cast a known spell, consuming a spell slot (unless a cantrip or ritual). */
+export function castCharacterSpell(
+  characterId: string,
+  spellEntryId: string,
+  data: CharacterSpellCastRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/spells/${spellEntryId}/cast`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Take a short or long rest — a long rest restores every spell slot. */
+export function restCharacter(
+  characterId: string,
+  data: CharacterRestRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/rest`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 /** Add an item to a character's personal inventory. */
 export function addCharacterEquipment(
   characterId: string,
   data: CharacterEquipmentCreate,
 ): Promise<Character> {
   return apiFetch<Character>(`/characters/${characterId}/equipment`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Edit an inventory item (equipped/attunement/quantity). */
+export function updateCharacterEquipment(
+  characterId: string,
+  equipmentId: string,
+  data: CharacterEquipmentUpdate,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/equipment/${equipmentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Remove an item from a character's inventory. */
+export function removeCharacterEquipment(
+  characterId: string,
+  equipmentId: string,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/equipment/${equipmentId}`, {
+    method: "DELETE",
+  });
+}
+
+/** Record a currency gain (positive delta) or spend (negative). */
+export function updateCharacterCurrency(
+  characterId: string,
+  data: CharacterCurrencyRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/currency`, {
     method: "POST",
     body: JSON.stringify(data),
   });
