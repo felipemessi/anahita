@@ -42,15 +42,21 @@ export interface MechanicalEffect {
   target: string | null;
 }
 
-/** A participant is a PC *or* an NPC, never both — enforced at the application layer. */
+/**
+ * A participant is a PC, an NPC, *or* a catalog monster — never more than
+ * one. None of the three set is a purely manual/generic entry.
+ */
 export interface EncounterParticipant {
   id: string;
   encounter_id: string;
   character_id: string | null;
   npc_id: string | null;
+  /** A catalog stat block — `declare_action` resolves bonuses from it automatically. */
+  monster_id: string | null;
   /** Fallback display name for generic monsters without a linked NPC. */
   name: string;
-  initiative: number;
+  /** null until `roll_initiative` — `advance_turn` is rejected while any active participant is still null. */
+  initiative: number | null;
   hit_point_max: number;
   hit_point_current: number;
   temporary_hit_points: number;
@@ -78,14 +84,16 @@ export interface EncounterCreate {
 }
 
 /**
- * `character_id`/`npc_id` are mutually exclusive; leaving both unset is a
- * manual/generic entry identified only by `name` (e.g. an unnamed monster).
+ * `character_id`/`npc_id`/`monster_id` are mutually exclusive; leaving all
+ * three unset is a manual/generic entry identified only by `name`.
  */
 export interface EncounterParticipantCreate {
   character_id?: string | null;
   npc_id?: string | null;
+  monster_id?: string | null;
   name: string;
-  initiative: number;
+  /** Optional — a PC auto-added by `start_encounter` has none until it rolls. */
+  initiative?: number | null;
   hit_point_max: number;
   hit_point_current?: number | null;
   armor_class: number;
@@ -112,6 +120,11 @@ export type CombatActionType =
   | "help"
   | "hide"
   | "ready"
+  | "attack_weapon"
+  | "attack_spell"
+  | "grapple"
+  | "shove"
+  | "search"
   | "other";
 
 export interface CombatLogEntry {
@@ -125,6 +138,8 @@ export interface CombatLogEntry {
   description: string;
   damage_dealt: number | null;
   damage_type: string | null;
+  /** false when any roll this entry describes came from a manual value instead of the server rolling. */
+  rolled_by_system: boolean;
   /** null when the target participant was later removed (ON DELETE SET NULL). */
   target_id: string | null;
   created_at: string;

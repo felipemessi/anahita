@@ -267,11 +267,12 @@
   - [x] `components/characters/currency-tracker.tsx`: saldo atual por tipo de moeda + form rápido de ganho/gasto (mutação otimista, reverte em erro de saldo negativo)
   - [x] Teste: editar/remover item atualiza a lista; gasto acima do saldo mostra erro e reverte o otimismo
 
-- **Como DM, quero abrir uma sessão para ser jogada; como grupo, quero que o combate já comece com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.**
-  - [ ] `lib/api/sessions.ts`: `openSession`; botão "Abrir sessão" em `sessions/[sessionId]/page.tsx` (DM only)
-  - [ ] Ao iniciar um encontro (`useStartEncounter`), a UI reflete que todos os PCs da campanha já entraram como participantes (sem precisar adicionar manualmente); monstros continuam adicionados via `monster-picker.tsx`
-  - [ ] `components/combat/initiative-prompt.tsx`: tela/modal que aparece antes do primeiro turno pedindo a cada jogador (e ao DM, pelos NPCs/dele) rolar iniciativa; `advance_turn`/rodada só ficam disponíveis quando todos rolaram
-  - [ ] Teste: `initiative-prompt` bloqueia o avanço de turno até completar; jogador só rola a própria iniciativa, DM rola pelas dos NPCs
+- **Como DM, quero abrir uma sessão para ser jogada; como grupo, quero que o combate já comece com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.** ✅ (2026-08-25)
+  - [x] `lib/api/sessions.ts`: `openSession`; botão "Abrir sessão" em `sessions/[sessionId]/page.tsx` (DM only)
+  - [x] Ao iniciar um encontro (`useStartEncounter`), a UI reflete que todos os PCs da campanha já entraram como participantes (sem precisar adicionar manualmente); monstros continuam adicionados via `monster-picker.tsx`
+  - [x] `components/combat/initiative-prompt.tsx`: tela/modal que aparece antes do primeiro turno pedindo a cada jogador (e ao DM, pelos NPCs/dele) rolar iniciativa; `advance_turn`/rodada só ficam disponíveis quando todos rolaram
+  - [x] Teste: `initiative-prompt` bloqueia o avanço de turno até completar; jogador só rola a própria iniciativa, DM rola pelas dos NPCs
+  - Notas: "jogador só rola a própria" é reforçado pelo servidor (`roll_initiative` no backend, 403 se não for dono), não pelo cliente — o `InitiativePrompt` mostra o botão de rolar pra todo participante faltando iniciativa (mais simples, sem duplicar lógica de posse no frontend) e qualquer erro 403 aparece via `lastError`, mesmo padrão já usado pros outros comandos WS. `TurnIndicator` fica escondido enquanto falta iniciativa; `InitiativePrompt` assume esse lugar até todos rolarem.
 
 - **Como jogador/DM, quero declarar ações de combate (ataque com arma, manualmente, com magia, e ações como agarrar/empurrar) com resolução automática de acerto e dano.**
   - [ ] `components/combat/action-picker.tsx`: por participante no turno atual, opções de ação (Atacar com arma equipada, Atacar manualmente — digitar bônus/dano, Conjurar magia, Agarrar, Empurrar, Disparada, Esquivar, Desengajar, Ajudar, Esconder-se, Preparar, Procurar)

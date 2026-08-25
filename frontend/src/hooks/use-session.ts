@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { addNote, createSession, listNotes, listSessions } from "@/lib/api/sessions";
+import { addNote, createSession, listNotes, listSessions, openSession } from "@/lib/api/sessions";
 import type { SessionCreate, SessionNoteCreate } from "@/types/session";
 
 export const SESSIONS_QUERY_KEY = ["sessions"] as const;
@@ -46,6 +46,19 @@ export function useAddNote(sessionId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...SESSIONS_QUERY_KEY, sessionId, "notes"],
+      });
+    },
+  });
+}
+
+/** Open a planned session for play (DM only); invalidates the campaign's session list. */
+export function useOpenSession(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => openSession(sessionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...SESSIONS_QUERY_KEY, campaignId],
       });
     },
   });

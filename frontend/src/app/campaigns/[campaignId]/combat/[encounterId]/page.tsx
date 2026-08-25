@@ -8,6 +8,7 @@ import { useMyMembership } from "@/hooks/use-campaign";
 import { useCombat } from "@/hooks/use-combat";
 import { ConditionBadges } from "@/components/combat/condition-badges";
 import { DamageDialog } from "@/components/combat/damage-dialog";
+import { InitiativePrompt } from "@/components/combat/initiative-prompt";
 import { InitiativeTracker } from "@/components/combat/initiative-tracker";
 import { MonsterPicker } from "@/components/combat/monster-picker";
 import { TurnIndicator } from "@/components/combat/turn-indicator";
@@ -76,6 +77,8 @@ export default function CombatPage() {
               {lastError}
             </p>
           ) : null}
+
+          <InitiativePrompt />
 
           <InitiativeTracker
             encounter={encounter}

@@ -13,6 +13,7 @@ const participant = {
   encounter_id: "enc-1",
   character_id: "char-1",
   npc_id: null,
+  monster_id: null,
   name: "Aria",
   initiative: 15,
   hit_point_max: 20,
