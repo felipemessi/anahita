@@ -24,6 +24,10 @@ vi.mock("@/hooks/use-catalog", () => ({
   useCatalogList: () => ({ data: undefined }),
 }));
 
+vi.mock("@/hooks/use-world", () => ({
+  useNpcs: () => ({ data: undefined }),
+}));
+
 import CombatPage from "./page";
 
 const baseEncounter = {
