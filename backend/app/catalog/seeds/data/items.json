@@ -861,7 +861,8 @@
       "base_ac": 11,
       "dex_bonus_cap": null,
       "stealth_disadvantage": true,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "light"
     }
   },
   {
@@ -882,7 +883,8 @@
       "base_ac": 11,
       "dex_bonus_cap": null,
       "stealth_disadvantage": false,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "light"
     }
   },
   {
@@ -903,7 +905,8 @@
       "base_ac": 12,
       "dex_bonus_cap": null,
       "stealth_disadvantage": false,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "light"
     }
   },
   {
@@ -924,7 +927,8 @@
       "base_ac": 12,
       "dex_bonus_cap": 2,
       "stealth_disadvantage": false,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "medium"
     }
   },
   {
@@ -945,7 +949,8 @@
       "base_ac": 13,
       "dex_bonus_cap": 2,
       "stealth_disadvantage": false,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "medium"
     }
   },
   {
@@ -966,7 +971,8 @@
       "base_ac": 14,
       "dex_bonus_cap": 2,
       "stealth_disadvantage": true,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "medium"
     }
   },
   {
@@ -987,7 +993,8 @@
       "base_ac": 14,
       "dex_bonus_cap": 2,
       "stealth_disadvantage": false,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "medium"
     }
   },
   {
@@ -1008,7 +1015,8 @@
       "base_ac": 15,
       "dex_bonus_cap": 2,
       "stealth_disadvantage": true,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "medium"
     }
   },
   {
@@ -1029,7 +1037,8 @@
       "base_ac": 14,
       "dex_bonus_cap": null,
       "stealth_disadvantage": true,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "heavy"
     }
   },
   {
@@ -1050,7 +1059,8 @@
       "base_ac": 16,
       "dex_bonus_cap": null,
       "stealth_disadvantage": true,
-      "strength_requirement": 13
+      "strength_requirement": 13,
+      "armor_category": "heavy"
     }
   },
   {
@@ -1071,7 +1081,8 @@
       "base_ac": 17,
       "dex_bonus_cap": null,
       "stealth_disadvantage": true,
-      "strength_requirement": 15
+      "strength_requirement": 15,
+      "armor_category": "heavy"
     }
   },
   {
@@ -1092,7 +1103,8 @@
       "base_ac": 18,
       "dex_bonus_cap": null,
       "stealth_disadvantage": true,
-      "strength_requirement": 15
+      "strength_requirement": 15,
+      "armor_category": "heavy"
     }
   },
   {
@@ -1113,7 +1125,8 @@
       "base_ac": 2,
       "dex_bonus_cap": null,
       "stealth_disadvantage": false,
-      "strength_requirement": null
+      "strength_requirement": null,
+      "armor_category": "shield"
     }
   },
   {

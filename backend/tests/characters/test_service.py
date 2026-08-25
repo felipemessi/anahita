@@ -567,9 +567,7 @@ async def test_cast_attack_roll_spell_returns_no_save_dc(
     character = await service.add_spell(
         character_id,
         owner.id,
-        CharacterSpellCreate(
-            spell_id=uuid.UUID(fire_bolt_id), source_class="sorcerer"
-        ),
+        CharacterSpellCreate(spell_id=uuid.UUID(fire_bolt_id), source_class="sorcerer"),
         db,
     )
     entry_id = character.spells[0].id
@@ -623,9 +621,7 @@ async def test_cast_spell_echoes_target_participant_id(
     character = await service.add_spell(
         character_id,
         owner.id,
-        CharacterSpellCreate(
-            spell_id=uuid.UUID(fire_bolt_id), source_class="sorcerer"
-        ),
+        CharacterSpellCreate(spell_id=uuid.UUID(fire_bolt_id), source_class="sorcerer"),
         db,
     )
     entry_id = character.spells[0].id
@@ -2000,6 +1996,190 @@ async def test_update_equipment_wrong_owner_rejected(
     with pytest.raises(HTTPException) as exc:
         await service.remove_equipment(character_id, entry_id, outsider.id, db)
     assert exc.value.status_code == 403
+
+
+async def test_equip_light_armor_recalculates_ac_with_full_dex(
+    db: AsyncSession,
+    human_race_id: str,
+    fighter_class_id: str,
+    leather_armor_item_id: str,
+) -> None:
+    """Equipping light armor adds the full DEX modifier."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(leather_armor_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=True), db
+    )
+
+    # Leather Armor base 11 + DEX 14 (+2 mod), no cap.
+    assert character.armor_class == 13
+
+
+async def test_equip_medium_armor_caps_dex_bonus(
+    db: AsyncSession,
+    human_race_id: str,
+    fighter_class_id: str,
+    breastplate_item_id: str,
+) -> None:
+    """Equipping medium armor caps the DEX modifier at its `dex_bonus_cap`."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(breastplate_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=True), db
+    )
+
+    # Breastplate base 14 + DEX 14 (+2 mod, within the +2 cap).
+    assert character.armor_class == 16
+
+
+async def test_equip_heavy_armor_ignores_dex(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, chain_mail_item_id: str
+) -> None:
+    """Equipping heavy armor never adds the DEX modifier."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(chain_mail_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=True), db
+    )
+
+    # Chain Mail base 16, DEX never applies.
+    assert character.armor_class == 16
+
+
+async def test_equip_shield_adds_flat_bonus(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, shield_item_id: str
+) -> None:
+    """Equipping a shield adds its base_ac on top of the unarmored/armor AC."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(shield_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=True), db
+    )
+
+    # Unarmored 10 + DEX 14 (+2 mod) + Shield 2.
+    assert character.armor_class == 14
+
+
+async def test_unequip_armor_recalculates_ac_without_it(
+    db: AsyncSession,
+    human_race_id: str,
+    fighter_class_id: str,
+    leather_armor_item_id: str,
+) -> None:
+    """Unequipping armor recomputes AC back to the unarmored value."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(leather_armor_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+    await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=True), db
+    )
+
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=False), db
+    )
+
+    # Back to unarmored 10 + DEX 14 (+2 mod).
+    assert character.armor_class == 12
+
+
+async def test_manual_armor_class_override_survives_until_next_toggle(
+    db: AsyncSession,
+    human_race_id: str,
+    fighter_class_id: str,
+    leather_armor_item_id: str,
+) -> None:
+    """A manual PATCH override holds until the next equip/unequip toggle."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(leather_armor_item_id)),
+        db,
+    )
+    entry_id = character.equipment[0].id
+    await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=True), db
+    )
+
+    character = await service.update_character(
+        character_id, owner.id, CharacterUpdate(armor_class=99), db
+    )
+    assert character.armor_class == 99
+
+    # A quantity-only edit (no equipped toggle) doesn't touch armor_class.
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(quantity=2), db
+    )
+    assert character.armor_class == 99
+
+    # Toggling equipped again recomputes it, discarding the override.
+    character = await service.update_equipment(
+        character_id, entry_id, owner.id, CharacterEquipmentUpdate(equipped=False), db
+    )
+    assert character.armor_class == 12
 
 
 async def test_update_currency_gain_and_spend(

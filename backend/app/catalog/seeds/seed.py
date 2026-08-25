@@ -185,6 +185,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_rules(session)
     await backfill_feature_parent_ids(session)
     await backfill_spell_action_target_types(session)
+    await backfill_armor_categories(session)
     await session.commit()
 
 
@@ -265,6 +266,38 @@ async def backfill_spell_action_target_types(session: AsyncSession) -> None:
                     else None
                 ),
             )
+        )
+
+
+async def backfill_armor_categories(session: AsyncSession) -> None:
+    """Set `ArmorDetail.armor_category` on already-seeded rows missing it.
+
+    `_seed_items` sets this correctly for a fresh install; a database
+    seeded before it existed has every SRD `ArmorDetail` row with it
+    `NULL`. `ArmorDetail` has no `index` of its own — matches via the
+    owning `Item.index` instead — so existing ids (and every FK pointing
+    at them) are left untouched. Safe to run repeatedly, including as
+    part of `seed_catalog` on an already-seeded database.
+    """
+    armor_category_by_item_index = {
+        entry["index"]: ad["armor_category"]
+        for entry in _load("items")
+        if (ad := entry.get("armor_detail")) and ad.get("armor_category")
+    }
+
+    result = await session.execute(
+        select(ArmorDetail.id, Item.index, ArmorDetail.armor_category)
+        .join(Item, Item.id == ArmorDetail.item_id)
+        .where(ArmorDetail.armor_category.is_(None))
+    )
+    for armor_detail_id, item_index, _ in result.all():
+        armor_category = armor_category_by_item_index.get(item_index or "")
+        if armor_category is None:
+            continue
+        await session.execute(
+            update(ArmorDetail)
+            .where(ArmorDetail.id == armor_detail_id)
+            .values(armor_category=armor_category)
         )
 
 
@@ -920,6 +953,7 @@ async def _seed_items(session: AsyncSession) -> None:
                     dex_bonus_cap=ad.get("dex_bonus_cap"),
                     stealth_disadvantage=ad["stealth_disadvantage"],
                     strength_requirement=ad.get("strength_requirement"),
+                    armor_category=ad.get("armor_category"),
                 )
             )
 

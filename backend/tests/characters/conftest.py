@@ -126,6 +126,38 @@ async def longsword_item_id(db: AsyncSession) -> str:
     return str(result.scalar_one().id)
 
 
+@pytest.fixture
+async def leather_armor_item_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Leather Armor's id (light)."""
+    await seed_catalog(db)
+    result = await db.execute(select(Item).where(Item.index == "leather-armor"))
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def breastplate_item_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Breastplate's id (medium)."""
+    await seed_catalog(db)
+    result = await db.execute(select(Item).where(Item.index == "breastplate"))
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def chain_mail_item_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Chain Mail's id (heavy)."""
+    await seed_catalog(db)
+    result = await db.execute(select(Item).where(Item.index == "chain-mail"))
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def shield_item_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Shield's id."""
+    await seed_catalog(db)
+    result = await db.execute(select(Item).where(Item.index == "shield"))
+    return str(result.scalar_one().id)
+
+
 async def spell_ids_for_class(
     db: AsyncSession, class_id: str, *, level: int, limit: int
 ) -> list[str]:

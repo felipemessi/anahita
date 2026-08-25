@@ -57,6 +57,21 @@ class ItemType(enum.StrEnum):
     consumable = "consumable"
 
 
+class ArmorCategory(enum.StrEnum):
+    """An ArmorDetail's PHB weight class — how it interacts with DEX (Fase 8).
+
+    `shield` is armor too (SRD `equipment_category: armor`), but adds
+    flat, doesn't replace body armor, and never caps DEX — kept distinct
+    from `light`/`medium`/`heavy` so `CharacterService` can tell body armor
+    and shields apart when recalculating `Character.armor_class`.
+    """
+
+    light = "light"
+    medium = "medium"
+    heavy = "heavy"
+    shield = "shield"
+
+
 class ItemRarity(enum.StrEnum):
     """Magic item rarity tiers."""
 
