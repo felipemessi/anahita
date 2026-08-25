@@ -54,13 +54,29 @@ export function ActionPicker({
   const [monsterActionId, setMonsterActionId] = useState("");
   const [manualBonus, setManualBonus] = useState("");
   const [manualDamage, setManualDamage] = useState("");
+  const [showManualRoll, setShowManualRoll] = useState(false);
+  const [manualAttackRoll, setManualAttackRoll] = useState("");
+  const [manualDamageRoll, setManualDamageRoll] = useState("");
+  const [manualTargetRoll, setManualTargetRoll] = useState("");
 
   const isFlavor = FLAVOR_ACTIONS.some((a) => a.type === kind);
+  const isContest = kind === "grapple" || kind === "shove";
   const needsTarget = !isFlavor;
+  const canRollManually = !isFlavor;
 
   function handleDeclare() {
     const target_id = needsTarget ? targetId : participant.id;
     if (needsTarget && !target_id) return;
+
+    // "digitar manualmente" is always an alternative to the server's roll,
+    // never the default — these stay undefined (letting the server roll)
+    // unless the DM/player explicitly typed something in.
+    const manual_attack_roll =
+      manualAttackRoll === "" ? undefined : Number(manualAttackRoll);
+    const manual_damage_roll =
+      manualDamageRoll === "" ? undefined : Number(manualDamageRoll);
+    const manual_target_roll =
+      manualTargetRoll === "" ? undefined : Number(manualTargetRoll);
 
     switch (kind) {
       case "attack_weapon_equipped":
@@ -70,6 +86,8 @@ export function ActionPicker({
           target_id,
           weapon_equipment_id: weaponEquipmentId || undefined,
           monster_action_id: monsterActionId || undefined,
+          manual_attack_roll,
+          manual_damage_roll,
         });
         return;
       case "attack_weapon_manual":
@@ -79,6 +97,8 @@ export function ActionPicker({
           target_id,
           manual_attack_bonus: manualBonus === "" ? undefined : Number(manualBonus),
           manual_damage_expression: manualDamage || undefined,
+          manual_attack_roll,
+          manual_damage_roll,
         });
         return;
       case "attack_spell":
@@ -87,11 +107,19 @@ export function ActionPicker({
           participant_id: participant.id,
           target_id,
           spell_entry_id: spellEntryId || undefined,
+          manual_attack_roll,
+          manual_damage_roll,
         });
         return;
       case "grapple":
       case "shove":
-        declareAction({ actionType: kind, participant_id: participant.id, target_id });
+        declareAction({
+          actionType: kind,
+          participant_id: participant.id,
+          target_id,
+          manual_attack_roll,
+          manual_target_roll,
+        });
         return;
       default:
         declareAction({
@@ -248,6 +276,61 @@ export function ActionPicker({
           Declarar
         </button>
       </div>
+
+      {canRollManually ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setShowManualRoll((v) => !v)}
+            className="text-xs text-muted-foreground underline"
+          >
+            {showManualRoll ? "Usar rolagem automática" : "Digitar rolagem manualmente"}
+          </button>
+          {showManualRoll ? (
+            <div className="mt-2 flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <label htmlFor="manual-attack-roll" className="text-xs text-muted-foreground">
+                  {isContest ? "Teste do atacante" : "Resultado do ataque"}
+                </label>
+                <input
+                  id="manual-attack-roll"
+                  type="number"
+                  value={manualAttackRoll}
+                  onChange={(e) => setManualAttackRoll(e.target.value)}
+                  className="w-20 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                />
+              </div>
+              {isContest ? (
+                <div className="space-y-1">
+                  <label htmlFor="manual-target-roll" className="text-xs text-muted-foreground">
+                    Teste do alvo
+                  </label>
+                  <input
+                    id="manual-target-roll"
+                    type="number"
+                    value={manualTargetRoll}
+                    onChange={(e) => setManualTargetRoll(e.target.value)}
+                    className="w-20 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <label htmlFor="manual-damage-roll" className="text-xs text-muted-foreground">
+                    Resultado do dano
+                  </label>
+                  <input
+                    id="manual-damage-roll"
+                    type="number"
+                    value={manualDamageRoll}
+                    onChange={(e) => setManualDamageRoll(e.target.value)}
+                    className="w-20 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

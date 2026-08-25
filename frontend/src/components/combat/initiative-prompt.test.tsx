@@ -90,4 +90,39 @@ describe("InitiativePrompt", () => {
     const { container } = render(<InitiativePrompt />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("the manual input is hidden until 'digitar manualmente' is clicked", () => {
+    useCombat.mockReturnValue({
+      encounter: {
+        status: "active",
+        participants: [{ ...baseParticipant, initiative: null }],
+      },
+      rollInitiative,
+    });
+
+    render(<InitiativePrompt />);
+
+    expect(screen.queryByLabelText(/iniciativa manual/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "digitar manualmente" }));
+    expect(screen.getByLabelText(/iniciativa manual/i)).toBeInTheDocument();
+  });
+
+  it("confirming a manual value rolls initiative with that exact value", () => {
+    useCombat.mockReturnValue({
+      encounter: {
+        status: "active",
+        participants: [{ ...baseParticipant, initiative: null }],
+      },
+      rollInitiative,
+    });
+
+    render(<InitiativePrompt />);
+    fireEvent.click(screen.getByRole("button", { name: "digitar manualmente" }));
+    fireEvent.change(screen.getByLabelText(/iniciativa manual/i), {
+      target: { value: "12" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    expect(rollInitiative).toHaveBeenCalledWith("p-1", 12);
+  });
 });

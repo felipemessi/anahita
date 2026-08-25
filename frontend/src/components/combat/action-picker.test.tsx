@@ -132,4 +132,77 @@ describe("ActionPicker", () => {
       manual_damage_expression: "1d8+3",
     });
   });
+
+  it("the manual roll fields stay hidden by default — automatic rolling is the default action", () => {
+    render(
+      <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
+    );
+
+    expect(screen.queryByLabelText(/resultado do ataque/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Digitar rolagem manualmente" }),
+    ).toBeInTheDocument();
+  });
+
+  it("typing a manual attack/damage roll overrides the server's roll", () => {
+    render(
+      <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Alvo"), { target: { value: "p-2" } });
+    fireEvent.change(screen.getByLabelText("Arma"), { target: { value: "eq-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Digitar rolagem manualmente" }));
+    fireEvent.change(screen.getByLabelText(/resultado do ataque/i), {
+      target: { value: "18" },
+    });
+    fireEvent.change(screen.getByLabelText(/resultado do dano/i), {
+      target: { value: "9" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Declarar" }));
+
+    expect(declareAction).toHaveBeenCalledWith({
+      actionType: "attack_weapon",
+      participant_id: "p-1",
+      target_id: "p-2",
+      weapon_equipment_id: "eq-1",
+      monster_action_id: undefined,
+      manual_attack_roll: 18,
+      manual_damage_roll: 9,
+    });
+  });
+
+  it("a manual contest roll sends manual_attack_roll/manual_target_roll for grapple", () => {
+    render(
+      <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Ação"), { target: { value: "grapple" } });
+    fireEvent.change(screen.getByLabelText("Alvo"), { target: { value: "p-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Digitar rolagem manualmente" }));
+    fireEvent.change(screen.getByLabelText(/teste do atacante/i), {
+      target: { value: "16" },
+    });
+    fireEvent.change(screen.getByLabelText(/teste do alvo/i), { target: { value: "10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Declarar" }));
+
+    expect(declareAction).toHaveBeenCalledWith({
+      actionType: "grapple",
+      participant_id: "p-1",
+      target_id: "p-2",
+      manual_attack_roll: 16,
+      manual_target_roll: 10,
+    });
+  });
+
+  it("flavor actions (nothing to roll) don't offer a manual-roll toggle", () => {
+    render(
+      <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Ação"), { target: { value: "dash" } });
+
+    expect(
+      screen.queryByRole("button", { name: "Digitar rolagem manualmente" }),
+    ).not.toBeInTheDocument();
+  });
 });
