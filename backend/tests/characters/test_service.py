@@ -34,7 +34,7 @@ from app.characters.schemas import (
     CharacterUpdate,
 )
 from app.characters.service import CharacterService
-from tests.characters.conftest import spell_ids_for_class
+from tests.characters.conftest import spell_id_by_index, spell_ids_for_class
 
 _STANDARD_ARRAY = {
     AbilityScore.str: 15,
@@ -141,7 +141,9 @@ async def test_create_character_for_someone_elses_membership_rejected(
                 race_id=uuid.UUID(human_race_id),
                 ability_scores=_ability_scores(),
                 classes=[
-                    CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+                    CharacterClassCreate(
+                        class_definition_id=uuid.UUID(fighter_class_id)
+                    )
                 ],
             ),
             db,
@@ -176,7 +178,9 @@ async def test_create_character_rejects_custom_race_from_another_campaign(
                 race_id=homebrew_race.id,
                 ability_scores=_ability_scores(),
                 classes=[
-                    CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+                    CharacterClassCreate(
+                        class_definition_id=uuid.UUID(fighter_class_id)
+                    )
                 ],
             ),
             db,
@@ -202,7 +206,9 @@ async def test_create_character_missing_ability_score_rejected(
                 race_id=uuid.UUID(human_race_id),
                 ability_scores=incomplete_scores,
                 classes=[
-                    CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+                    CharacterClassCreate(
+                        class_definition_id=uuid.UUID(fighter_class_id)
+                    )
                 ],
             ),
             db,
@@ -257,7 +263,9 @@ async def test_create_character_point_buy_over_budget_rejected(
                 race_id=uuid.UUID(human_race_id),
                 ability_scores=over_budget_scores,
                 classes=[
-                    CharacterClassCreate(class_definition_id=uuid.UUID(fighter_class_id))
+                    CharacterClassCreate(
+                        class_definition_id=uuid.UUID(fighter_class_id)
+                    )
                 ],
                 generation_method=AbilityGenerationMethod.point_buy,
             ),
@@ -378,9 +386,7 @@ async def test_add_spell_known_caster_limit_enforced(
         await service.add_spell(
             character_id,
             owner.id,
-            CharacterSpellCreate(
-                spell_id=uuid.UUID(spell_id), source_class="sorcerer"
-            ),
+            CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
             db,
         )
 
@@ -505,13 +511,135 @@ async def test_cast_spell_consumes_slot(
     )
     entry_id = character.spells[0].id
 
-    character = await service.cast_spell(
-        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
-    )
+    character = (
+        await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+    ).character
     slot = next(s for s in character.spell_slots if s.spell_level == 1)
     # Level-1 Sorcerer has 2 first-level slots.
     assert slot.used == 1
     assert slot.max == 2
+
+
+async def test_cast_saving_throw_spell_returns_save_dc(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a saving_throw spell returns 8 + proficiency + spellcasting mod."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id, level=5
+    )
+    fireball_id = await spell_id_by_index(db, "fireball")
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(fireball_id), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    result = await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+
+    # `_create_character(level=5)` only sets the class's own level (needed
+    # for a level-3 spell slot to exist) — `Character.level`/
+    # `proficiency_bonus` are set from `CharacterCreate.level`, which
+    # defaults to 1 here, so proficiency stays +2.
+    # 8 + proficiency (+2) + CHA mod (8 -> -1) = 9.
+    assert result.save_dc == 9
+
+
+async def test_cast_attack_roll_spell_returns_no_save_dc(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting an attack_roll spell (Fire Bolt) never returns a save_dc."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    fire_bolt_id = await spell_id_by_index(db, "fire-bolt")
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=uuid.UUID(fire_bolt_id), source_class="sorcerer"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    result = await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+
+    assert result.save_dc is None
+
+
+async def test_cast_only_spell_returns_no_save_dc(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a cast_only spell (Mage Armor) never returns a save_dc."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    mage_armor_id = await spell_id_by_index(db, "mage-armor")
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=uuid.UUID(mage_armor_id), source_class="sorcerer"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    result = await service.cast_spell(
+        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+    )
+
+    assert result.save_dc is None
+
+
+async def test_cast_spell_echoes_target_participant_id(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """`target_participant_id` is echoed back unchanged, unvalidated."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    fire_bolt_id = await spell_id_by_index(db, "fire-bolt")
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=uuid.UUID(fire_bolt_id), source_class="sorcerer"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+    target_id = uuid.uuid4()
+
+    result = await service.cast_spell(
+        character_id,
+        entry_id,
+        owner.id,
+        CharacterSpellCastRequest(target_participant_id=target_id),
+        db,
+    )
+
+    assert result.target_participant_id == target_id
 
 
 async def test_cast_cantrip_does_not_consume_slot(
@@ -535,9 +663,11 @@ async def test_cast_cantrip_does_not_consume_slot(
     )
     entry_id = character.spells[0].id
 
-    character = await service.cast_spell(
-        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
-    )
+    character = (
+        await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+    ).character
     assert all(s.used == 0 for s in character.spell_slots)
 
 
@@ -562,9 +692,11 @@ async def test_cast_spell_no_slot_available_rejected(
 
     # Level-1 Sorcerer has 2 first-level slots — exhaust them.
     for _ in range(2):
-        character = await service.cast_spell(
-            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
-        )
+        character = (
+            await service.cast_spell(
+                character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+            )
+        ).character
 
     with pytest.raises(HTTPException) as exc:
         await service.cast_spell(
@@ -593,13 +725,15 @@ async def test_cast_spell_upcast_consumes_higher_level_slot(
     )
     entry_id = character.spells[0].id
 
-    character = await service.cast_spell(
-        character_id,
-        entry_id,
-        owner.id,
-        CharacterSpellCastRequest(cast_at_level=2),
-        db,
-    )
+    character = (
+        await service.cast_spell(
+            character_id,
+            entry_id,
+            owner.id,
+            CharacterSpellCastRequest(cast_at_level=2),
+            db,
+        )
+    ).character
     level_1_slot = next(s for s in character.spell_slots if s.spell_level == 1)
     level_2_slot = next(s for s in character.spell_slots if s.spell_level == 2)
     assert level_1_slot.used == 0
@@ -667,13 +801,15 @@ async def test_cast_ritual_does_not_consume_slot(
     )
     entry_id = character.spells[0].id
 
-    character = await service.cast_spell(
-        character_id,
-        entry_id,
-        owner.id,
-        CharacterSpellCastRequest(as_ritual=True),
-        db,
-    )
+    character = (
+        await service.cast_spell(
+            character_id,
+            entry_id,
+            owner.id,
+            CharacterSpellCastRequest(as_ritual=True),
+            db,
+        )
+    ).character
     assert all(s.used == 0 for s in character.spell_slots)
 
 
@@ -1074,9 +1210,11 @@ async def test_cast_concentration_spell_sets_concentrating_spell(
     )
     entry_id = character.spells[0].id
 
-    character = await service.cast_spell(
-        character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
-    )
+    character = (
+        await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+    ).character
     assert character.concentrating_spell_id == uuid.UUID(spell_id)
 
 
@@ -1107,29 +1245,31 @@ async def test_cast_second_concentration_spell_replaces_first(
         character = await service.add_spell(
             character_id,
             owner.id,
-            CharacterSpellCreate(
-                spell_id=uuid.UUID(spell_id), source_class="sorcerer"
-            ),
+            CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
             db,
         )
     entry_by_spell = {str(s.spell_id): s.id for s in character.spells}
 
-    character = await service.cast_spell(
-        character_id,
-        entry_by_spell[spell_ids[0]],
-        owner.id,
-        CharacterSpellCastRequest(),
-        db,
-    )
+    character = (
+        await service.cast_spell(
+            character_id,
+            entry_by_spell[spell_ids[0]],
+            owner.id,
+            CharacterSpellCastRequest(),
+            db,
+        )
+    ).character
     assert character.concentrating_spell_id == uuid.UUID(spell_ids[0])
 
-    character = await service.cast_spell(
-        character_id,
-        entry_by_spell[spell_ids[1]],
-        owner.id,
-        CharacterSpellCastRequest(),
-        db,
-    )
+    character = (
+        await service.cast_spell(
+            character_id,
+            entry_by_spell[spell_ids[1]],
+            owner.id,
+            CharacterSpellCastRequest(),
+            db,
+        )
+    ).character
     assert character.concentrating_spell_id == uuid.UUID(spell_ids[1])
 
 
@@ -1284,9 +1424,7 @@ async def test_level_up_at_asi_level_accepts_ability_score_increases(
             CharacterLevelUpRequest(
                 class_definition_id=uuid.UUID(fighter_class_id),
                 manual_hit_die_roll=6,
-                ability_score_increases=(
-                    {AbilityScore.str: 2} if level == 4 else None
-                ),
+                ability_score_increases=({AbilityScore.str: 2} if level == 4 else None),
             ),
             db,
         )
@@ -1509,9 +1647,7 @@ async def test_level_up_choice_feature_persists_and_appears_on_read(
         select(Feature).where(Feature.index == "ranger-fighting-style")
     )
     fighting_style_id = fighting_style_result.scalar_one().id
-    archery_id = await _fighting_style_option_id(
-        db, "ranger-fighting-style-archery"
-    )
+    archery_id = await _fighting_style_option_id(db, "ranger-fighting-style-archery")
 
     character = await service.level_up(
         character_id,
@@ -1570,16 +1706,12 @@ async def test_use_resource_consumes_and_rejects_past_limit(
     )
     service = CharacterService()
 
-    character = await service.use_resource(
-        character_id, owner.id, "rage_count", db
-    )
+    character = await service.use_resource(character_id, owner.id, "rage_count", db)
     resource = next(r for r in character.resources if r.resource_key == "rage_count")
     assert resource.used == 1
     assert resource.max == 2  # level 1 Barbarian
 
-    character = await service.use_resource(
-        character_id, owner.id, "rage_count", db
-    )
+    character = await service.use_resource(character_id, owner.id, "rage_count", db)
     resource = next(r for r in character.resources if r.resource_key == "rage_count")
     assert resource.used == 2
 
@@ -1708,9 +1840,7 @@ async def test_use_resource_single_option_does_not_require_option_id(
     )
     service = CharacterService()
 
-    character = await service.use_resource(
-        character_id, owner.id, "rage_count", db
-    )
+    character = await service.use_resource(character_id, owner.id, "rage_count", db)
     resource = next(r for r in character.resources if r.resource_key == "rage_count")
     assert resource.used == 1
     assert resource.last_feature_option_id is None

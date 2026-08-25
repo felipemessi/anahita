@@ -4,7 +4,12 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.catalog.domain import ItemType, SpellDamageScalingType
+from app.catalog.domain import (
+    ItemType,
+    SpellActionType,
+    SpellDamageScalingType,
+    SpellTargetType,
+)
 
 
 class RaceTraitRead(BaseModel):
@@ -232,6 +237,9 @@ class SpellRead(BaseModel):
     components: str
     ritual: bool
     concentration: bool
+    action_type: SpellActionType | None
+    target_type: SpellTargetType | None
+    save_ability_score_id: uuid.UUID | None
     description: str
     higher_levels: str | None
     is_custom: bool
@@ -783,6 +791,9 @@ class SpellCreate(BaseModel):
     components: str = ""
     ritual: bool = False
     concentration: bool = False
+    action_type: SpellActionType | None = None
+    target_type: SpellTargetType | None = None
+    save_ability_score_id: uuid.UUID | None = None
     description: str = ""
     higher_levels: str | None = None
 

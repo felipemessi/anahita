@@ -542,12 +542,45 @@ def _spell_damages(entry: dict[str, Any]) -> list[dict[str, Any]]:
     return damages
 
 
+def _spell_action_type(e: dict[str, Any]) -> str:
+    """`attack_roll`/`saving_throw`/`cast_only`, straight from SRD structure.
+
+    Unlike target type, the SRD already tags this cleanly: `attack_type`
+    means a spell attack roll, `dc` means the target saves — neither means
+    no roll at all (e.g. Mage Armor, or Magic Missile's auto-hit).
+    """
+    if e.get("attack_type"):
+        return "attack_roll"
+    if e.get("dc"):
+        return "saving_throw"
+    return "cast_only"
+
+
+def _spell_target_type(e: dict[str, Any]) -> str:
+    """`self`/`ally`/`enemy`/`area`/`object`, heuristic — the SRD has no such field.
+
+    Best-guess bucket, not an exhaustive rules encoding (PHB text for some
+    spells allows more than one kind of target, e.g. Cure Wounds on self or
+    another creature) — see `SpellTargetType`'s docstring.
+    """
+    if e.get("area_of_effect"):
+        return "area"
+    # `damage` without `attack_type`/`dc` is an auto-hit damage spell (e.g.
+    # Magic Missile) — still offensive despite having no roll.
+    if e.get("attack_type") or e.get("dc") or e.get("damage"):
+        return "enemy"
+    if e.get("range") == "Self":
+        return "self"
+    return "ally"
+
+
 def convert_spells() -> None:
     """Write `spells.json` from `5e-SRD-Spells.json`."""
     data = _load("Spells")
     out = []
     for e in data:
         higher = e.get("higher_level")
+        dc = e.get("dc")
         out.append(
             {
                 "index": e["index"],
@@ -559,6 +592,9 @@ def convert_spells() -> None:
                 "components": ", ".join(e.get("components", [])),
                 "ritual": e["ritual"],
                 "concentration": e["concentration"],
+                "action_type": _spell_action_type(e),
+                "target_type": _spell_target_type(e),
+                "save_ability_index": dc["dc_type"]["index"] if dc else None,
                 "i18n": {
                     "en": {
                         "name": e["name"],

@@ -138,11 +138,15 @@ class CharacterSpellCastRequest(BaseModel):
 
     `cast_at_level` defaults to the spell's own level (no upcast).
     `as_ritual=True` casts without consuming a slot — only accepted when the
-    spell has the ritual tag.
+    spell has the ritual tag. `target_participant_id` is accepted and
+    echoed back for the UI's benefit (which encounter participant the
+    spell was aimed at) — this endpoint has no encounter context to
+    validate it against, so it's never checked or persisted.
     """
 
     cast_at_level: int | None = Field(default=None, ge=1, le=9)
     as_ritual: bool = False
+    target_participant_id: uuid.UUID | None = None
 
 
 class CharacterHitDiceSpend(BaseModel):
@@ -384,3 +388,18 @@ class CharacterRead(BaseModel):
     equipment: list[CharacterEquipmentRead]
     features: list[CharacterFeatureRead]
     feature_choices: list[CharacterFeatureChoiceRead]
+
+
+class CharacterSpellCastResponse(BaseModel):
+    """Response for casting a spell: the updated character, plus cast context.
+
+    `save_dc` is `8 + proficiency + spellcasting ability modifier`, the
+    same DC the target's saving throw is rolled against — only populated
+    when the spell's `action_type` is `saving_throw` (`None` otherwise,
+    same convention as `EncounterParticipantRead.concentration_dc`, Fase 7).
+    `target_participant_id` echoes the request field back unchanged.
+    """
+
+    character: CharacterRead
+    save_dc: int | None = None
+    target_participant_id: uuid.UUID | None = None

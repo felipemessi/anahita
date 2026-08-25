@@ -25,7 +25,9 @@ from app.catalog.domain import (
     ItemType,
     LanguageType,
     ProficiencyType,
+    SpellActionType,
     SpellDamageScalingType,
+    SpellTargetType,
 )
 from app.catalog.mixins import CatalogEntityMixin, CatalogI18nMixin
 from app.database import Base
@@ -684,6 +686,20 @@ class Spell(Base):
     components: Mapped[str] = mapped_column(String(100), nullable=False)
     ritual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     concentration: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # How the spell resolves and who it targets (Fase 8) — nullable so
+    # existing/homebrew spells without this metadata are unaffected;
+    # `save_ability_score_id` is the *target's* saving throw ability (e.g.
+    # Fireball -> DEX), unrelated to the caster's own spellcasting ability
+    # used to compute the DC (`CharacterService.cast_spell`).
+    action_type: Mapped[SpellActionType | None] = mapped_column(
+        SAEnum(SpellActionType, name="spellactiontype")
+    )
+    target_type: Mapped[SpellTargetType | None] = mapped_column(
+        SAEnum(SpellTargetType, name="spelltargettype")
+    )
+    save_ability_score_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_ability_score_definitions.id")
+    )
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # FK to users.id / campaigns.id — enforced at DB level in migration.
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(

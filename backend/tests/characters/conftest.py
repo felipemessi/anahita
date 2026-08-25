@@ -140,3 +140,9 @@ async def spell_ids_for_class(
         .limit(limit)
     )
     return [str(row) for row in result.scalars().all()]
+
+
+async def spell_id_by_index(db: AsyncSession, index: str) -> str:
+    """Return the id of the seeded SRD spell with this `index`."""
+    result = await db.execute(select(Spell.id).where(Spell.index == index))
+    return str(result.scalar_one())
