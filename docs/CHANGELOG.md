@@ -282,3 +282,26 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   campanha; toda rolagem de combate (ataque, dano, teste oposto,
   iniciativa) pode ser digitada manualmente em vez de deixar o sistema
   rolar.
+- Fase 7 do backend, história 1: gasto de dados de vida num descanso
+  curto para recuperar pontos de vida, com descanso longo restaurando até
+  metade do total de dados (mínimo 1).
+- Fase 7 do backend, história 2: testes de morte automáticos ao chegar a
+  0 pontos de vida (1 natural conta duas falhas, 20 natural restaura 1 PV
+  e a consciência), estabilizando com 3 sucessos ou marcando o personagem
+  como morto com 3 falhas.
+- Fase 7 do backend, história 3: concentração numa magia conhecida,
+  encerrada automaticamente ao conjurar outra magia de concentração, com
+  a DC do teste de concentração exposta ao sofrer dano em combate.
+- Fase 7 do backend, história 4: perícias passivas (Percepção,
+  Investigação, Intuição) calculadas na ficha do personagem.
+- Fase 7 do backend, história 5: subida de nível de um personagem numa
+  classe já possuída ou nova via multiclasse, recalculando pontos de
+  vida e bônus de proficiência, com melhoria de habilidade ou escolha de
+  talento nos níveis que concedem essa opção.
+- Fase 7 do backend, história 6: monstros usando ações lendárias fora do
+  próprio turno (respeitando o limite por rodada) e reações do próprio
+  stat block durante o combate.
+- Fase 7 do backend, história 7 (última da fase — Sobrevivência,
+  Descanso e Recursos completa): uso de recursos de classe em combate
+  (fúria, ki, pontos de feitiçaria, e outros) com controle de limite por
+  nível e recarga em descanso curto ou longo, conforme o recurso.
