@@ -20,7 +20,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.catalog.domain import AbilityScore
-from app.characters.domain import FeatureSourceType, Skill
+from app.characters.domain import AbilityGenerationMethod, FeatureSourceType, Skill
 from app.database import Base
 
 # Shared instances so each Postgres enum type is only ever declared once, even
@@ -77,6 +77,13 @@ class Character(Base):
     # integer, one non-negative check) and display can still split it into
     # denominations client-side.
     currency_cp: Mapped[int] = mapped_column(Integer, default=0)
+    # How the player generated the character's base ability scores — kept
+    # for reference only (e.g. so a re-roll UI knows which flow to reopen);
+    # nullable so existing characters (created before this field existed)
+    # are unaffected.
+    generation_method: Mapped[AbilityGenerationMethod | None] = mapped_column(
+        SAEnum(AbilityGenerationMethod, name="abilitygenerationmethod")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

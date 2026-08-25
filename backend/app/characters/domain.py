@@ -40,6 +40,55 @@ class FeatureSourceType(enum.StrEnum):
     feat = "feat"
 
 
+class AbilityGenerationMethod(enum.StrEnum):
+    """How a player generated a character's base ability scores (PHB)."""
+
+    standard_array = "standard_array"
+    point_buy = "point_buy"
+    custom = "custom"
+    roll = "roll"
+
+
+class InvalidAbilityGenerationError(ValueError):
+    """Raised when base ability scores don't satisfy the declared generation method."""
+
+
+#: PHB point-buy cost table (base score -> point cost), scores 8-15 only.
+POINT_BUY_COSTS: dict[int, int] = {8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9}
+POINT_BUY_BUDGET = 27
+
+#: The fixed standard array values (PHB) — each used exactly once.
+STANDARD_ARRAY: tuple[int, ...] = (15, 14, 13, 12, 10, 8)
+
+
+def validate_ability_generation(
+    method: AbilityGenerationMethod, base_scores: list[int]
+) -> None:
+    """Enforce the declared generation method's rules on base ability scores.
+
+    `point_buy` scores must each be within 8-15 and spend no more than the
+    27-point budget (PHB point-buy table); `standard_array` must use each of
+    `STANDARD_ARRAY` exactly once. `custom`/`roll` accept any values — the
+    client decides the numbers for those methods.
+    """
+    if method is AbilityGenerationMethod.point_buy:
+        if any(score not in POINT_BUY_COSTS for score in base_scores):
+            raise InvalidAbilityGenerationError(
+                "Point buy base scores must be between 8 and 15."
+            )
+        total_cost = sum(POINT_BUY_COSTS[score] for score in base_scores)
+        if total_cost > POINT_BUY_BUDGET:
+            raise InvalidAbilityGenerationError(
+                f"Point buy spent {total_cost} points, over the "
+                f"{POINT_BUY_BUDGET}-point budget."
+            )
+    elif method is AbilityGenerationMethod.standard_array:
+        if sorted(base_scores) != sorted(STANDARD_ARRAY):
+            raise InvalidAbilityGenerationError(
+                f"Standard array must use each of {STANDARD_ARRAY} exactly once."
+            )
+
+
 #: Maps the SRD's full ability names (as used in
 #: `ClassDefinition.saving_throw_proficiencies`, e.g. "Strength, Constitution")
 #: to our short `AbilityScore` codes.

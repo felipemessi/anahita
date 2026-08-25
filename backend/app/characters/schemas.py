@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.domain import AbilityScore
-from app.characters.domain import FeatureSourceType, Skill
+from app.characters.domain import AbilityGenerationMethod, FeatureSourceType, Skill
 
 
 class CharacterAbilityScoreCreate(BaseModel):
@@ -88,6 +88,7 @@ class CharacterCreate(BaseModel):
     inspiration: bool = False
     ability_scores: list[CharacterAbilityScoreCreate]
     classes: list[CharacterClassCreate] = Field(min_length=1)
+    generation_method: AbilityGenerationMethod | None = None
 
 
 class CharacterSpellCreate(BaseModel):
@@ -342,6 +343,7 @@ class CharacterRead(BaseModel):
     inspiration: bool
     proficiency_bonus: int
     currency_cp: int
+    generation_method: AbilityGenerationMethod | None
     death_save_successes: int
     death_save_failures: int
     is_dead: bool
