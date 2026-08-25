@@ -237,6 +237,7 @@ Constraint: unique `(campaign_id, user_id)`.
 | speed               | Integer   |                     |
 | inspiration         | Boolean   |                     |
 | proficiency_bonus   | Integer   |                     |
+| currency_cp         | Integer   | saldo de moeda, normalizado em copper (1 cp / 10 sp / 50 ep / 100 gp / 1000 pp — mesma convenção do preço de itens do catálogo); denominações são um detalhe de exibição do frontend |
 | created_at          | Timestamp |                     |
 
 **CharacterAbilityScore**
@@ -308,6 +309,19 @@ Features raciais vêm do catálogo Race/RaceTrait. CharacterFeature armazena ape
 | spell_id     | FK Spell  |                         |
 | prepared     | Boolean   |                         |
 | source_class | String    |                         |
+
+`level` (círculo) e `ritual` não são persistidos — resolvidos do catálogo (`Spell.level`/`Spell.ritual`) na leitura.
+
+**CharacterSpellSlot**
+
+| Coluna       | Tipo      | Notas                  |
+|--------------|-----------|-------------------------|
+| id           | UUID (PK) |                         |
+| character_id | FK        |                         |
+| spell_level  | Integer   | 1-9                     |
+| used         | Integer   |                         |
+
+Máximo por nível não é persistido — derivado de `ClassLevelSpellSlot`, somado pelas classes conjuradoras do personagem no nível de cada uma (simplificação: não implementa a tabela combinada de conjurador multiclasse do PHB — exato para classe única, aproximado para multiclasse com duas classes conjuradoras).
 
 **CharacterEquipment**
 

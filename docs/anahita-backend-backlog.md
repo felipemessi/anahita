@@ -352,12 +352,13 @@
   - [x] Testes: consumo de slot correto, ritual não consome, upcast exige slot do nível maior, sem slot disponível é rejeitado (422), long rest restaura todos os slots
   - Notas: `CharacterRead.spell_slots` soma os slots de cada classe conjuradora do personagem independentemente (não implementa a tabela combinada de conjurador multiclasse do PHB) — documentado no docstring de `CharacterSpellSlot`; exato para personagens de classe única, aproximado para multiclasse com duas classes conjuradoras. `{spell_id}` nas rotas de cast é o id da entrada `CharacterSpell` (mesma convenção do PATCH/DELETE já existentes), não o id do catálogo.
 
-- **Como jogador, quero editar e remover itens do meu inventário, e registrar ganho/gasto de moedas.**
-  - [ ] `PATCH /characters/{id}/equipment/{equipment_id}` (toggle `equipped`/`attunement`, ajustar `quantity`) e `DELETE /characters/{id}/equipment/{equipment_id}` — owner only
-  - [ ] `Character` ganha coluna(s) de moeda (decisão de implementação: uma única coluna normalizada em copper, ou cinco colunas cp/sp/ep/gp/pp — seção 7.3 do PRD a atualizar com a escolha)
-  - [ ] Migração Alembic
-  - [ ] `POST /characters/{id}/currency` (delta positivo=ganho, negativo=gasto; saldo não pode ficar negativo, 422 se ficaria)
-  - [ ] Testes: editar/remover item, saldo não fica negativo, ganho/gasto refletem na leitura da ficha
+- **Como jogador, quero editar e remover itens do meu inventário, e registrar ganho/gasto de moedas.** ✅ (2026-08-24)
+  - [x] `PATCH /characters/{id}/equipment/{equipment_id}` (toggle `equipped`/`attunement`, ajustar `quantity`) e `DELETE /characters/{id}/equipment/{equipment_id}` — owner only
+  - [x] `Character` ganha coluna(s) de moeda (decisão de implementação: uma única coluna normalizada em copper, ou cinco colunas cp/sp/ep/gp/pp — seção 7.3 do PRD a atualizar com a escolha)
+  - [x] Migração Alembic
+  - [x] `POST /characters/{id}/currency` (delta positivo=ganho, negativo=gasto; saldo não pode ficar negativo, 422 se ficaria)
+  - [x] Testes: editar/remover item, saldo não fica negativo, ganho/gasto refletem na leitura da ficha
+  - Notas: decisão tomada por engenharia — uma única coluna `currency_cp` normalizada em copper, consistente com a convenção já usada para preços de itens do catálogo (`convert_srd._cost_in_cp`); simplifica o saldo pra um inteiro só. Conversão pra denominações (cp/sp/ep/gp/pp) fica pro frontend exibir. PRD §7.3 atualizado com a decisão (e com `CharacterSpellSlot`, que também estava faltando).
 
 - **Como DM, quero abrir uma sessão para ser jogada e iniciar um combate populado com todos os personagens da campanha, exigindo iniciativa antes do primeiro turno.**
   - [ ] `Session` ganha `status` (`planned`/`open`/`closed`; seção 7.5 do PRD a atualizar) — `POST /sessions/{id}/open` (DM only)

@@ -57,6 +57,13 @@ class Character(Base):
     speed: Mapped[int] = mapped_column(Integer)
     inspiration: Mapped[bool] = mapped_column(Boolean, default=False)
     proficiency_bonus: Mapped[int] = mapped_column(Integer)
+    # Single normalized-copper balance (1 cp = base unit; 1 sp = 10, 1 ep = 50,
+    # 1 gp = 100, 1 pp = 1000 — same convention already used for catalog item
+    # prices, see `app.catalog.seeds.convert_srd._cost_in_cp`), rather than
+    # five separate cp/sp/ep/gp/pp columns: simpler balance math (one
+    # integer, one non-negative check) and display can still split it into
+    # denominations client-side.
+    currency_cp: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
