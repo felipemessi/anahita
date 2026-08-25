@@ -322,9 +322,10 @@
   - [x] `ability-scores.tsx`/nova seção `passive-scores.tsx`: exibe Percepção/Investigação/Intuição passivas (vindas de `CharacterRead`, sem cálculo client-side)
   - [x] Teste: renderiza os três valores vindos da API
 
-- **Como jogador, quero subir de nível meu personagem pela ficha, escolhendo melhoria de habilidade ou talento quando aplicável.**
-  - [ ] `components/characters/level-up-dialog.tsx`: fluxo guiado (escolher classe a subir, confirmar PV ganho, em nível de ASI escolher entre distribuir pontos ou talento do catálogo)
-  - [ ] Teste: fluxo completo gera o payload correto pro endpoint de level-up; nível sem ASI pula a etapa de escolha
+- **Como jogador, quero subir de nível meu personagem pela ficha, escolhendo melhoria de habilidade ou talento quando aplicável. ✅ (2026-08-25)**
+  - [x] `components/characters/level-up-dialog.tsx`: fluxo guiado (escolher classe a subir, confirmar PV ganho, em nível de ASI escolher entre distribuir pontos ou talento do catálogo)
+  - [x] Teste: fluxo completo gera o payload correto pro endpoint de level-up; nível sem ASI pula a etapa de escolha
+  - Notas: escopo restrito a subir de nível numa classe que o personagem já tem — multiclasse (adicionar uma classe nova) ainda não tem fluxo de UI nenhum no frontend (endpoint `POST /classes` já existe no backend desde a Fase 1, mas sem tela; gap pré-existente, não introduzido por esta história). O nível de ASI é detectado consultando `ClassLevel.ability_score_bonuses` do catálogo (`useCatalogEntry("classes", ...)`) pro próximo nível da classe escolhida. "Confirmar PV ganho" é feedback pós-ação (o servidor rola o dado de vida), não uma etapa de pré-confirmação — mensagem de sucesso mostra o novo PV máximo.
 
 - **Como DM, quero disparar ações lendárias e reações de monstros pelo combat tracker.**
   - [ ] `components/combat/legendary-action-picker.tsx`: para participantes NPC/monstro com stat block, lista as ações lendárias/reações disponíveis (via `monster-stat-block.tsx`, já usado no catálogo) com contador de uso por rodada

@@ -9,6 +9,7 @@ import type {
   CharacterEquipmentCreate,
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
+  CharacterLevelUpRequest,
   CharacterRestRequest,
   CharacterSpellCastRequest,
   CharacterSpellCreate,
@@ -127,6 +128,17 @@ export function rollDeathSave(
   data: CharacterDeathSaveRequest,
 ): Promise<Character> {
   return apiFetch<Character>(`/characters/${characterId}/death-save`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Level up a character by one level in one class (existing or new via multiclass). */
+export function levelUpCharacter(
+  characterId: string,
+  data: CharacterLevelUpRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/level-up`, {
     method: "POST",
     body: JSON.stringify(data),
   });
