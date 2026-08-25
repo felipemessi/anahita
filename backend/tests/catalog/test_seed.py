@@ -28,7 +28,11 @@ from app.catalog.models import (
     Spell,
     WeaponProperty,
 )
-from app.catalog.seeds.seed import backfill_feature_parent_ids, seed_catalog
+from app.catalog.seeds.seed import (
+    backfill_feature_parent_ids,
+    backfill_spell_action_target_types,
+    seed_catalog,
+)
 
 #: Row counts for the full SRD 2014 `en` seed — see PRD §7.4.1-7.4.9. These
 #: are the real published SRD sizes (not a subset), so any change here should
@@ -132,6 +136,59 @@ async def test_seed_creates_spells(db: AsyncSession) -> None:
 
     spells = (await db.execute(select(Spell))).scalars().all()
     assert len(spells) == 319
+
+
+async def test_seed_classifies_spell_action_and_target_type(db: AsyncSession) -> None:
+    """Attack/save/no-roll spells are classified from the SRD's own structure."""
+    await seed_catalog(db)
+
+    fire_bolt = (
+        await db.execute(select(Spell).where(Spell.index == "fire-bolt"))
+    ).scalar_one()
+    fireball = (
+        await db.execute(select(Spell).where(Spell.index == "fireball"))
+    ).scalar_one()
+    mage_armor = (
+        await db.execute(select(Spell).where(Spell.index == "mage-armor"))
+    ).scalar_one()
+
+    assert fire_bolt.action_type == "attack_roll"
+    assert fire_bolt.target_type == "enemy"
+
+    assert fireball.action_type == "saving_throw"
+    assert fireball.target_type == "area"
+    assert fireball.save_ability_score_id is not None
+    dex = (
+        await db.execute(
+            select(AbilityScoreDefinition).where(AbilityScoreDefinition.index == "dex")
+        )
+    ).scalar_one()
+    assert fireball.save_ability_score_id == dex.id
+
+    assert mage_armor.action_type == "cast_only"
+    assert mage_armor.save_ability_score_id is None
+
+
+async def test_backfill_spell_action_target_types_is_idempotent_and_preserves_ids(
+    db: AsyncSession,
+) -> None:
+    """Running the backfill again doesn't change ids or duplicate rows."""
+    await seed_catalog(db)
+    before = (
+        await db.execute(
+            select(Spell.id, Spell.action_type).where(Spell.index == "fireball")
+        )
+    ).one()
+
+    await backfill_spell_action_target_types(db)
+    await db.commit()
+
+    after = (
+        await db.execute(
+            select(Spell.id, Spell.action_type).where(Spell.index == "fireball")
+        )
+    ).one()
+    assert after == before
 
 
 @pytest.mark.asyncio

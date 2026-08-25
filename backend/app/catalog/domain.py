@@ -113,6 +113,37 @@ class SpellDamageScalingType(enum.StrEnum):
     character_level = "character_level"
 
 
+class SpellActionType(enum.StrEnum):
+    """How a Spell resolves mechanically when cast (Fase 8).
+
+    `attack_roll`: the caster makes a spell attack roll (SRD `attack_type`).
+    `saving_throw`: the target rolls a saving throw (SRD `dc`).
+    `cast_only`: neither — no roll at all (e.g. Mage Armor, Magic Missile's
+    auto-hit).
+    """
+
+    attack_roll = "attack_roll"
+    saving_throw = "saving_throw"
+    cast_only = "cast_only"
+
+
+class SpellTargetType(enum.StrEnum):
+    """Who/what a Spell is cast at (Fase 8), for the UI to know what to ask.
+
+    Derived heuristically from `range`/`area_of_effect`/`attack_type`/`dc`
+    (see `convert_srd.py::_spell_target_type`) — the SRD doesn't model this
+    directly, and PHB text for several spells allows more than one kind of
+    target (e.g. Cure Wounds on self or another creature); this is the
+    single best-guess bucket, not an exhaustive rules encoding.
+    """
+
+    self = "self"
+    ally = "ally"
+    enemy = "enemy"
+    area = "area"
+    object = "object"
+
+
 class DamageModifierType(enum.StrEnum):
     """How strongly a Monster is affected by a damage type (PRD §7.4.8)."""
 

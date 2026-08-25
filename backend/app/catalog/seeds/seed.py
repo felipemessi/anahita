@@ -184,6 +184,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_monsters(session)
     await _seed_rules(session)
     await backfill_feature_parent_ids(session)
+    await backfill_spell_action_target_types(session)
     await session.commit()
 
 
@@ -225,6 +226,45 @@ async def backfill_feature_parent_ids(session: AsyncSession) -> None:
             update(Feature)
             .where(Feature.id == id_by_index[feat["index"]])
             .values(parent_feature_id=id_by_index[parent_index])
+        )
+
+
+async def backfill_spell_action_target_types(session: AsyncSession) -> None:
+    """Set `Spell.action_type`/`target_type`/`save_ability_score_id` if missing.
+
+    `_seed_spells` sets these correctly for a fresh install; a database
+    seeded before they existed has every SRD `Spell` row with all three
+    `NULL`. Matches by `index`, so existing ids (and every FK pointing at
+    them, e.g. `CharacterSpell.spell_id`) are left untouched — safe to run
+    repeatedly, including as part of `seed_catalog` on an already-seeded
+    database. Homebrew spells (`index IS NULL`) are never touched — this
+    only backfills SRD content the conversion script itself classified.
+    """
+    id_by_index = await _index_map(session, Spell)
+    ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
+
+    already_set_result = await session.execute(
+        select(Spell.index).where(Spell.action_type.is_not(None))
+    )
+    already_set = set(already_set_result.scalars().all())
+
+    for entry in _load("spells"):
+        index = entry["index"]
+        if index in already_set or index not in id_by_index:
+            continue
+        save_ability_index = entry.get("save_ability_index")
+        await session.execute(
+            update(Spell)
+            .where(Spell.id == id_by_index[index])
+            .values(
+                action_type=entry.get("action_type"),
+                target_type=entry.get("target_type"),
+                save_ability_score_id=(
+                    ability_scores_by_index.get(save_ability_index)
+                    if save_ability_index
+                    else None
+                ),
+            )
         )
 
 
@@ -771,9 +811,11 @@ async def _seed_spells(session: AsyncSession) -> None:
     schools_by_index = await _index_map(session, MagicSchool)
     classes_by_index = await _index_map(session, ClassDefinition)
     damage_types_by_index = await _index_map(session, DamageType)
+    ability_scores_by_index = await _index_map(session, AbilityScoreDefinition)
 
     data = _load("spells")
     for entry in data:
+        save_ability_index = entry.get("save_ability_index")
         spell = Spell(
             id=uuid.uuid4(),
             index=entry["index"],
@@ -785,6 +827,13 @@ async def _seed_spells(session: AsyncSession) -> None:
             components=entry["components"],
             ritual=entry["ritual"],
             concentration=entry["concentration"],
+            action_type=entry.get("action_type"),
+            target_type=entry.get("target_type"),
+            save_ability_score_id=(
+                ability_scores_by_index.get(save_ability_index)
+                if save_ability_index
+                else None
+            ),
             is_custom=False,
         )
         session.add(spell)

@@ -20,6 +20,7 @@ from app.characters.schemas import (
     CharacterRead,
     CharacterRestRequest,
     CharacterSpellCastRequest,
+    CharacterSpellCastResponse,
     CharacterSpellCreate,
     CharacterSpellUpdate,
     CharacterSummaryRead,
@@ -169,7 +170,10 @@ async def remove_spell(
     return await service.remove_spell(character_id, spell_id, user.id, db)
 
 
-@router.post("/{character_id}/spells/{spell_id}/cast", response_model=CharacterRead)
+@router.post(
+    "/{character_id}/spells/{spell_id}/cast",
+    response_model=CharacterSpellCastResponse,
+)
 async def cast_spell(
     character_id: uuid.UUID,
     spell_id: uuid.UUID,
@@ -177,7 +181,7 @@ async def cast_spell(
     user: CurrentUser,
     db: DB,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterRead:
+) -> CharacterSpellCastResponse:
     """Cast a known spell, consuming a spell slot. Owner only."""
     return await service.cast_spell(character_id, spell_id, user.id, body, db)
 

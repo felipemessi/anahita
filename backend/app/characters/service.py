@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog import service as catalog_service
-from app.catalog.domain import AbilityScore
+from app.catalog.domain import AbilityScore, SpellActionType
 from app.catalog.models import (
     ClassDefinition,
     ClassLevel,
@@ -65,6 +65,7 @@ from app.characters.schemas import (
     CharacterRestRequest,
     CharacterSkillRead,
     CharacterSpellCastRequest,
+    CharacterSpellCastResponse,
     CharacterSpellCreate,
     CharacterSpellRead,
     CharacterSpellSlotRead,
@@ -871,12 +872,14 @@ class CharacterService:
         requester_id: uuid.UUID,
         data: CharacterSpellCastRequest,
         db: AsyncSession,
-    ) -> CharacterRead:
+    ) -> CharacterSpellCastResponse:
         """Cast a known spell, consuming a spell slot. Owner only.
 
         Cantrips and rituals never consume a slot. Casting above the
         spell's own level ("upcasting") consumes a slot of the level
         requested via `cast_at_level`, and requires that slot to exist.
+        `target_participant_id`/`save_dc` are cast context, not character
+        state — see `CharacterSpellCastResponse`.
         """
         character = await self._load_character_owned_by(
             character_id, requester_id, db
@@ -916,9 +919,20 @@ class CharacterService:
         if spell.concentration:
             character.concentrating_spell_id = spell.id
 
+        save_dc = (
+            self._spell_save_dc(character, class_match[1])
+            if spell.action_type == SpellActionType.saving_throw
+            and class_match is not None
+            else None
+        )
+
         if spell.level == 0 or data.as_ritual:
             await db.commit()
-            return await self._reload_as_read(character.id, db)
+            return CharacterSpellCastResponse(
+                character=await self._reload_as_read(character.id, db),
+                save_dc=save_dc,
+                target_participant_id=data.target_participant_id,
+            )
 
         cast_at_level = data.cast_at_level or spell.level
         if cast_at_level < spell.level:
@@ -953,7 +967,25 @@ class CharacterService:
             db.add(slot)
         slot.used += 1
         await db.commit()
-        return await self._reload_as_read(character.id, db)
+        return CharacterSpellCastResponse(
+            character=await self._reload_as_read(character.id, db),
+            save_dc=save_dc,
+            target_participant_id=data.target_participant_id,
+        )
+
+    def _spell_save_dc(
+        self, character: Character, class_def: ClassDefinition
+    ) -> int | None:
+        """`8 + proficiency + spellcasting ability modifier`, PHB spell save DC.
+
+        `None` when `class_def` has no spellcasting ability (shouldn't
+        happen for a class that granted a `saving_throw` spell, but avoids
+        a crash if the catalog data is ever inconsistent).
+        """
+        if class_def.spellcasting_ability is None:
+            return None
+        ability_mod = self._ability_modifier(character, class_def.spellcasting_ability)
+        return 8 + character.proficiency_bonus + ability_mod
 
     async def rest(
         self,
