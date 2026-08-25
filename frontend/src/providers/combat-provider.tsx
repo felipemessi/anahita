@@ -11,17 +11,26 @@ import {
 } from "react";
 
 import { CombatSocket } from "@/lib/ws/combat-socket";
-import type { CombatClientCommand, CombatServerEvent } from "@/lib/ws/types";
+import type {
+  CombatClientCommand,
+  CombatServerEvent,
+  DeclareActionResult,
+} from "@/lib/ws/types";
 import type { Encounter } from "@/types/combat";
+
+/** Most recent `declare_action` results kept for `ActionLog` — newest first. */
+const MAX_ACTION_LOG_ENTRIES = 10;
 
 export interface CombatState {
   encounter: Encounter | null;
   lastError: string | null;
+  actionLog: DeclareActionResult[];
 }
 
 export const initialCombatState: CombatState = {
   encounter: null,
   lastError: null,
+  actionLog: [],
 };
 
 /**
@@ -36,7 +45,7 @@ export function combatReducer(
 ): CombatState {
   switch (event.event_type) {
     case "state_sync":
-      return { encounter: event.payload, lastError: null };
+      return { ...state, encounter: event.payload, lastError: null };
 
     case "turn_advanced": {
       if (!state.encounter) return state;
@@ -71,6 +80,12 @@ export function combatReducer(
         encounter: { ...state.encounter, status: event.payload.status },
       };
     }
+
+    case "action_resolved":
+      return {
+        ...state,
+        actionLog: [event.payload, ...state.actionLog].slice(0, MAX_ACTION_LOG_ENTRIES),
+      };
 
     case "error":
       return { ...state, lastError: event.payload.detail };

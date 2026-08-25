@@ -608,3 +608,31 @@ async def test_declare_action_auto_roll_logged_as_rolled_by_system(
     log = await service.get_log(encounter_id, fx.dm_id, db)
     attack_entry = next(entry for entry in log if entry.action_type == "attack_weapon")
     assert attack_entry.rolled_by_system is True
+
+
+async def test_declare_flavor_action_logs_without_rolling(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """An action with nothing to roll (e.g. dash) just logs as taken."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    service = CombatService()
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Aldric"],
+            target_id=ids["Aldric"],
+            action_type="dash",
+        ),
+        db,
+    )
+    assert result.hit is None
+    assert result.attack_roll is None
+    assert "dash" in result.description
+
+    log = await service.get_log(encounter_id, fx.dm_id, db)
+    dash_entry = next(entry for entry in log if entry.action_type == "dash")
+    assert dash_entry.rolled_by_system is True
