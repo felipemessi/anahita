@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ClassResources } from "@/components/characters/class-resources";
 import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
 import { useCharacter } from "@/hooks/use-character";
 import { useCombat } from "@/hooks/use-combat";
@@ -133,6 +134,12 @@ export function ActionPicker({
   return (
     <section aria-label="Declarar ação" className="rounded-lg border border-border bg-card p-4">
       <h2 className="font-semibold">Ação de {participant.name}</h2>
+
+      {character?.resources && character.resources.length > 0 ? (
+        <div className="mt-2">
+          <ClassResources characterId={character.id} resources={character.resources} />
+        </div>
+      ) : null}
 
       <div className="mt-2 flex flex-wrap items-end gap-3">
         <div className="space-y-1">

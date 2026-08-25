@@ -17,6 +17,7 @@ import {
   restCharacter,
   rollDeathSave,
   setCharacterConcentration,
+  spendCharacterResource,
   updateCharacterCurrency,
   updateCharacterEquipment,
   updateCharacterHp,
@@ -201,6 +202,19 @@ export function useLevelUpCharacter(characterId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CharacterLevelUpRequest) => levelUpCharacter(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/** Spend one use of a class resource (rage, ki, ...). */
+export function useSpendCharacterResource(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (resourceKey: string) => spendCharacterResource(characterId, resourceKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],

@@ -155,6 +155,17 @@ export function setCharacterConcentration(
   });
 }
 
+/** Spend one use of a class resource (rage, ki, ...). */
+export function spendCharacterResource(
+  characterId: string,
+  resourceKey: string,
+): Promise<Character> {
+  return apiFetch<Character>(
+    `/characters/${characterId}/resources/${encodeURIComponent(resourceKey)}/use`,
+    { method: "POST" },
+  );
+}
+
 /** Add an item to a character's personal inventory. */
 export function addCharacterEquipment(
   characterId: string,
