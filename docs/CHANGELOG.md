@@ -236,3 +236,27 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   em markdown, ligação a NPCs/locais/facções existentes navegando direto
   para a tela do World correspondente, e páginas de wiki entrando na busca
   do hub de World.
+- Fase 6 do backend, história 1: gerenciamento de magias conhecidas e
+  preparadas na ficha, organizadas por círculo, respeitando o limite de
+  cada classe (fixo por nível, ou ability modifier + nível de conjurador).
+- Fase 6 do backend, história 2: slots de magia por círculo, gastos ao
+  conjurar (com ritual sem custo e conjuração em nível maior) e restaurados
+  num descanso longo.
+- Fase 6 do backend, história 3: edição e remoção de itens do inventário
+  pessoal, e registro de ganho/gasto de moeda na ficha.
+- Fase 6 do backend, história 4: abertura de sessão pelo mestre, início de
+  combate populando automaticamente todos os personagens da campanha, e
+  exigência de rolagem de iniciativa de todo participante antes do
+  primeiro turno.
+- Fase 6 do backend, história 5: declaração de ações de combate (ataque
+  com arma, com magia, agarrar, empurrar) com resolução automática de
+  acerto e dano/efeito no servidor, incluindo ataques de monstros do
+  catálogo.
+- Fase 6 do backend, história 6: toda rolagem do servidor (iniciativa,
+  ataque, dano, teste oposto) é automática por padrão, com opção de
+  digitar o resultado manualmente por rolagem.
+- Fase 6 do backend, história 7 (última da fase — Interatividade de Ficha
+  e Combate completa): na listagem de personagens da campanha, jogadores
+  veem só um resumo (nome, raça, classe(s), nível) dos personagens de
+  outros jogadores — a ficha completa continua visível só pro dono e pro
+  mestre.
