@@ -10,6 +10,7 @@ from app.catalog.domain import (
     SpellActionType,
     SpellDamageScalingType,
     SpellTargetType,
+    WeaponCategory,
 )
 
 
@@ -272,6 +273,7 @@ class WeaponDetailRead(BaseModel):
     damage_dice: str
     damage_type: str
     weapon_range: str
+    weapon_category: WeaponCategory | None
 
 
 class ArmorDetailRead(BaseModel):

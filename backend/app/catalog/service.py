@@ -867,6 +867,7 @@ async def get_item_translated(
             damage_dice=item.weapon_detail.damage_dice,
             damage_type=item.weapon_detail.damage_type.index or "",
             weapon_range=item.weapon_detail.weapon_range,
+            weapon_category=item.weapon_detail.weapon_category,
         )
     return ItemRead(
         id=item.id,

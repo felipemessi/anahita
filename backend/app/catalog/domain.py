@@ -72,6 +72,18 @@ class ArmorCategory(enum.StrEnum):
     shield = "shield"
 
 
+class WeaponCategory(enum.StrEnum):
+    """A WeaponDetail's PHB proficiency class (Fase 8 audit).
+
+    Matches `simple-weapons`/`martial-weapons`, the two class-granted
+    `Proficiency` rows every martial class references — see
+    `combat.service.CombatService._is_weapon_proficient`.
+    """
+
+    simple = "simple"
+    martial = "martial"
+
+
 class ItemRarity(enum.StrEnum):
     """Magic item rarity tiers."""
 

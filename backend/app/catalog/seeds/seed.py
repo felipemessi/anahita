@@ -186,6 +186,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await backfill_feature_parent_ids(session)
     await backfill_spell_action_target_types(session)
     await backfill_armor_categories(session)
+    await backfill_weapon_categories(session)
     await session.commit()
 
 
@@ -298,6 +299,37 @@ async def backfill_armor_categories(session: AsyncSession) -> None:
             update(ArmorDetail)
             .where(ArmorDetail.id == armor_detail_id)
             .values(armor_category=armor_category)
+        )
+
+
+async def backfill_weapon_categories(session: AsyncSession) -> None:
+    """Set `WeaponDetail.weapon_category` on already-seeded rows missing it.
+
+    Same pattern as `backfill_armor_categories`, one layer down: `_seed_items`
+    sets this correctly for a fresh install; matches via the owning
+    `Item.index` since `WeaponDetail` has none of its own. Safe to run
+    repeatedly, including as part of `seed_catalog` on an already-seeded
+    database.
+    """
+    weapon_category_by_item_index = {
+        entry["index"]: wd["weapon_category"]
+        for entry in _load("items")
+        if (wd := entry.get("weapon_detail")) and wd.get("weapon_category")
+    }
+
+    result = await session.execute(
+        select(WeaponDetail.id, Item.index)
+        .join(Item, Item.id == WeaponDetail.item_id)
+        .where(WeaponDetail.weapon_category.is_(None))
+    )
+    for weapon_detail_id, item_index in result.all():
+        weapon_category = weapon_category_by_item_index.get(item_index or "")
+        if weapon_category is None:
+            continue
+        await session.execute(
+            update(WeaponDetail)
+            .where(WeaponDetail.id == weapon_detail_id)
+            .values(weapon_category=weapon_category)
         )
 
 
@@ -941,6 +973,7 @@ async def _seed_items(session: AsyncSession) -> None:
                     damage_dice=wd["damage_dice"],
                     damage_type_id=damage_types_by_index[wd["damage_type_index"]],
                     weapon_range=wd["weapon_range"],
+                    weapon_category=wd.get("weapon_category"),
                 )
             )
 

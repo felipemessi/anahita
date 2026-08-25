@@ -24,6 +24,7 @@ from app.campaigns.models import CampaignMember
 from app.catalog.domain import AbilityScore
 from app.catalog.models import (
     ClassDefinition,
+    EquipmentCategory,
     Item,
     ItemProperty,
     Monster,
@@ -35,6 +36,7 @@ from app.catalog.models import (
     MonsterReaction,
     MonsterReactionDamage,
     Proficiency,
+    ProficiencyClass,
     SkillDefinition,
     Spell,
     SpellDamage,
@@ -44,6 +46,7 @@ from app.characters.domain import SKILL_ABILITY, Skill
 from app.characters.models import (
     Character,
     CharacterAbilityScore,
+    CharacterClass,
     CharacterEquipment,
     CharacterSkill,
     CharacterSpell,
@@ -111,9 +114,7 @@ def participant_to_read(
         for c in participant.conditions
     ]
     effects = [
-        MechanicalEffectRead(
-            effect_type=e.effect_type, value=e.value, target=e.target
-        )
+        MechanicalEffectRead(effect_type=e.effect_type, value=e.value, target=e.target)
         for e in get_condition_effects(engine_conditions)
     ]
     return EncounterParticipantRead(
@@ -151,6 +152,23 @@ def encounter_to_read(encounter: Encounter) -> EncounterRead:
         current_turn_order=encounter.current_turn_order,
         created_at=encounter.created_at,
         participants=[participant_to_read(p) for p in encounter.participants],
+    )
+
+
+def _weapon_name_tokens(index: str) -> frozenset[str]:
+    """Hyphen-split `index` into naively-singularized tokens, order-independent.
+
+    Used to match a specific-weapon `Proficiency.index` (e.g.
+    `"hand-crossbows"`) against an `Item.index` that names the same
+    weapon in a different word order (e.g. `"crossbow-hand"`) — see
+    `CombatService._is_weapon_proficient`. Naive `-s` stripping is
+    reliable in this domain (weapon names), not a general English
+    depluralizer.
+    """
+    return frozenset(
+        token[:-1] if token.endswith("s") else token
+        for token in index.split("-")
+        if token
     )
 
 
@@ -338,9 +356,7 @@ class CombatService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="hit_point_current cannot exceed hit_point_max",
                 )
-            self._log_hp_change(
-                db, encounter, participant, data.hit_point_current
-            )
+            self._log_hp_change(db, encounter, participant, data.hit_point_current)
             participant.hit_point_current = data.hit_point_current
         if data.temporary_hit_points is not None:
             participant.temporary_hit_points = data.temporary_hit_points
@@ -396,8 +412,7 @@ class CombatService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
-                    "All participants must roll initiative before turns can "
-                    "advance"
+                    "All participants must roll initiative before turns can advance"
                 ),
             )
 
@@ -509,8 +524,7 @@ class CombatService:
                         encounter,
                         target_id=participant.id,
                         description=(
-                            f"{participant.name} lost condition: "
-                            f"{remove_condition}"
+                            f"{participant.name} lost condition: {remove_condition}"
                         ),
                     )
 
@@ -767,9 +781,7 @@ class CombatService:
             new_hp = max(0, target.hit_point_current - damage_rolled)
             self._log_hp_change(db, encounter, target, new_hp)
             target.hit_point_current = new_hp
-            concentration_dc = await self._concentration_dc(
-                target, damage_rolled, db
-            )
+            concentration_dc = await self._concentration_dc(target, damage_rolled, db)
             description += (
                 f", dealing {damage_rolled} {damage_type or ''} damage".rstrip()
             )
@@ -870,9 +882,10 @@ class CombatService:
         Ability used: DEX for ranged or finesse weapons, STR otherwise — for
         finesse specifically the PHB lets the player pick either; this
         always picks DEX (the common choice in play), a documented
-        simplification. Proficiency is assumed with any weapon a character
-        has equipped — this app doesn't model per-category weapon
-        proficiency on `Character`, another documented simplification.
+        simplification. Proficiency (Fase 8 audit) is resolved by
+        `_is_weapon_proficient` — simple/martial weapon category, or a
+        specific-weapon grant (e.g. Rogue's Longswords) — and only adds
+        the proficiency bonus when the character actually has it.
         """
         result = await db.execute(
             select(CharacterEquipment).where(
@@ -903,16 +916,18 @@ class CombatService:
                 detail="Selected equipment is not a weapon",
             )
 
-        has_finesse = any(
-            p.weapon_property.index == "finesse" for p in item.properties
-        )
+        has_finesse = any(p.weapon_property.index == "finesse" for p in item.properties)
         ability = (
             AbilityScore.dex
             if item.weapon_detail.weapon_range == "Ranged" or has_finesse
             else AbilityScore.str
         )
         ability_mod = await self._character_ability_modifier(character_id, ability, db)
-        proficiency_bonus = await self._character_proficiency_bonus(character_id, db)
+        proficiency_bonus = 0
+        if await self._is_weapon_proficient(character_id, item, db):
+            proficiency_bonus = await self._character_proficiency_bonus(
+                character_id, db
+            )
         attack_bonus = ability_mod + proficiency_bonus
         sign = "+" if ability_mod >= 0 else ""
         damage_expression = f"{item.weapon_detail.damage_dice}{sign}{ability_mod}"
@@ -922,6 +937,61 @@ class CombatService:
             item.weapon_detail.damage_type.index or "",
             item.index or "weapon",
         )
+
+    async def _is_weapon_proficient(
+        self, character_id: uuid.UUID, item: Item, db: AsyncSession
+    ) -> bool:
+        """Whether any of the character's classes grants proficiency with `item`.
+
+        Two ways a class grants it (Fase 8 audit): the broad
+        `simple-weapons`/`martial-weapons` category (matched against
+        `WeaponDetail.weapon_category`), or a specific named weapon (e.g.
+        Rogue's "Longswords") — those SRD entries have no structured
+        equipment-category reference, so they're matched by comparing
+        singularized, hyphen-token sets against `item.index` (e.g.
+        `"hand-crossbows"` -> `{"hand", "crossbow"}` matches item index
+        `"crossbow-hand"` -> `{"crossbow", "hand"}`).
+        """
+        classes_result = await db.execute(
+            select(CharacterClass.class_definition_id).where(
+                CharacterClass.character_id == character_id
+            )
+        )
+        class_ids = list(classes_result.scalars().all())
+        if not class_ids:
+            return False
+
+        result = await db.execute(
+            select(
+                Proficiency.proficiency_type, Proficiency.index, EquipmentCategory.index
+            )
+            .join(ProficiencyClass, ProficiencyClass.proficiency_id == Proficiency.id)
+            .outerjoin(
+                EquipmentCategory,
+                EquipmentCategory.id == Proficiency.equipment_category_id,
+            )
+            .where(ProficiencyClass.class_definition_id.in_(class_ids))
+        )
+        weapon_category = (
+            item.weapon_detail.weapon_category
+            if item.weapon_detail is not None
+            else None
+        )
+        item_tokens = _weapon_name_tokens(item.index or "")
+        for proficiency_type, prof_index, equipment_category_index in result.all():
+            if (
+                proficiency_type == "weapon"
+                and weapon_category is not None
+                and equipment_category_index == f"{weapon_category.value}-weapons"
+            ):
+                return True
+            if (
+                proficiency_type == "other"
+                and item_tokens
+                and _weapon_name_tokens(prof_index or "") == item_tokens
+            ):
+                return True
+        return False
 
     async def _resolve_character_spell_attack(
         self,
@@ -983,8 +1053,7 @@ class CombatService:
                 (
                     c
                     for c in character.classes
-                    if class_def is not None
-                    and c.class_definition_id == class_def.id
+                    if class_def is not None and c.class_definition_id == class_def.id
                 ),
                 None,
             )
@@ -1006,9 +1075,7 @@ class CombatService:
                 or (
                     d.scaling_type == "character_level"
                     and d.scaling_key
-                    == max(
-                        (k for k in (1, 5, 11, 17) if k <= caster_level), default=1
-                    )
+                    == max((k for k in (1, 5, 11, 17) if k <= caster_level), default=1)
                 )
             ),
             None,
@@ -1055,8 +1122,7 @@ class CombatService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
-                    "This monster action has no attack roll "
-                    "(e.g. a save-based effect)"
+                    "This monster action has no attack roll (e.g. a save-based effect)"
                 ),
             )
         if not action.damages:
@@ -1086,9 +1152,7 @@ class CombatService:
         if participant.monster_id is not None:
             return participant.monster_id
         if participant.npc_id is not None:
-            result = await db.execute(
-                select(NPC).where(NPC.id == participant.npc_id)
-            )
+            result = await db.execute(select(NPC).where(NPC.id == participant.npc_id))
             npc = result.scalar_one_or_none()
             return npc.stat_block_id if npc is not None else None
         return None
@@ -1152,9 +1216,7 @@ class CombatService:
                 detail="This legendary action has no attack roll",
             )
         damage_expression = (
-            "+".join(d.damage_dice for d in action.damages)
-            if action.damages
-            else None
+            "+".join(d.damage_dice for d in action.damages) if action.damages else None
         )
         damage_type = action.damages[0].damage_type.index if action.damages else None
         source = (action.attack_bonus, damage_expression, damage_type, action.name)
@@ -1267,9 +1329,7 @@ class CombatService:
     async def _character_proficiency_bonus(
         self, character_id: uuid.UUID, db: AsyncSession
     ) -> int:
-        result = await db.execute(
-            select(Character).where(Character.id == character_id)
-        )
+        result = await db.execute(select(Character).where(Character.id == character_id))
         character = result.scalar_one_or_none()
         return character.proficiency_bonus if character is not None else 0
 

@@ -647,6 +647,10 @@ def convert_items() -> None:
                 "damage_dice": damage["damage_dice"],
                 "damage_type_index": damage["damage_type"]["index"],
                 "weapon_range": e.get("weapon_range", "Melee"),
+                # "Simple"/"Martial" — matches the `simple-weapons`/
+                # `martial-weapons` class-granted Proficiency rows (Fase 8
+                # weapon-attack audit, `combat.service.CombatService`).
+                "weapon_category": (e.get("weapon_category") or "").lower() or None,
             }
 
         if "armor_class" in e:
