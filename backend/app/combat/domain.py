@@ -41,7 +41,12 @@ class ConditionType(StrEnum):
 
 
 class ActionType(StrEnum):
-    """Category of a logged combat action (`CombatLog.action_type`)."""
+    """Category of a logged combat action (`CombatLog.action_type`).
+
+    `attack_weapon`/`attack_spell`/`grapple`/`shove`/`search` are resolved
+    server-side by `CombatService.declare_action` — `attack`/`spell`/`other`
+    remain for anything logged outside that flow (e.g. free-text DM notes).
+    """
 
     attack = "attack"
     spell = "spell"
@@ -52,6 +57,11 @@ class ActionType(StrEnum):
     help = "help"
     hide = "hide"
     ready = "ready"
+    attack_weapon = "attack_weapon"
+    attack_spell = "attack_spell"
+    grapple = "grapple"
+    shove = "shove"
+    search = "search"
     other = "other"
 
 
@@ -60,17 +70,25 @@ class ParticipantKindError(ValueError):
 
 
 def validate_participant_kind(
-    *, character_id: uuid.UUID | None, npc_id: uuid.UUID | None
+    *,
+    character_id: uuid.UUID | None,
+    npc_id: uuid.UUID | None,
+    monster_id: uuid.UUID | None = None,
 ) -> None:
-    """Enforce that a participant is a PC **or** an NPC, never both.
+    """Enforce a participant is a PC, an NPC, **or** a catalog monster.
 
-    Neither being set is valid — it's a manual/generic participant (e.g. an
-    unnamed monster added on the fly), identified only by its `name` field
-    (PRD §7.6: "name: fallback para monstros genéricos").
+    Never more than one. None of the three being set is valid — it's a
+    manual/generic participant (e.g. an unnamed monster added on the fly),
+    identified only by its `name` field (PRD §7.6: "name: fallback para
+    monstros genéricos").
     """
-    if character_id is not None and npc_id is not None:
+    kinds_set = sum(
+        1 for kind_id in (character_id, npc_id, monster_id) if kind_id is not None
+    )
+    if kinds_set > 1:
         raise ParticipantKindError(
-            "An encounter participant cannot be both a character and an NPC."
+            "An encounter participant can only be one of: a character, an "
+            "NPC, or a catalog monster."
         )
 
 

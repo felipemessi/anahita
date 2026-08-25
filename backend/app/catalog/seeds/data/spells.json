@@ -18,6 +18,56 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "4d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "5d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "6d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "7d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "8d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "9d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "10d4"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "11d4"
+      }
     ]
   },
   {
@@ -40,6 +90,32 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d6"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d6"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d6"
+      },
+      {
+        "damage_type_index": "acid",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d6"
+      }
     ]
   },
   {
@@ -62,7 +138,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "alarm",
@@ -84,7 +161,8 @@
     "classes": [
       "ranger",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "alter-self",
@@ -106,7 +184,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "animal-friendship",
@@ -129,7 +208,8 @@
       "bard",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "animal-messenger",
@@ -152,7 +232,8 @@
       "bard",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "animal-shapes",
@@ -173,7 +254,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "animate-dead",
@@ -195,7 +277,8 @@
     "classes": [
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "animate-objects",
@@ -218,7 +301,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "antilife-shell",
@@ -239,7 +323,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "antimagic-field",
@@ -261,7 +346,8 @@
     "classes": [
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "antipathy-sympathy",
@@ -283,7 +369,8 @@
     "classes": [
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "arcane-eye",
@@ -305,7 +392,8 @@
     "classes": [
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "arcane-hand",
@@ -326,7 +414,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "arcane-lock",
@@ -347,7 +436,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "arcane-sword",
@@ -369,6 +459,14 @@
     "classes": [
       "bard",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "3d10"
+      }
     ]
   },
   {
@@ -390,7 +488,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "astral-projection",
@@ -413,7 +512,8 @@
       "cleric",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "augury",
@@ -434,7 +534,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "awaken",
@@ -456,7 +557,8 @@
     "classes": [
       "bard",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "bane",
@@ -478,7 +580,8 @@
     "classes": [
       "bard",
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "banishment",
@@ -503,7 +606,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "barkskin",
@@ -525,7 +629,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "beacon-of-hope",
@@ -546,7 +651,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "bestow-curse",
@@ -569,7 +675,8 @@
       "bard",
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "black-tentacles",
@@ -590,6 +697,14 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "3d6"
+      }
     ]
   },
   {
@@ -611,6 +726,14 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "slashing",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d10"
+      }
     ]
   },
   {
@@ -633,7 +756,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "blight",
@@ -657,6 +781,44 @@
       "sorcerer",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "9d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "10d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "11d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "12d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "13d8"
+      }
     ]
   },
   {
@@ -681,7 +843,8 @@
       "cleric",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "blink",
@@ -703,7 +866,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "blur",
@@ -725,7 +889,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "branding-smite",
@@ -746,6 +911,56 @@
     },
     "classes": [
       "paladin"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "2d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d6"
+      }
     ]
   },
   {
@@ -768,6 +983,62 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "3d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "4d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "5d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "6d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "7d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "9d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "10d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "11d6"
+      }
     ]
   },
   {
@@ -789,6 +1060,50 @@
     },
     "classes": [
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d10"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d10"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d10"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d10"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d10"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d10"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d10"
+      }
     ]
   },
   {
@@ -811,7 +1126,8 @@
     "classes": [
       "bard",
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "chain-lightning",
@@ -833,6 +1149,14 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "10d8"
+      }
     ]
   },
   {
@@ -858,7 +1182,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "chill-touch",
@@ -881,6 +1206,32 @@
       "sorcerer",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d8"
+      }
     ]
   },
   {
@@ -904,6 +1255,32 @@
       "sorcerer",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "10d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "12d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "14d6"
+      }
     ]
   },
   {
@@ -928,7 +1305,8 @@
       "cleric",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "clone",
@@ -949,7 +1327,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "cloudkill",
@@ -971,6 +1350,38 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d8"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d8"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d8"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d8"
+      }
     ]
   },
   {
@@ -993,7 +1404,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "command",
@@ -1015,7 +1427,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "commune",
@@ -1036,7 +1449,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "commune-with-nature",
@@ -1058,7 +1472,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "comprehend-languages",
@@ -1082,7 +1497,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "compulsion",
@@ -1103,7 +1519,8 @@
     },
     "classes": [
       "bard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "cone-of-cold",
@@ -1125,6 +1542,38 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "9d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "10d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "11d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "12d8"
+      }
     ]
   },
   {
@@ -1149,7 +1598,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "conjure-animals",
@@ -1171,7 +1621,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "conjure-celestial",
@@ -1192,7 +1643,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "conjure-elemental",
@@ -1214,7 +1666,8 @@
     "classes": [
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "conjure-fey",
@@ -1236,7 +1689,8 @@
     "classes": [
       "druid",
       "warlock"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "conjure-minor-elementals",
@@ -1258,7 +1712,8 @@
     "classes": [
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "conjure-woodland-beings",
@@ -1280,7 +1735,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "contact-other-plane",
@@ -1302,7 +1758,8 @@
     "classes": [
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "contagion",
@@ -1324,7 +1781,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "contingency",
@@ -1345,7 +1803,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "continual-flame",
@@ -1367,7 +1826,8 @@
     "classes": [
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "control-water",
@@ -1390,6 +1850,14 @@
       "cleric",
       "druid",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "2d8"
+      }
     ]
   },
   {
@@ -1413,7 +1881,8 @@
       "cleric",
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "counterspell",
@@ -1436,7 +1905,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "create-food-and-water",
@@ -1459,7 +1929,8 @@
       "cleric",
       "druid",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "create-undead",
@@ -1482,7 +1953,8 @@
       "cleric",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "create-or-destroy-water",
@@ -1504,7 +1976,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "creation",
@@ -1526,7 +1999,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "cure-wounds",
@@ -1551,7 +2025,8 @@
       "druid",
       "paladin",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dancing-lights",
@@ -1574,7 +2049,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "darkness",
@@ -1597,7 +2073,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "darkvision",
@@ -1621,7 +2098,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "daylight",
@@ -1646,7 +2124,8 @@
       "paladin",
       "ranger",
       "sorcerer"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "death-ward",
@@ -1668,7 +2147,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "delayed-blast-fireball",
@@ -1690,6 +2170,26 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "12d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "13d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "14d6"
+      }
     ]
   },
   {
@@ -1712,7 +2212,8 @@
     "classes": [
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "detect-evil-and-good",
@@ -1734,7 +2235,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "detect-magic",
@@ -1761,7 +2263,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "detect-poison-and-disease",
@@ -1785,7 +2288,8 @@
       "druid",
       "paladin",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "detect-thoughts",
@@ -1808,7 +2312,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dimension-door",
@@ -1832,6 +2337,14 @@
       "sorcerer",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d6"
+      }
     ]
   },
   {
@@ -1855,7 +2368,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "disintegrate",
@@ -1877,6 +2391,14 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "10d6 + 40"
+      }
     ]
   },
   {
@@ -1899,7 +2421,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dispel-magic",
@@ -1926,7 +2449,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "divination",
@@ -1947,7 +2471,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "divine-favor",
@@ -1968,6 +2493,14 @@
     },
     "classes": [
       "paladin"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "1d4"
+      }
     ]
   },
   {
@@ -1989,7 +2522,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dominate-beast",
@@ -2011,7 +2545,8 @@
     "classes": [
       "druid",
       "sorcerer"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dominate-monster",
@@ -2035,7 +2570,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dominate-person",
@@ -2058,7 +2594,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "dream",
@@ -2081,6 +2618,14 @@
       "bard",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "3d6"
+      }
     ]
   },
   {
@@ -2102,7 +2647,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "earthquake",
@@ -2125,7 +2671,8 @@
       "cleric",
       "druid",
       "sorcerer"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "eldritch-blast",
@@ -2146,6 +2693,32 @@
     },
     "classes": [
       "warlock"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "force",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d10"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "1d10"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "1d10"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "1d10"
+      }
     ]
   },
   {
@@ -2170,7 +2743,8 @@
       "cleric",
       "druid",
       "sorcerer"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "enlarge-reduce",
@@ -2192,7 +2766,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "entangle",
@@ -2213,7 +2788,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "enthrall",
@@ -2235,7 +2811,8 @@
     "classes": [
       "bard",
       "warlock"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "etherealness",
@@ -2260,7 +2837,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "expeditious-retreat",
@@ -2283,7 +2861,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "eyebite",
@@ -2307,7 +2886,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "fabricate",
@@ -2328,7 +2908,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "faerie-fire",
@@ -2349,7 +2930,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "faithful-hound",
@@ -2370,6 +2952,14 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d8"
+      }
     ]
   },
   {
@@ -2392,7 +2982,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "fear",
@@ -2416,7 +3007,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "feather-fall",
@@ -2439,7 +3031,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "feeblemind",
@@ -2463,6 +3056,14 @@
       "druid",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "4d6"
+      }
     ]
   },
   {
@@ -2484,7 +3085,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "find-steed",
@@ -2505,7 +3107,8 @@
     },
     "classes": [
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "find-traps",
@@ -2528,7 +3131,8 @@
       "cleric",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "find-the-path",
@@ -2551,7 +3155,8 @@
       "bard",
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "finger-of-death",
@@ -2574,6 +3179,14 @@
       "sorcerer",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d8 + 30"
+      }
     ]
   },
   {
@@ -2596,6 +3209,32 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d10"
+      }
     ]
   },
   {
@@ -2617,6 +3256,14 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "2d8"
+      }
     ]
   },
   {
@@ -2640,6 +3287,14 @@
       "cleric",
       "druid",
       "sorcerer"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d10"
+      }
     ]
   },
   {
@@ -2662,6 +3317,50 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "9d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "10d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "11d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "12d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "13d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "14d6"
+      }
     ]
   },
   {
@@ -2683,6 +3382,32 @@
     },
     "classes": [
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "3d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "5d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "6d6"
+      }
     ]
   },
   {
@@ -2704,6 +3429,38 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "4d6 + 4d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "4d6 + 5d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "4d6 + 6d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "4d6 + 7d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "4d6 + 8d6"
+      }
     ]
   },
   {
@@ -2726,6 +3483,56 @@
     "classes": [
       "druid",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "2d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d6"
+      }
     ]
   },
   {
@@ -2748,7 +3555,8 @@
     "classes": [
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "floating-disk",
@@ -2769,7 +3577,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "fly",
@@ -2792,7 +3601,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "fog-cloud",
@@ -2816,7 +3626,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "forbiddance",
@@ -2837,7 +3648,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "forcecage",
@@ -2860,7 +3672,8 @@
       "bard",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "foresight",
@@ -2884,7 +3697,8 @@
       "druid",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "freedom-of-movement",
@@ -2908,7 +3722,8 @@
       "cleric",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "freezing-sphere",
@@ -2929,6 +3744,14 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "10d6"
+      }
     ]
   },
   {
@@ -2952,7 +3775,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "gate",
@@ -2975,7 +3799,8 @@
       "cleric",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "geas",
@@ -3000,7 +3825,8 @@
       "druid",
       "paladin",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "gentle-repose",
@@ -3022,7 +3848,8 @@
     "classes": [
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "giant-insect",
@@ -3043,7 +3870,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "glibness",
@@ -3065,7 +3893,8 @@
     "classes": [
       "bard",
       "warlock"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "globe-of-invulnerability",
@@ -3087,7 +3916,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "glyph-of-warding",
@@ -3110,7 +3940,8 @@
       "bard",
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "goodberry",
@@ -3132,7 +3963,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "grease",
@@ -3153,7 +3985,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "greater-invisibility",
@@ -3176,7 +4009,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "greater-restoration",
@@ -3199,7 +4033,8 @@
       "bard",
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "guardian-of-faith",
@@ -3220,6 +4055,14 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "20"
+      }
     ]
   },
   {
@@ -3242,7 +4085,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "guidance",
@@ -3264,7 +4108,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "guiding-bolt",
@@ -3285,6 +4130,62 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "4d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "5d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "6d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "7d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "9d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "10d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "11d6"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "12d6"
+      }
     ]
   },
   {
@@ -3308,7 +4209,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hallow",
@@ -3329,7 +4231,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hallucinatory-terrain",
@@ -3353,7 +4256,8 @@
       "druid",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "harm",
@@ -3374,6 +4278,14 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "14d6"
+      }
     ]
   },
   {
@@ -3396,7 +4308,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "heal",
@@ -3418,7 +4331,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "healing-word",
@@ -3441,7 +4355,8 @@
       "bard",
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "heat-metal",
@@ -3463,6 +4378,56 @@
     "classes": [
       "bard",
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d8"
+      }
     ]
   },
   {
@@ -3484,6 +4449,62 @@
     },
     "classes": [
       "warlock"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "2d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "3d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "4d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "5d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "6d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "7d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "8d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "9d10"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "10d10"
+      }
     ]
   },
   {
@@ -3506,7 +4527,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "heroism",
@@ -3528,7 +4550,8 @@
     "classes": [
       "bard",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hideous-laughter",
@@ -3550,7 +4573,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hold-monster",
@@ -3574,7 +4598,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hold-person",
@@ -3600,7 +4625,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "holy-aura",
@@ -3621,7 +4647,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hunters-mark",
@@ -3642,7 +4669,8 @@
     },
     "classes": [
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "hypnotic-pattern",
@@ -3666,7 +4694,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "ice-storm",
@@ -3689,6 +4718,44 @@
       "druid",
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "2d8 + 4d6"
+      },
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "3d8 + 4d6"
+      },
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "4d8 + 4d6"
+      },
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "5d8 + 4d6"
+      },
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "6d8 + 4d6"
+      },
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "7d8 + 4d6"
+      }
     ]
   },
   {
@@ -3711,7 +4778,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "illusory-script",
@@ -3734,7 +4802,8 @@
       "bard",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "imprisonment",
@@ -3756,7 +4825,8 @@
     "classes": [
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "incendiary-cloud",
@@ -3778,6 +4848,14 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "10d8"
+      }
     ]
   },
   {
@@ -3799,6 +4877,62 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "3d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "4d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "5d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "6d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "7d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "8d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "9d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "10d10"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "11d10"
+      }
     ]
   },
   {
@@ -3822,6 +4956,38 @@
       "cleric",
       "druid",
       "sorcerer"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "4d10"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "5d10"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "6d10"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "7d10"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "8d10"
+      }
     ]
   },
   {
@@ -3843,7 +5009,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "invisibility",
@@ -3867,7 +5034,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "irresistible-dance",
@@ -3889,7 +5057,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "jump",
@@ -3913,7 +5082,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "knock",
@@ -3936,7 +5106,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "legend-lore",
@@ -3959,7 +5130,8 @@
       "bard",
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "lesser-restoration",
@@ -3984,7 +5156,8 @@
       "druid",
       "paladin",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "levitate",
@@ -4006,7 +5179,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "light",
@@ -4030,7 +5204,8 @@
       "cleric",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "lightning-bolt",
@@ -4052,6 +5227,50 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "9d6"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "10d6"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "11d6"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "12d6"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "13d6"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "14d6"
+      }
     ]
   },
   {
@@ -4075,7 +5294,8 @@
       "bard",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "locate-creature",
@@ -4101,7 +5321,8 @@
       "paladin",
       "ranger",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "locate-object",
@@ -4127,7 +5348,8 @@
       "paladin",
       "ranger",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "longstrider",
@@ -4151,7 +5373,8 @@
       "druid",
       "ranger",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mage-armor",
@@ -4173,7 +5396,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mage-hand",
@@ -4197,7 +5421,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "magic-circle",
@@ -4221,7 +5446,8 @@
       "paladin",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "magic-jar",
@@ -4242,7 +5468,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "magic-missile",
@@ -4264,6 +5491,62 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "3d4 + 3"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "4d4 + 4"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "5d4 + 5"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "6d4 + 6"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "7d4 + 7"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "8d4 + 8"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "9d4 + 9"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "10d4 + 10"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "11d4 + 11"
+      }
     ]
   },
   {
@@ -4286,7 +5569,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "magic-weapon",
@@ -4308,7 +5592,8 @@
     "classes": [
       "paladin",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "magnificent-mansion",
@@ -4330,7 +5615,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "major-image",
@@ -4354,7 +5640,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mass-cure-wounds",
@@ -4377,7 +5664,8 @@
       "bard",
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mass-heal",
@@ -4398,7 +5686,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mass-healing-word",
@@ -4419,7 +5708,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mass-suggestion",
@@ -4443,7 +5733,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "maze",
@@ -4464,7 +5755,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "meld-into-stone",
@@ -4485,7 +5777,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mending",
@@ -4510,7 +5803,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "message",
@@ -4533,7 +5827,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "meteor-swarm",
@@ -4555,6 +5850,14 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "20d6 + 20d6"
+      }
     ]
   },
   {
@@ -4577,7 +5880,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "minor-illusion",
@@ -4601,7 +5905,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mirage-arcane",
@@ -4624,7 +5929,8 @@
       "bard",
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mirror-image",
@@ -4647,7 +5953,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "mislead",
@@ -4669,7 +5976,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "misty-step",
@@ -4692,7 +6000,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "modify-memory",
@@ -4714,7 +6023,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "moonbeam",
@@ -4735,6 +6045,56 @@
     },
     "classes": [
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "2d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d10"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d10"
+      }
     ]
   },
   {
@@ -4758,7 +6118,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "nondetection",
@@ -4781,7 +6142,8 @@
       "bard",
       "ranger",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "pass-without-trace",
@@ -4803,7 +6165,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "passwall",
@@ -4824,7 +6187,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "phantasmal-killer",
@@ -4845,6 +6209,14 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d10"
+      }
     ]
   },
   {
@@ -4866,7 +6238,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "planar-ally",
@@ -4887,7 +6260,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "planar-binding",
@@ -4911,7 +6285,8 @@
       "cleric",
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "plane-shift",
@@ -4936,7 +6311,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "plant-growth",
@@ -4959,7 +6335,8 @@
       "bard",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "poison-spray",
@@ -4983,6 +6360,32 @@
       "warlock",
       "wizard",
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d12"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d12"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d12"
+      },
+      {
+        "damage_type_index": "poison",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d12"
+      }
     ]
   },
   {
@@ -5007,7 +6410,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "power-word-kill",
@@ -5031,7 +6435,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "power-word-stun",
@@ -5055,7 +6460,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "prayer-of-healing",
@@ -5076,7 +6482,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "prestidigitation",
@@ -5100,7 +6507,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "prismatic-spray",
@@ -5122,7 +6530,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "prismatic-wall",
@@ -5143,7 +6552,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "private-sanctum",
@@ -5164,7 +6574,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "produce-flame",
@@ -5185,6 +6596,32 @@
     },
     "classes": [
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d8"
+      }
     ]
   },
   {
@@ -5207,7 +6644,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "project-image",
@@ -5229,7 +6667,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "protection-from-energy",
@@ -5254,7 +6693,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "protection-from-evil-and-good",
@@ -5278,7 +6718,8 @@
       "paladin",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "protection-from-poison",
@@ -5302,7 +6743,8 @@
       "druid",
       "paladin",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "purify-food-and-drink",
@@ -5325,7 +6767,8 @@
       "cleric",
       "druid",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "raise-dead",
@@ -5348,7 +6791,8 @@
       "bard",
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "ray-of-enfeeblement",
@@ -5370,7 +6814,8 @@
     "classes": [
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "ray-of-frost",
@@ -5392,6 +6837,32 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d8"
+      }
     ]
   },
   {
@@ -5415,7 +6886,8 @@
       "bard",
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "reincarnate",
@@ -5436,7 +6908,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "remove-curse",
@@ -5460,7 +6933,8 @@
       "paladin",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "resilient-sphere",
@@ -5481,7 +6955,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "resistance",
@@ -5503,7 +6978,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "resurrection",
@@ -5525,7 +7001,8 @@
     "classes": [
       "bard",
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "reverse-gravity",
@@ -5548,7 +7025,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "revivify",
@@ -5570,7 +7048,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "rope-trick",
@@ -5591,7 +7070,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "sacred-flame",
@@ -5612,6 +7092,32 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d8"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d8"
+      }
     ]
   },
   {
@@ -5633,7 +7139,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "scorching-ray",
@@ -5655,6 +7162,14 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "2d6"
+      }
     ]
   },
   {
@@ -5680,7 +7195,8 @@
       "druid",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "secret-chest",
@@ -5701,7 +7217,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "see-invisibility",
@@ -5724,7 +7241,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "seeming",
@@ -5747,7 +7265,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "sending",
@@ -5770,7 +7289,8 @@
       "bard",
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "sequester",
@@ -5791,7 +7311,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "shapechange",
@@ -5813,7 +7334,8 @@
     "classes": [
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "shatter",
@@ -5837,6 +7359,56 @@
       "sorcerer",
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "4d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "5d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "6d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "7d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "9d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "10d8"
+      }
     ]
   },
   {
@@ -5859,7 +7431,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "shield-of-faith",
@@ -5881,7 +7454,8 @@
     "classes": [
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "shillelagh",
@@ -5902,7 +7476,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "shocking-grasp",
@@ -5924,6 +7499,32 @@
     "classes": [
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d8"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "lightning",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d8"
+      }
     ]
   },
   {
@@ -5947,7 +7548,8 @@
       "bard",
       "cleric",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "silent-image",
@@ -5970,7 +7572,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "simulacrum",
@@ -5991,7 +7594,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "sleep",
@@ -6014,7 +7618,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "sleet-storm",
@@ -6037,7 +7642,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "slow",
@@ -6059,7 +7665,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "spare-the-dying",
@@ -6080,7 +7687,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "speak-with-animals",
@@ -6103,7 +7711,8 @@
       "bard",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "speak-with-dead",
@@ -6125,7 +7734,8 @@
     "classes": [
       "bard",
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "speak-with-plants",
@@ -6148,7 +7758,8 @@
       "bard",
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "spider-climb",
@@ -6171,7 +7782,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "spike-growth",
@@ -6193,7 +7805,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "spirit-guardians",
@@ -6214,7 +7827,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "spiritual-weapon",
@@ -6235,6 +7849,56 @@
     },
     "classes": [
       "cleric"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "1d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "1d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "2d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "2d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "3d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "3d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "4d8 + MOD"
+      },
+      {
+        "damage_type_index": "force",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "4d8 + MOD"
+      }
     ]
   },
   {
@@ -6258,7 +7922,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "stone-shape",
@@ -6281,7 +7946,8 @@
       "cleric",
       "druid",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "stoneskin",
@@ -6305,7 +7971,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "storm-of-vengeance",
@@ -6326,6 +7993,14 @@
     },
     "classes": [
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "2d6"
+      }
     ]
   },
   {
@@ -6350,7 +8025,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "sunbeam",
@@ -6373,6 +8049,14 @@
       "druid",
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d8"
+      }
     ]
   },
   {
@@ -6396,6 +8080,14 @@
       "druid",
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "radiant",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "12d6"
+      }
     ]
   },
   {
@@ -6419,7 +8111,8 @@
       "bard",
       "cleric",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "telekinesis",
@@ -6441,7 +8134,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "telepathic-bond",
@@ -6462,7 +8156,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "teleport",
@@ -6485,7 +8180,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "teleportation-circle",
@@ -6508,7 +8204,8 @@
       "bard",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "thaumaturgy",
@@ -6529,7 +8226,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "thunderwave",
@@ -6553,6 +8251,62 @@
       "druid",
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 1,
+        "dice_expression": "2d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 2,
+        "dice_expression": "3d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "4d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "5d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "6d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "7d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "9d8"
+      },
+      {
+        "damage_type_index": "thunder",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "10d8"
+      }
     ]
   },
   {
@@ -6575,7 +8329,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "tiny-hut",
@@ -6597,7 +8352,8 @@
     "classes": [
       "bard",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "tongues",
@@ -6622,7 +8378,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "transport-via-plants",
@@ -6643,7 +8400,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "tree-stride",
@@ -6665,7 +8423,8 @@
     "classes": [
       "druid",
       "ranger"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "true-polymorph",
@@ -6688,7 +8447,8 @@
       "bard",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "true-resurrection",
@@ -6710,7 +8470,8 @@
     "classes": [
       "cleric",
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "true-seeing",
@@ -6735,7 +8496,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "true-strike",
@@ -6759,7 +8521,8 @@
       "sorcerer",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "unseen-servant",
@@ -6782,7 +8545,8 @@
       "bard",
       "warlock",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "vampiric-touch",
@@ -6804,6 +8568,50 @@
     "classes": [
       "warlock",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "4d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 5,
+        "dice_expression": "5d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "6d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "7d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "8d6"
+      },
+      {
+        "damage_type_index": "necrotic",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "9d6"
+      }
     ]
   },
   {
@@ -6825,6 +8633,32 @@
     },
     "classes": [
       "bard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "character_level",
+        "scaling_key": 1,
+        "dice_expression": "1d4"
+      },
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "character_level",
+        "scaling_key": 5,
+        "dice_expression": "2d4"
+      },
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "character_level",
+        "scaling_key": 11,
+        "dice_expression": "3d4"
+      },
+      {
+        "damage_type_index": "psychic",
+        "scaling_type": "character_level",
+        "scaling_key": 17,
+        "dice_expression": "4d4"
+      }
     ]
   },
   {
@@ -6848,6 +8682,14 @@
       "druid",
       "sorcerer",
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "fire",
+        "scaling_type": "slot_level",
+        "scaling_key": 4,
+        "dice_expression": "5d8"
+      }
     ]
   },
   {
@@ -6869,7 +8711,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "wall-of-ice",
@@ -6890,6 +8733,32 @@
     },
     "classes": [
       "wizard"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "10d6"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "12d6"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "14d6"
+      },
+      {
+        "damage_type_index": "cold",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "16d6"
+      }
     ]
   },
   {
@@ -6913,7 +8782,8 @@
       "druid",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "wall-of-thorns",
@@ -6934,6 +8804,32 @@
     },
     "classes": [
       "druid"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 6,
+        "dice_expression": "7d8"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 7,
+        "dice_expression": "8d8"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 8,
+        "dice_expression": "9d8"
+      },
+      {
+        "damage_type_index": "piercing",
+        "scaling_type": "slot_level",
+        "scaling_key": 9,
+        "dice_expression": "10d8"
+      }
     ]
   },
   {
@@ -6955,7 +8851,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "water-breathing",
@@ -6979,7 +8876,8 @@
       "ranger",
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "water-walk",
@@ -7003,7 +8901,8 @@
       "druid",
       "ranger",
       "sorcerer"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "web",
@@ -7025,7 +8924,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "weird",
@@ -7046,7 +8946,8 @@
     },
     "classes": [
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "wind-walk",
@@ -7067,7 +8968,8 @@
     },
     "classes": [
       "druid"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "wind-wall",
@@ -7089,6 +8991,14 @@
     "classes": [
       "druid",
       "ranger"
+    ],
+    "damages": [
+      {
+        "damage_type_index": "bludgeoning",
+        "scaling_type": "slot_level",
+        "scaling_key": 3,
+        "dice_expression": "3d8"
+      }
     ]
   },
   {
@@ -7111,7 +9021,8 @@
     "classes": [
       "sorcerer",
       "wizard"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "word-of-recall",
@@ -7132,7 +9043,8 @@
     },
     "classes": [
       "cleric"
-    ]
+    ],
+    "damages": []
   },
   {
     "index": "zone-of-truth",
@@ -7155,6 +9067,7 @@
       "bard",
       "cleric",
       "paladin"
-    ]
+    ],
+    "damages": []
   }
 ]

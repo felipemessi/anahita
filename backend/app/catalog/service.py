@@ -65,6 +65,7 @@ from app.catalog.models import (
     SkillDefinition,
     Spell,
     SpellClass,
+    SpellDamage,
     SpellI18n,
     SubclassDefinition,
     SubclassDefinitionI18n,
@@ -125,6 +126,7 @@ from app.catalog.schemas import (
     RuleSummary,
     SpellClassRead,
     SpellCreate,
+    SpellDamageRead,
     SpellRead,
     SpellSummary,
     SubclassRead,
@@ -586,6 +588,7 @@ async def get_spell(session: AsyncSession, spell_id: uuid.UUID) -> Spell | None:
         .options(
             selectinload(Spell.magic_school),
             selectinload(Spell.classes).selectinload(SpellClass.class_definition),
+            selectinload(Spell.damages).selectinload(SpellDamage.damage_type),
         )
     )
     result = await session.execute(stmt)
@@ -651,6 +654,16 @@ async def get_spell_translated(
         higher_levels=t.higher_levels if t else None,
         is_custom=spell.is_custom,
         classes=await _translate_spell_classes(session, spell, locale),
+        damages=[
+            SpellDamageRead(
+                id=d.id,
+                damage_type=d.damage_type.index or "",
+                scaling_type=d.scaling_type,
+                scaling_key=d.scaling_key,
+                dice_expression=d.dice_expression,
+            )
+            for d in spell.damages
+        ],
     )
 
 

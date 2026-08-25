@@ -87,6 +87,7 @@ from app.catalog.models import (
     SkillDefinitionI18n,
     Spell,
     SpellClass,
+    SpellDamage,
     SpellI18n,
     SubclassDefinition,
     SubclassDefinitionI18n,
@@ -695,6 +696,7 @@ async def _seed_spells(session: AsyncSession) -> None:
 
     schools_by_index = await _index_map(session, MagicSchool)
     classes_by_index = await _index_map(session, ClassDefinition)
+    damage_types_by_index = await _index_map(session, DamageType)
 
     data = _load("spells")
     for entry in data:
@@ -722,6 +724,20 @@ async def _seed_spells(session: AsyncSession) -> None:
                         id=uuid.uuid4(),
                         spell_id=spell.id,
                         class_definition_id=class_id,
+                    )
+                )
+
+        for damage in entry.get("damages", []):
+            damage_type_id = damage_types_by_index.get(damage["damage_type_index"])
+            if damage_type_id is not None:
+                session.add(
+                    SpellDamage(
+                        id=uuid.uuid4(),
+                        spell_id=spell.id,
+                        damage_type_id=damage_type_id,
+                        scaling_type=damage["scaling_type"],
+                        scaling_key=damage["scaling_key"],
+                        dice_expression=damage["dice_expression"],
                     )
                 )
 

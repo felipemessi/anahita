@@ -486,6 +486,38 @@ def convert_classes() -> None:
 # --- Spells (PRD §7.4.5) ----------------------------------------------------
 
 
+def _spell_damages(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract a spell's damage entries (PRD §7.4.5, `SpellDamage`).
+
+    A spell scales by slot level (most leveled spells, e.g. Fireball) *or*
+    by character level (a handful of cantrips, e.g. Fire Bolt) — never
+    both. `dice_expression` is kept as the raw SRD string, including the
+    rare `"... + MOD"` suffix (e.g. Spiritual Weapon) — substituted with the
+    caster's ability modifier by `engine/dice.py` at cast time, not here.
+    """
+    damage = entry.get("damage")
+    if not damage:
+        return []
+    damage_type_index = damage.get("damage_type", {}).get("index")
+    if damage_type_index is None:
+        return []
+    damages = []
+    for key, scaling_type in (
+        ("damage_at_slot_level", "slot_level"),
+        ("damage_at_character_level", "character_level"),
+    ):
+        for scaling_key, dice_expression in damage.get(key, {}).items():
+            damages.append(
+                {
+                    "damage_type_index": damage_type_index,
+                    "scaling_type": scaling_type,
+                    "scaling_key": int(scaling_key),
+                    "dice_expression": dice_expression,
+                }
+            )
+    return damages
+
+
 def convert_spells() -> None:
     """Write `spells.json` from `5e-SRD-Spells.json`."""
     data = _load("Spells")
@@ -511,6 +543,7 @@ def convert_spells() -> None:
                     }
                 },
                 "classes": [c["index"] for c in e.get("classes", [])],
+                "damages": _spell_damages(e),
             }
         )
     _write("spells", out)

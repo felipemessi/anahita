@@ -101,6 +101,18 @@ class FeaturePrerequisiteType(enum.StrEnum):
     spell = "spell"
 
 
+class SpellDamageScalingType(enum.StrEnum):
+    """How a SpellDamage entry's dice scale — never both for the same Spell.
+
+    `slot_level`: scales with the spell slot it's cast at (e.g. Fireball).
+    `character_level`: scales with the caster's class level instead —
+    cantrips (Fire Bolt) rather than upcast leveled spells.
+    """
+
+    slot_level = "slot_level"
+    character_level = "character_level"
+
+
 class DamageModifierType(enum.StrEnum):
     """How strongly a Monster is affected by a damage type (PRD §7.4.8)."""
 

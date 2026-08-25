@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.combat.domain import ActionType, ConditionType, EncounterStatus
@@ -62,6 +63,15 @@ class EncounterParticipant(Base):
     # omitted here to avoid coupling to a domain that doesn't exist yet, same
     # pattern as `app.catalog.models.Race.campaign_id`.
     npc_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    # A monster/creature from the catalog stat-block library — distinct from
+    # `npc_id` (a campaign's own hand-authored NPCs, not yet implemented).
+    # Set, `declare_action` resolves attack bonus/damage/skill checks from
+    # the linked `Monster`'s stat block automatically; unset (like `npc_id`
+    # or a purely manual participant), the declaring client must supply
+    # those numbers explicitly (see `CombatService.declare_action`).
+    monster_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("catalog_monsters.id"), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(255))
     # Nullable: PCs auto-added by `CombatService.start_encounter` and manual
     # participants alike start without a roll — `advance_turn` refuses to
@@ -136,6 +146,12 @@ class CombatLog(Base):
         ForeignKey("encounter_participants.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # False when any roll this entry describes (initiative, attack, damage,
+    # an opposed check) came from a client-supplied manual value instead of
+    # `engine/dice.py` (backlog Fase 6 história 6) — an entry covering more
+    # than one roll (e.g. an attack that also rolled damage) is only True
+    # when *every* roll it covers was server-rolled.
+    rolled_by_system: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
