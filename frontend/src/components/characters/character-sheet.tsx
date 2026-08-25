@@ -3,18 +3,14 @@
 import { useState, type FormEvent } from "react";
 
 import { AbilityScores } from "@/components/characters/ability-scores";
+import { CurrencyTracker } from "@/components/characters/currency-tracker";
+import { EquipmentList } from "@/components/characters/equipment-list";
 import { RollButton } from "@/components/characters/roll-button";
 import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
 import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
 import { SpellSlots } from "@/components/characters/spell-slots";
-import { useCatalogList } from "@/hooks/use-catalog";
-import {
-  useAddCharacterEquipment,
-  useAddCharacterFeature,
-  useRestCharacter,
-  useUpdateCharacterHp,
-} from "@/hooks/use-character";
+import { useAddCharacterFeature, useRestCharacter, useUpdateCharacterHp } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 import { calculateModifier } from "@/lib/utils/dnd-rules";
 import type { Character, FeatureSourceType, RestType } from "@/types/character";
@@ -158,103 +154,17 @@ export function CharacterSheet({
           spellSlots={character.spell_slots}
         />
 
-        <EquipmentSection
+        <EquipmentList
           characterId={character.id}
           campaignId={campaignId}
           equipment={character.equipment}
         />
 
+        <CurrencyTracker characterId={character.id} currencyCp={character.currency_cp} />
+
         <FeaturesSection characterId={character.id} features={character.features} />
       </article>
     </RollLogProvider>
-  );
-}
-
-function EquipmentSection({
-  characterId,
-  campaignId,
-  equipment,
-}: {
-  characterId: string;
-  campaignId: string;
-  equipment: Character["equipment"];
-}) {
-  const { data: catalogItems } = useCatalogList("equipment", { campaign_id: campaignId });
-  const addEquipment = useAddCharacterEquipment(characterId);
-  const [itemId, setItemId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  function nameFor(id: string): string {
-    return catalogItems?.find((i) => i.id === id)?.name ?? id;
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!itemId) return;
-    setError(null);
-    try {
-      await addEquipment.mutateAsync({ item_id: itemId });
-      setItemId("");
-    } catch {
-      setError("Não foi possível adicionar o item.");
-    }
-  }
-
-  return (
-    <section aria-label="Equipamento" className="rounded-lg border border-border bg-card p-4">
-      <h2 className="font-semibold">Equipamento</h2>
-
-      {equipment.length > 0 ? (
-        <ul className="mt-2 space-y-1 text-sm">
-          {equipment.map((entry) => (
-            <li key={entry.id} className="flex items-center justify-between">
-              <span>
-                {nameFor(entry.item_id)}
-                {entry.quantity > 1 ? ` (x${entry.quantity})` : ""}
-              </span>
-              {entry.equipped ? (
-                <span className="text-xs text-primary">equipado</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-1 text-sm text-muted-foreground">Inventário vazio.</p>
-      )}
-
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label htmlFor="add-item" className="text-xs text-muted-foreground">
-            Adicionar item
-          </label>
-          <select
-            id="add-item"
-            value={itemId}
-            onChange={(e) => setItemId(e.target.value)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          >
-            <option value="">Selecione…</option>
-            {catalogItems?.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          disabled={!itemId || addEquipment.isPending}
-          className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
-        >
-          Adicionar
-        </button>
-      </form>
-      {error ? (
-        <p role="alert" className="mt-1 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </section>
   );
 }
 
