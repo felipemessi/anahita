@@ -326,3 +326,26 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Descanso e Recursos completa): recursos de classe (fúria, ki, e
   outros) usáveis e acompanháveis na ficha e durante a declaração de
   ação em combate.
+- Fase 8 do backend, história 1: dashboard de campanha combinando a
+  próxima sessão, NPCs/locais recentes e handouts pendentes numa única
+  chamada, com visão diferente para mestre e jogador.
+- Fase 8 do backend, história 2: escolha da estratégia de geração de
+  atributos (standard array, point buy, custom ou rolagem) na criação de
+  personagem, com validação de orçamento de pontos e do conjunto de
+  valores para os dois primeiros métodos.
+- Fase 8 do backend, história 3: subida de nível perguntando escolhas
+  mecânicas com opções nomeadas (estilo de luta, pacto, domínio de
+  clérigo e outras), incluindo escolhas múltiplas simultâneas
+  (invocações élficas, metamagia) e escolhas específicas de subclasse.
+- Fase 8 do backend, história 4: registro de qual opção de Canalizar
+  Divindade foi usada, exigida quando o personagem tem mais de uma
+  disponível.
+- Fase 8 do backend, história 5: magias classificadas por tipo de ação
+  (ataque, resistência ou só conjuração) e tipo de alvo, com a DC de
+  resistência retornada ao conjurar.
+- Fase 8 do backend, história 6: classe de armadura recalculada
+  automaticamente ao equipar ou desequipar armadura e escudo.
+- Fase 8 do backend, história 7 (última da fase até aqui — auditoria de
+  Sobrevivência/Combate): bônus de proficiência no ataque com arma
+  passa a considerar se o personagem realmente é proficiente com a arma
+  equipada, em vez de assumir proficiência sempre.

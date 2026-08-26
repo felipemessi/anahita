@@ -24,7 +24,7 @@
 | 5    | Registro e Lore                   | Completo (diário DM-only, recap via `summary` de sessão, timeline híbrida sessões+eventos manuais, wiki linkável a NPCs/locais/facções na busca cross-entidade) | 2026-08-24 |
 | 6    | Interatividade de Ficha e Combate | Completo (magias por círculo com limites/slots, inventário editável, moeda, sessão aberta populando combate com iniciativa obrigatória, ações declaradas resolvidas automaticamente via `engine/dice.py` com override manual, visibilidade de ficha restrita a dono/DM) | 2026-08-24 |
 | 7    | Sobrevivência, Descanso e Recursos | Completo (dados de vida em descanso curto/longo por classe, testes de morte automáticos, concentração com DC exposta, perícias passivas, subida de nível com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com controle de uso e recarga) | 2026-08-25 |
-| 8    | Dashboard e Refinamentos de Ficha  | Pendente | 2026-08-25 |
+| 8    | Dashboard e Refinamentos de Ficha  | Completo (dashboard de campanha cross-domain, geração de atributos com point buy/standard array validados, escolhas mecânicas de nível reaproveitando `parent_feature_id` do catálogo incluindo seleção múltipla e features de subclasse, opção de Canalizar Divindade rastreada, magias classificadas por tipo de ação/alvo com DC de resistência, CA recalculada a partir do equipamento, proficiência de arma real no ataque de combate) | 2026-08-25 |
 
 ---
 
