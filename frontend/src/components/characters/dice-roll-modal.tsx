@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 
 import { formatModifier } from "@/lib/utils/dice";
 
-/** ~1.5s of random values before locking to the real result (Fase 8). */
-const SPIN_MS = 1500;
+/** ~1s of random values before locking to the real result (Fase 8). */
+const SPIN_MS = 1000;
 const SPIN_TICK_MS = 80;
-/** How long the locked result stays visible before auto-closing. */
-const HOLD_MS = 900;
+/** How long the locked result stays visible before auto-closing — the
+ * user can also dismiss it early with the "Fechar" button. */
+const HOLD_MS = 5000;
 
 export interface DiceRollRequest {
   /** What was rolled, e.g. "Força" or "Dado de vida (Fighter)". */
@@ -78,14 +79,23 @@ export function DiceRollModal({
       aria-live="polite"
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/70"
     >
-      <div className="rounded-lg border border-border bg-card px-8 py-6 text-center shadow-lg">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{request.label}</p>
-        <p className="mt-2 font-mono text-4xl tabular-nums">{displayValue}</p>
+      <div className="min-w-[280px] rounded-xl border border-border bg-card px-12 py-10 text-center shadow-lg">
+        <p className="text-sm uppercase tracking-wide text-muted-foreground">{request.label}</p>
+        <p className="mt-3 font-mono text-6xl tabular-nums">{displayValue}</p>
         {settled ? (
-          <p className="mt-2 font-mono text-sm text-muted-foreground">
-            {request.rollResult} {formatModifier(request.modifier)} ={" "}
-            <span className="font-bold text-foreground">{request.total}</span>
-          </p>
+          <>
+            <p className="mt-3 font-mono text-base text-muted-foreground">
+              {request.rollResult} {formatModifier(request.modifier)} ={" "}
+              <span className="font-bold text-foreground">{request.total}</span>
+            </p>
+            <button
+              type="button"
+              onClick={onComplete}
+              className="mt-4 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
+            >
+              Fechar
+            </button>
+          </>
         ) : null}
       </div>
     </div>

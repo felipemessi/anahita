@@ -47,7 +47,7 @@ it("clicking an ability modifier rolls 1d20 + the modifier, after the roll anima
 
   fireEvent.click(screen.getByRole("button", { name: "Rolar Força (+3)" }));
   act(() => {
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(6500);
   });
 
   expect(screen.getByLabelText("Rolagens recentes")).toHaveTextContent("11 +3 = 14");
@@ -64,7 +64,7 @@ it("clicking a saving throw rolls 1d20 + the save bonus, after the roll animatio
 
   fireEvent.click(screen.getByRole("button", { name: "Rolar Resistência de Força (+5)" }));
   act(() => {
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(6500);
   });
 
   expect(screen.getByLabelText("Rolagens recentes")).toHaveTextContent("1 +5 = 6");

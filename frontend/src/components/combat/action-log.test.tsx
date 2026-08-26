@@ -73,12 +73,12 @@ describe("ActionLog", () => {
     expect(screen.getByRole("dialog", { name: "Rolando Ataque" })).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(2500); // settle + hold + close the attack roll
+      vi.advanceTimersByTime(6500); // settle + hold + close the attack roll
     });
     expect(screen.getByRole("dialog", { name: "Rolando Dano" })).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(2500);
+      vi.advanceTimersByTime(6500);
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

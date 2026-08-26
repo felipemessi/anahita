@@ -89,7 +89,7 @@ describe("ParticipantCard", () => {
     });
     fireEvent.click(rollButton);
     act(() => {
-      vi.advanceTimersByTime(2500);
+      vi.advanceTimersByTime(6500);
     });
 
     expect(screen.getByRole("region", { name: "Rolagens recentes" })).toHaveTextContent(

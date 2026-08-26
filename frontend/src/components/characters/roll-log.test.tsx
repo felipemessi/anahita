@@ -40,7 +40,7 @@ it("shows the roll animation before the result lands in the log, wherever RollLo
   expect(screen.queryByLabelText("Rolagens recentes")).not.toBeInTheDocument();
 
   act(() => {
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(6500);
   });
 
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -59,7 +59,7 @@ it("keeps RollLogPanel positioned after content placed before it, mirroring a fo
 
   fireEvent.click(screen.getByRole("button", { name: "Rolar" }));
   act(() => {
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(6500);
   });
 
   const content = screen.getByTestId("sheet-content");

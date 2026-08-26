@@ -28,7 +28,7 @@ const RollLogContext = createContext<RollLogContextValue | null>(null);
  * (Fase 8 — moved to the sheet footer so it doesn't compete with content).
  *
  * Every roll — client-side or already resolved server-side — is first shown
- * through `<DiceRollModal />` (~1.5s animation, Fase 8) before landing in
+ * through `<DiceRollModal />` (~1s animation, Fase 8) before landing in
  * the log, so the reveal always feels the same regardless of where the
  * actual roll happened.
  */
