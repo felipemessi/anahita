@@ -262,6 +262,7 @@ class SpellSummary(BaseModel):
     ritual: bool
     concentration: bool
     is_custom: bool
+    classes: list[SpellClassRead]
 
 
 class WeaponDetailRead(BaseModel):

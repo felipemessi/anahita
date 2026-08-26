@@ -12,8 +12,11 @@ export function circleLabel(level: number): string {
 
 /**
  * Search the campaign's spell catalog by name/circle, narrowed to `classIndex`
- * (the character's own casting class) — reuses the same
- * `useCatalogList("spells", …)` + filter-bar pattern as `catalog-filter-bar.tsx`.
+ * (the character's own casting class) by default — a checkbox lets the
+ * user drop that filter and search every class's spells instead. Each
+ * result shows which classes can cast it (e.g. "Cleric/Druid"), reusing the
+ * same `useCatalogList("spells", …)` + filter-bar pattern as
+ * `catalog-filter-bar.tsx`.
  */
 export function SpellSearch({
   campaignId,
@@ -28,10 +31,11 @@ export function SpellSearch({
 }) {
   const [name, setName] = useState("");
   const [level, setLevel] = useState("");
+  const [showAllClasses, setShowAllClasses] = useState(false);
 
   const { data: spells, isLoading } = useCatalogList("spells", {
     campaign_id: campaignId,
-    ...(classIndex ? { class_index: classIndex } : {}),
+    ...(classIndex && !showAllClasses ? { class_index: classIndex } : {}),
     ...(level !== "" ? { level: Number(level) } : {}),
     ...(name ? { search: name } : {}),
   });
@@ -64,6 +68,17 @@ export function SpellSearch({
         </select>
       </div>
 
+      {classIndex ? (
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showAllClasses}
+            onChange={(e) => setShowAllClasses(e.target.checked)}
+          />
+          Mostrar magias de todas as classes
+        </label>
+      ) : null}
+
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Carregando…</p>
       ) : results.length === 0 ? (
@@ -75,15 +90,20 @@ export function SpellSearch({
               <button
                 type="button"
                 onClick={() => onSelect(spell)}
-                className="flex w-full items-center justify-between px-2 py-1.5 text-left text-sm hover:bg-secondary/40"
+                className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-sm hover:bg-secondary/40"
               >
-                <span>
+                <span className="min-w-0 flex-1 truncate">
                   {spell.name}
                   {spell.ritual ? (
                     <span className="ml-1 text-xs text-muted-foreground">(ritual)</span>
                   ) : null}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                {spell.classes.length > 0 ? (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {spell.classes.map((c) => c.name).join("/")}
+                  </span>
+                ) : null}
+                <span className="shrink-0 text-xs text-muted-foreground">
                   {circleLabel(spell.level)}
                 </span>
               </button>

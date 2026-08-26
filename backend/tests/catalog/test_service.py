@@ -225,6 +225,19 @@ async def test_list_spells_translated_search(db: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_spells_translated_includes_casting_classes(
+    db: AsyncSession,
+) -> None:
+    """SpellSummary.classes lets the search list show who can cast each spell."""
+    await seed_catalog(db)
+    results = await service.list_spells_translated(db, search="Detect Magic")
+
+    assert len(results) > 0
+    names = {c.name for c in results[0].classes}
+    assert {"Wizard", "Cleric", "Bard", "Druid"} <= names
+
+
+@pytest.mark.asyncio
 async def test_get_spell_translated_resolves_classes(db: AsyncSession) -> None:
     """get_spell_translated resolves name/description and casting classes."""
     await seed_catalog(db)

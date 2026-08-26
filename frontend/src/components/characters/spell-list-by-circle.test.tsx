@@ -46,8 +46,8 @@ const leveledEntry = {
 };
 
 const catalogSpellSummaries = [
-  { id: "spell-fire-bolt", name: "Fire Bolt", level: 0 },
-  { id: "spell-magic-missile", name: "Magic Missile", level: 1 },
+  { id: "spell-fire-bolt", name: "Fire Bolt", level: 0, classes: [{ id: "wizard-id", name: "Wizard" }] },
+  { id: "spell-magic-missile", name: "Magic Missile", level: 1, classes: [{ id: "wizard-id", name: "Wizard" }] },
 ];
 
 describe("SpellListByCircle", () => {
@@ -222,7 +222,7 @@ describe("SpellListByCircle", () => {
     useCatalogList.mockImplementation((category: string) => {
       if (category === "classes") return { data: [wizardClass] };
       if (category === "spells") {
-        return { data: [...catalogSpellSummaries, { id: "spell-fireball", name: "Fireball", level: 3 }] };
+        return { data: [...catalogSpellSummaries, { id: "spell-fireball", name: "Fireball", level: 3, classes: [] }] };
       }
       return { data: [] };
     });
@@ -256,7 +256,7 @@ describe("SpellListByCircle", () => {
     useCatalogList.mockImplementation((category: string) => {
       if (category === "classes") return { data: [wizardClass] };
       if (category === "spells") {
-        return { data: [...catalogSpellSummaries, { id: "spell-fireball", name: "Fireball", level: 3 }] };
+        return { data: [...catalogSpellSummaries, { id: "spell-fireball", name: "Fireball", level: 3, classes: [] }] };
       }
       return { data: [] };
     });

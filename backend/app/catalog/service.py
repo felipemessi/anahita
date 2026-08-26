@@ -776,6 +776,7 @@ async def list_spells_translated(
                 ritual=spell.ritual,
                 concentration=spell.concentration,
                 is_custom=spell.is_custom,
+                classes=await _translate_spell_classes(session, spell, locale),
             )
         )
     if search:
