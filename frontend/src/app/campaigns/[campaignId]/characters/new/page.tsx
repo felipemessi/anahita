@@ -64,6 +64,7 @@ export default function CharacterCreationWizardPage() {
       alignment: wizardState.alignment || null,
       background: selectedBackground?.name ?? null,
       ability_scores: abilityScores,
+      generation_method: wizardState.abilityGenerationMethod,
       classes: [
         {
           class_definition_id: wizardState.classId,
