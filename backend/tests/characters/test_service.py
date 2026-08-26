@@ -865,6 +865,30 @@ async def test_long_rest_restores_all_spell_slots(
     assert all(s.used == 0 for s in character.spell_slots)
 
 
+async def test_long_rest_restores_hit_points_to_max(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A long rest heals the character back to `hit_point_max`."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.update_character(
+        character_id, owner.id, CharacterUpdate(hit_point_current=1), db
+    )
+    assert character.hit_point_current < character.hit_point_max
+
+    character = (
+        await service.rest(
+            character_id, owner.id, CharacterRestRequest(rest_type="long"), db
+        )
+    ).character
+
+    assert character.hit_point_current == character.hit_point_max
+
+
 async def test_short_rest_does_not_restore_spell_slots(
     db: AsyncSession, human_race_id: str, sorcerer_class_id: str
 ) -> None:

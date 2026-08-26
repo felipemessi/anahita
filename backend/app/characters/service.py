@@ -1108,20 +1108,24 @@ class CharacterService:
     ) -> CharacterRestResponse:
         """Take a short or long rest. Owner only.
 
-        A long rest resets every spell slot's `used` count to 0, and
-        restores spent hit dice up to half the character's total hit dice
-        (minimum 1), PHB rule — dice are restored class by class, in the
-        order the character's classes were added, until that cap is spent.
-        A short rest doesn't affect slots by default — Warlock's
-        short-rest slot recovery is a separate class rule, out of scope
-        here — but may spend hit dice (`data.hit_dice_spent`) to heal. Both
-        rest types also restore class resources (rage, ki, ...) whose
-        `_RESOURCE_RECHARGE` entry matches — a long rest restores short-rest
-        resources too, PHB rule.
+        A long rest restores `hit_point_current` to `hit_point_max`,
+        resets every spell slot's `used` count to 0, and restores spent
+        hit dice up to half the character's total hit dice (minimum 1),
+        PHB rule — dice are restored class by class, in the order the
+        character's classes were added, until that cap is spent. A short
+        rest doesn't affect HP/slots by default — Warlock's short-rest
+        slot recovery is a separate class rule, out of scope here — but
+        may spend hit dice (`data.hit_dice_spent`) to heal. Both rest
+        types also restore class resources (rage, ki, ...) whose
+        `_RESOURCE_RECHARGE` entry matches — a long rest restores
+        short-rest resources too, PHB rule.
         """
         character = await self._load_character_owned_by(character_id, requester_id, db)
         hit_dice_rolls: list[CharacterHitDiceRollResult] = []
         if data.rest_type == "long":
+            old_hp = character.hit_point_current
+            character.hit_point_current = character.hit_point_max
+            self._register_hp_change(character, old_hp, character.hit_point_current)
             for slot in character.spell_slots:
                 slot.used = 0
             total_dice = sum(c.level for c in character.classes)

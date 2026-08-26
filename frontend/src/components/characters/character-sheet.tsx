@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { CatalogFilterBar } from "@/components/catalog/catalog-filter-bar";
 import { AbilityScores } from "@/components/characters/ability-scores";
@@ -42,6 +42,13 @@ export function CharacterSheet({
   const rest = useRestCharacter(character.id);
   const [restError, setRestError] = useState<string | null>(null);
   const [pendingRest, setPendingRest] = useState<RestType | null>(null);
+
+  // Keep the "PV atual" input in sync when hit_point_current changes from
+  // outside this input — a rest, spending hit dice, damage taken elsewhere
+  // — not just from the initial mount value `useState` captured once.
+  useEffect(() => {
+    setHpDraft(String(character.hit_point_current));
+  }, [character.hit_point_current]);
 
   const dexScore = character.ability_scores.find((s) => s.ability === "dex");
   const initiative = dexScore
