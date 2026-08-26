@@ -406,10 +406,11 @@
   - [ ] Teste: cada `action_type` de magia mostra o fluxo de UI correspondente (seleção de alvo, DC exibida, ou nenhuma rolagem)
   - Depende de backend: `action_type`/`target_type`/`save_ability_score_id` em `Spell` + DC no resultado de `cast` (Fase 8 do backend)
 
-- **Bugfix — preparar uma magia está preparando a lista inteira em vez de só a magia clicada.**
-  - [ ] Investigar `spell-list-by-circle.tsx`/hook de toggle `prepared`: identificar se é colisão de chave de cache do TanStack Query, callback compartilhado entre itens da lista, ou estado local não isolado por `CharacterSpell.id`
-  - [ ] Corrigir para que o toggle afete só a entrada clicada
-  - [ ] Teste de regressão: preparar uma magia específica não altera o estado `prepared` das demais da lista
+- **Bugfix — preparar uma magia está preparando a lista inteira em vez de só a magia clicada. ✅ (2026-08-26)**
+  - [x] Investigar `spell-list-by-circle.tsx`/hook de toggle `prepared`: identificar se é colisão de chave de cache do TanStack Query, callback compartilhado entre itens da lista, ou estado local não isolado por `CharacterSpell.id`
+  - [x] Corrigir para que o toggle afete só a entrada clicada
+  - [x] Teste de regressão: preparar uma magia específica não altera o estado `prepared` das demais da lista
+  - Notas: investigação não encontrou uma mutação/estado de fato compartilhado entre magias — `handleTogglePrepared` já usava `spell.id` corretamente tanto no payload (`spellEntryId`) quanto na key da lista (`key={spell.id}`), e o backend (`CharacterService.update_spell`) já resolve só a entrada pedida. O único ponto real de acoplamento entre linhas: o botão "preparar"/"preparada" de **cada** magia ficava desabilitado enquanto **qualquer** toggle da lista estivesse em voo, porque todas usavam o mesmo `updateSpell.isPending` (um único hook de mutation compartilhado pelo componente inteiro) — no fim, cada linha sempre reflete só a sua própria mudança quando a resposta chega, mas visualmente parecia que "a lista inteira reagia" enquanto uma rolava. Trocado por um estado local `togglingId`, então só o botão da magia realmente clicada desabilita durante a chamada.
 
 - **Como jogador, quero minhas magias organizadas em seções por círculo, e só poder adicionar uma magia que meu personagem realmente pode ter naquele círculo/classe (com opção de forçar mediante confirmação).**
   - [ ] `spell-list-by-circle.tsx`: reestruturar em acordeões por círculo (0 = truques) com subtítulo, em vez da lista única atual

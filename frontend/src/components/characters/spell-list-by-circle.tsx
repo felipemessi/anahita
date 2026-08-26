@@ -44,6 +44,7 @@ export function SpellListByCircle({
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [castLevelBySpell, setCastLevelBySpell] = useState<Record<string, number>>({});
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const classOptions = classes
     .map((c) => catalogClasses?.find((cc) => cc.id === c.class_definition_id))
@@ -79,6 +80,7 @@ export function SpellListByCircle({
 
   async function handleTogglePrepared(spell: CharacterSpell) {
     setError(null);
+    setTogglingId(spell.id);
     try {
       await updateSpell.mutateAsync({
         spellEntryId: spell.id,
@@ -88,6 +90,8 @@ export function SpellListByCircle({
       setError(
         err instanceof ApiError ? err.message : "Não foi possível preparar a magia.",
       );
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -165,7 +169,7 @@ export function SpellListByCircle({
                       <button
                         type="button"
                         onClick={() => handleTogglePrepared(spell)}
-                        disabled={updateSpell.isPending}
+                        disabled={togglingId === spell.id}
                         className={
                           spell.prepared
                             ? "text-primary hover:underline"

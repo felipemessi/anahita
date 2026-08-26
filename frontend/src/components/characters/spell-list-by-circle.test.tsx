@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useCatalogList = vi.fn();
@@ -136,10 +136,37 @@ describe("SpellListByCircle", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "preparar" }));
 
+    await waitFor(() =>
+      expect(updateSpellMutate).toHaveBeenCalledWith({
+        spellEntryId: "entry-cantrip",
+        data: { prepared: true },
+      }),
+    );
+  });
+
+  it("toggling one spell's prepared flag doesn't affect any other spell in the list", async () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[cantripEntry, leveledEntry]}
+        classes={characterClasses}
+        spellSlots={[]}
+      />,
+    );
+
+    // cantripEntry is unprepared ("preparar"), leveledEntry is prepared
+    // ("preparada") — click only the unprepared one.
+    fireEvent.click(screen.getByRole("button", { name: "preparar" }));
+
+    await waitFor(() => expect(updateSpellMutate).toHaveBeenCalledTimes(1));
     expect(updateSpellMutate).toHaveBeenCalledWith({
       spellEntryId: "entry-cantrip",
       data: { prepared: true },
     });
+    // The other spell's button is untouched — still "preparada", not
+    // flipped or disabled by the first click's in-flight state.
+    expect(screen.getByRole("button", { name: "preparada" })).toBeEnabled();
   });
 
   it("shows the backend's limit error instead of a generic message", async () => {
