@@ -24,7 +24,10 @@ const SKILL_LABELS: Record<string, string> = {
 
 /**
  * Skills with proficiency/expertise marks and computed bonus (PRD §9.3).
- * Clicking a skill's bonus rolls 1d20 + that bonus.
+ * Clicking a skill's bonus rolls 1d20 + `skill.bonus`, which the backend
+ * already computed with the proficiency bonus folded in (Fase 8) — the
+ * dot/color highlight below is purely visual, it doesn't change what gets
+ * rolled.
  */
 export function SkillList({ skills }: { skills: CharacterSkill[] }) {
   return (
@@ -33,13 +36,28 @@ export function SkillList({ skills }: { skills: CharacterSkill[] }) {
         {skills.map((skill) => {
           const label = SKILL_LABELS[skill.skill] ?? skill.skill;
           return (
-            <li key={skill.id} className="flex items-center justify-between px-3 py-2 text-sm">
-              <span>
+            <li
+              key={skill.id}
+              className={`flex items-center justify-between px-3 py-2 text-sm ${
+                skill.proficient ? "font-medium" : ""
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className={`inline-block h-2 w-2 rounded-full ${
+                    skill.expertise
+                      ? "bg-primary"
+                      : skill.proficient
+                        ? "border border-primary bg-primary/40"
+                        : "border border-border"
+                  }`}
+                />
                 {label}
                 {skill.expertise ? (
-                  <span className="ml-2 text-xs text-primary">(especialização)</span>
+                  <span className="text-xs text-primary">(especialização)</span>
                 ) : skill.proficient ? (
-                  <span className="ml-2 text-xs text-muted-foreground">(proficiente)</span>
+                  <span className="text-xs text-muted-foreground">(proficiente)</span>
                 ) : null}
               </span>
               <RollButton

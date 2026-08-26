@@ -381,10 +381,11 @@
   - [x] Teste: point buy bloqueia distribuição acima do orçamento; standard array só permite usar cada valor uma vez; roll gera 6 conjuntos de 4d6-menor via o utilitário de dados já existente (`lib/utils/dice.ts`)
   - Notas: `lib/utils/dice.ts` ganhou `rollD6`/`roll4d6DropLowest`. `wizard-state.ts` ganhou `abilityGenerationMethod` (default `standard_array`) e as constantes de point buy (`POINT_BUY_COSTS`/`BUDGET`/`MIN`/`MAX`), espelhando exatamente a tabela do backend (`domain.py::POINT_BUY_COSTS`). `standard_array` e `roll` compartilham a mesma UX de "distribuir um pool fixo de 6 valores" — trocar de método reseta os atributos já atribuídos para evitar valores inválidos sobrando de outro método. O pool de `roll` pode ter valores repetidos (duas rolagens de 4d6 dando o mesmo total), diferente do array padrão — a lista de opções disponíveis por atributo agora conta ocorrências (`availableForAbility`) em vez de um simples "já usado?" booleano, senão um valor repetido sumiria do seletor assim que qualquer atributo o usasse uma vez. `roll` reaproveita o `DiceRollModal` da história anterior diretamente (fora do `RollLogProvider`, já que o wizard não tem um log de rolagens de personagem) para animar antes de revelar o pool gerado.
 
-- **Como jogador, quero ver minhas perícias com proficiência em destaque e rolar com o bônus certo (incluindo proficiência).**
-  - [ ] `skill-list.tsx`: destaque visual (ícone/cor) para perícias proficientes e com expertise
-  - [ ] Confirmar que o clique-para-rolar de cada perícia usa `CharacterSkillRead.bonus` (já inclui bônus de proficiência calculado no backend), não recalcula só o modificador de habilidade no cliente
-  - [ ] Teste: perícia proficiente renderiza o destaque; rolagem de perícia usa o bônus completo (modificador + proficiência quando aplicável)
+- **Como jogador, quero ver minhas perícias com proficiência em destaque e rolar com o bônus certo (incluindo proficiência). ✅ (2026-08-26)**
+  - [x] `skill-list.tsx`: destaque visual (ícone/cor) para perícias proficientes e com expertise
+  - [x] Confirmar que o clique-para-rolar de cada perícia usa `CharacterSkillRead.bonus` (já inclui bônus de proficiência calculado no backend), não recalcula só o modificador de habilidade no cliente
+  - [x] Teste: perícia proficiente renderiza o destaque; rolagem de perícia usa o bônus completo (modificador + proficiência quando aplicável)
+  - Notas: o clique-para-rolar já usava `skill.bonus` (o texto "(proficiente)"/"(especialização)" também já existia) — faltava só o destaque visual. Adicionado um indicador de bolinha (mesmo padrão `●` já usado em `ability-scores.tsx` pra resistências proficientes): vazia sem proficiência, preenchida parcial (borda + fundo translúcido) com proficiência, sólida com especialização; a linha inteira também ganha `font-medium` quando proficiente.
 
 - **Como jogador, quero confirmar antes de disparar um descanso curto ou longo, já que isso reseta PV/slots/recursos.**
   - [ ] Modal de confirmação (`AlertDialog` já usado em outros pontos destrutivos da ficha) antes de `POST /characters/{id}/rest` nos dois modos
