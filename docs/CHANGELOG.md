@@ -349,3 +349,46 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Sobrevivência/Combate): bônus de proficiência no ataque com arma
   passa a considerar se o personagem realmente é proficiente com a arma
   equipada, em vez de assumir proficiência sempre.
+- Fase 8 do frontend, história 1: dashboard da campanha mostrando a
+  próxima sessão, NPCs/locais recentes e handouts pendentes de verdade,
+  em vez dos placeholders "em breve".
+- Fase 8 do frontend, história 2: opção de multiclasse na subida de
+  nível, adicionando uma classe nova em vez de só subir uma já
+  existente.
+- Fase 8 do frontend, história 3: subida de nível perguntando as
+  escolhas mecânicas que o personagem ganha (estilo de luta, pacto de
+  bruxo, domínio de clérigo e outras), com busca quando há muitas
+  opções.
+- Fase 8 do frontend, história 4: histórico de rolagens recentes
+  reposicionado para o rodapé da ficha, sem competir com o resto do
+  conteúdo.
+- Fase 8 do frontend, história 5: animação de dado rolando antes do
+  resultado aparecer, em todo ponto de rolagem da ficha e do combate.
+- Fase 8 do frontend, história 6: escolha da estratégia de geração de
+  atributos (array padrão, compra de pontos, rolagem ou livre) na
+  criação de personagem.
+- Fase 8 do frontend, história 7: perícias com proficiência e
+  especialização em destaque visual na ficha.
+- Fase 8 do frontend, história 8: confirmação antes de disparar um
+  descanso curto ou longo, já que isso reseta pontos de vida, espaços
+  de magia e recursos.
+- Fase 8 do frontend, história 9: escolha de qual opção de Canalizar
+  Divindade usar, quando o personagem tem mais de uma disponível.
+- Fase 8 do frontend, história 10: escolha do alvo ao conjurar uma
+  magia de efeito (aliado, inimigo ou área) durante o combate, com a CD
+  de resistência exibida e um atalho pra rolar a resistência do alvo.
+- Fase 8 do frontend, história 11 (correção): preparar uma magia
+  específica deixou de afetar visualmente as demais magias da lista
+  enquanto a chamada estava em andamento.
+- Fase 8 do frontend, história 12: magias conhecidas organizadas em
+  seções recolhíveis por círculo, com confirmação antes de adicionar
+  uma magia de um círculo que o personagem ainda não conjura.
+- Fase 8 do frontend, história 13: classe de armadura na ficha
+  atualizada automaticamente ao equipar ou desequipar armadura.
+- Fase 8 do frontend, história 14: registro de ganho e gasto de moeda
+  por denominação (cobre, prata, ouro, platina), em vez de só um valor
+  abstrato.
+- Fase 8 do frontend, história 15 (última da fase — Dashboard e
+  Refinamentos de Ficha completa): busca no catálogo de talentos da
+  campanha ao adicionar uma característica avulsa à ficha, em vez de
+  digitar o nome livremente.

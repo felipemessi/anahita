@@ -24,7 +24,7 @@
 | 5    | Registro e Lore                         | Concluída (diário DM-only fora do menu pra jogador, recap cronológico, timeline híbrida com marcos manuais, wiki em markdown linkável ao World e incluída na busca) | 2026-08-24 |
 | 6    | Interatividade de Ficha e Combate       | Concluída (magias por círculo com busca/preparo/slots, inventário e moeda editáveis, sessão aberta + iniciativa obrigatória, ações de combate declaradas com resultado ao vivo, resumo de personagem pra outros jogadores com auto-abertura do próprio, rolagem manual em todo ponto de rolagem de combate) | 2026-08-25 |
 | 7    | Sobrevivência, Descanso e Recursos      | Concluída (dados de vida em descanso curto, testes de morte automáticos com estado estável inferido no cliente, indicador de concentração com DC no combat tracker, perícias passivas, level-up com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com atalho na declaração de ação) | 2026-08-25 |
-| 8    | Dashboard e Refinamentos de Ficha       | Pendente | 2026-08-25 |
+| 8    | Dashboard e Refinamentos de Ficha       | Concluída (dashboard de campanha com dados reais, multiclasse e escolhas de nível no level-up, rolagens recentes no rodapé, animação de dado em toda a ficha e no combate, geração de atributos com 4 métodos, opções de Canalizar Divindade, alvo/DC de magias saving_throw, bugfix de preparo de magia, acordeão de magias por círculo com checagem de elegibilidade, CA reativa a equipamento, moeda por denominação, busca no catálogo de talentos) | 2026-08-26 |
 
 ---
 
