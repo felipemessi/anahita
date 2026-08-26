@@ -2,8 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useSpendCharacterResource = vi.fn();
+const useResourceOptions = vi.fn();
 vi.mock("@/hooks/use-character", () => ({
   useSpendCharacterResource: () => useSpendCharacterResource(),
+  useResourceOptions: (...args: unknown[]) => useResourceOptions(...args),
 }));
 
 import { ApiError } from "@/lib/api/client";
@@ -17,6 +19,7 @@ describe("ClassResources", () => {
     mutateAsync.mockReset();
     mutateAsync.mockResolvedValue(undefined);
     useSpendCharacterResource.mockReturnValue({ mutateAsync, isPending: false });
+    useResourceOptions.mockReturnValue({ data: [] });
   });
 
   it("renders nothing when the character has no trackable resources", () => {
@@ -39,7 +42,7 @@ describe("ClassResources", () => {
     expect(screen.getByText("2/3")).toBeInTheDocument();
   });
 
-  it("using a resource decrements it via the mutation", async () => {
+  it("using a resource with no options decrements it directly", async () => {
     render(
       <ClassResources
         characterId="char-1"
@@ -49,7 +52,9 @@ describe("ClassResources", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Usar" }));
 
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith("ki_points"));
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith({ resourceKey: "ki_points", optionId: undefined }),
+    );
   });
 
   it("disables the button once at the limit", () => {
@@ -75,5 +80,51 @@ describe("ClassResources", () => {
     fireEvent.click(screen.getByRole("button", { name: "Usar" }));
 
     expect(await screen.findByText(/no ki_points uses remaining/i)).toBeInTheDocument();
+  });
+
+  it("a resource with multiple options requires a selection before 'usar' is enabled", async () => {
+    useResourceOptions.mockReturnValue({
+      data: [
+        { id: "opt-1", feature_name: "Turn Undead" },
+        { id: "opt-2", feature_name: "Preserve Life" },
+      ],
+    });
+    render(
+      <ClassResources
+        characterId="char-1"
+        resources={[{ resource_key: "channel_divinity_charges", used: 0, max: 1 }]}
+      />,
+    );
+
+    const useButton = screen.getByRole("button", { name: "Usar" });
+    expect(useButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Opção de Canalizar divindade"), {
+      target: { value: "opt-2" },
+    });
+    expect(useButton).not.toBeDisabled();
+
+    fireEvent.click(useButton);
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith({
+        resourceKey: "channel_divinity_charges",
+        optionId: "opt-2",
+      }),
+    );
+  });
+
+  it("a resource with a single option uses directly, without a selector", () => {
+    useResourceOptions.mockReturnValue({
+      data: [{ id: "opt-1", feature_name: "Only Option" }],
+    });
+    render(
+      <ClassResources
+        characterId="char-1"
+        resources={[{ resource_key: "channel_divinity_charges", used: 0, max: 1 }]}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Opção de Canalizar divindade")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usar" })).not.toBeDisabled();
   });
 });
