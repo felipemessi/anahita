@@ -341,6 +341,19 @@ async def list_features(
     )
 
 
+@router.get("/features/{feature_id}", response_model=FeatureRead)
+async def get_feature(
+    feature_id: uuid.UUID,
+    db: DB,
+    locale: LocaleQ = "en",
+) -> FeatureRead:
+    """Get a feature by ID, translated (e.g. resolving a picked level-up option)."""
+    feature = await service.get_feature_translated(db, feature_id, locale=locale)
+    if feature is None:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    return feature
+
+
 @router.get("/feats", response_model=list[FeatSummary])
 async def list_feats(
     db: DB,

@@ -6,6 +6,7 @@ import { CATALOG_QUERY_KEY_PREFIX } from "@/components/catalog/locale-switcher";
 import {
   createCustomEntry,
   getCatalogEntry,
+  getFeature,
   listCatalogEntries,
   type CatalogListFilters,
 } from "@/lib/api/catalog";
@@ -38,6 +39,16 @@ export function useCatalogEntry<C extends CatalogCategory>(
     queryKey: [...CATALOG_QUERY_KEY_PREFIX, category, "detail", entryId, locale],
     queryFn: () => getCatalogEntry(category, entryId, locale),
     enabled: Boolean(entryId),
+  });
+}
+
+/** Get a single catalog feature by ID (e.g. to resolve a picked level-up option's name). */
+export function useCatalogFeature(featureId: string) {
+  const locale = getClientLocale();
+  return useQuery({
+    queryKey: [...CATALOG_QUERY_KEY_PREFIX, "features", "detail", featureId, locale],
+    queryFn: () => getFeature(featureId, locale),
+    enabled: Boolean(featureId),
   });
 }
 

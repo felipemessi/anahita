@@ -158,6 +158,19 @@ export interface CharacterFeature {
   level_acquired: number;
 }
 
+/** A named option picked for a level-up choice feature (Fase 8). */
+export interface CharacterFeatureChoice {
+  id: string;
+  feature_id: string;
+  feature_option_id: string;
+}
+
+/** One pick sent back with `feature_choices` in `CharacterLevelUpRequest`. */
+export interface CharacterFeatureChoiceInput {
+  feature_id: string;
+  feature_option_id: string;
+}
+
 export interface CharacterClassCreate {
   class_definition_id: string;
   subclass_id?: string | null;
@@ -197,6 +210,25 @@ export interface CharacterLevelUpRequest {
   feat_id?: string;
   /** Pre-rolled hit die result (before the CON modifier is added). */
   manual_hit_die_roll?: number;
+  /**
+   * One pick per choice feature granted at the new level (Fighting Style,
+   * Pact Boon, Eldritch Invocations, ...). Required whenever the level
+   * grants one — omitting it (or picking too few for a multi-pick
+   * feature) gets a 422 whose `detail` is `RequiresChoiceDetail`.
+   */
+  feature_choices?: CharacterFeatureChoiceInput[];
+}
+
+/** A level-up feature's pending pick(s) — `detail` of a `requires_choice` 422. */
+export interface PendingFeatureChoice {
+  feature_id: string;
+  required_count: number;
+  options: { id: string; name: string }[];
+}
+
+export interface RequiresChoiceDetail {
+  requires_choice: true;
+  choices: PendingFeatureChoice[];
 }
 
 /**
@@ -261,6 +293,7 @@ export interface Character {
   spell_slots: CharacterSpellSlot[];
   equipment: CharacterEquipment[];
   features: CharacterFeature[];
+  feature_choices: CharacterFeatureChoice[];
 }
 
 /**

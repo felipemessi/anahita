@@ -6,7 +6,12 @@ import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
 import { useLevelUpCharacter } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 import type { AbilityScore } from "@/types/catalog";
-import type { CharacterClass } from "@/types/character";
+import type {
+  CharacterClass,
+  CharacterFeatureChoiceInput,
+  PendingFeatureChoice,
+  RequiresChoiceDetail,
+} from "@/types/character";
 
 const ABILITY_LABELS: Record<AbilityScore, string> = {
   str: "Força",
@@ -29,6 +34,66 @@ function parseSelection(value: string): Selection | null {
   if (kind === "existing") return { kind: "existing", characterClassId: id };
   if (kind === "new") return { kind: "new", classDefinitionId: id };
   return null;
+}
+
+function isRequiresChoiceDetail(detail: unknown): detail is RequiresChoiceDetail {
+  return (
+    typeof detail === "object" &&
+    detail !== null &&
+    (detail as { requires_choice?: unknown }).requires_choice === true &&
+    Array.isArray((detail as { choices?: unknown }).choices)
+  );
+}
+
+/** One choice feature's picker: a name filter plus one `<select>` per required pick. */
+function FeatureChoicePicker({
+  choice,
+  picks,
+  onPick,
+}: {
+  choice: PendingFeatureChoice;
+  picks: string[];
+  onPick: (index: number, value: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filteredOptions = choice.options.filter((o) =>
+    o.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <div className="space-y-2 rounded-md border border-border p-3">
+      {choice.options.length > 5 ? (
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar opção…"
+          aria-label="Buscar opção"
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+        />
+      ) : null}
+      {Array.from({ length: choice.required_count }).map((_, index) => (
+        <select
+          key={index}
+          aria-label={
+            choice.required_count > 1
+              ? `Escolha ${index + 1} de ${choice.required_count}`
+              : "Opção"
+          }
+          value={picks[index] ?? ""}
+          onChange={(e) => onPick(index, e.target.value)}
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+        >
+          <option value="">Selecione uma opção</option>
+          {filteredOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -66,6 +131,10 @@ export function LevelUpDialog({
   const [featId, setFeatId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [pendingChoices, setPendingChoices] = useState<PendingFeatureChoice[] | null>(
+    null,
+  );
+  const [picks, setPicks] = useState<Record<string, string[]>>({});
 
   const parsed = parseSelection(selection);
   const selectedClass =
@@ -89,6 +158,28 @@ export function LevelUpDialog({
     return catalogClasses?.find((c) => c.id === classEntry.class_definition_id)?.name ?? "Classe";
   }
 
+  const featureChoices: CharacterFeatureChoiceInput[] =
+    pendingChoices?.flatMap((choice) =>
+      (picks[choice.feature_id] ?? [])
+        .filter((id) => id !== "")
+        .map((feature_option_id) => ({ feature_id: choice.feature_id, feature_option_id })),
+    ) ?? [];
+  const choicesIncomplete =
+    pendingChoices != null &&
+    pendingChoices.some(
+      (choice) =>
+        (picks[choice.feature_id] ?? []).filter((id) => id !== "").length <
+        choice.required_count,
+    );
+
+  function setPick(featureId: string, index: number, value: string) {
+    setPicks((prev) => {
+      const next = [...(prev[featureId] ?? [])];
+      next[index] = value;
+      return { ...prev, [featureId]: next };
+    });
+  }
+
   async function handleSubmit() {
     if (!classDefinitionId) return;
     setError(null);
@@ -103,6 +194,7 @@ export function LevelUpDialog({
               : { [abilityA]: 1, [abilityB]: 1 }
             : undefined,
         feat_id: isAsiLevel && asiMode === "feat" ? featId : undefined,
+        feature_choices: pendingChoices ? featureChoices : undefined,
       });
       const label =
         parsed?.kind === "existing" && selectedClass
@@ -111,8 +203,14 @@ export function LevelUpDialog({
       setResult(
         `${label} agora está no nível ${nextLevel}. PV máximo: ${character.hit_point_max}.`,
       );
+      setPendingChoices(null);
+      setPicks({});
       setOpen(false);
     } catch (err) {
+      if (err instanceof ApiError && isRequiresChoiceDetail(err.detail)) {
+        setPendingChoices(err.detail.choices);
+        return;
+      }
       setError(err instanceof ApiError ? err.message : "Não foi possível subir de nível.");
     }
   }
@@ -143,7 +241,11 @@ export function LevelUpDialog({
             <select
               id="level-up-class"
               value={selection}
-              onChange={(e) => setSelection(e.target.value)}
+              onChange={(e) => {
+                setSelection(e.target.value);
+                setPendingChoices(null);
+                setPicks({});
+              }}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
               <optgroup label="Subir nível">
@@ -228,11 +330,29 @@ export function LevelUpDialog({
             </div>
           ) : null}
 
+          {pendingChoices ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium">
+                Este nível exige uma escolha — selecione antes de confirmar:
+              </p>
+              {pendingChoices.map((choice) => (
+                <FeatureChoicePicker
+                  key={choice.feature_id}
+                  choice={choice}
+                  picks={picks[choice.feature_id] ?? []}
+                  onPick={(index, value) => setPick(choice.feature_id, index, value)}
+                />
+              ))}
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={handleSubmit}
             disabled={
-              levelUp.isPending || (isAsiLevel && asiMode === "feat" && !featId)
+              levelUp.isPending ||
+              (isAsiLevel && asiMode === "feat" && !featId) ||
+              choicesIncomplete
             }
             className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
           >

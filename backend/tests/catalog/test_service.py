@@ -594,9 +594,7 @@ async def test_get_background_translated_resolves_pt_br(db: AsyncSession) -> Non
     """get_background_translated resolves the seeded pt-BR translation."""
     await seed_catalog(db)
     results = await service.list_backgrounds_translated(db, search="Acolyte")
-    acolyte = await service.get_background_translated(
-        db, results[0].id, locale="pt-BR"
-    )
+    acolyte = await service.get_background_translated(db, results[0].id, locale="pt-BR")
 
     assert acolyte is not None
     assert acolyte.name == "Acólito"
@@ -724,9 +722,7 @@ async def test_list_features_translated_scoped_to_parent_returns_named_options(
         )
     ).scalar_one()
 
-    options = await service.list_features_translated(
-        db, parent_feature_id=parent.id
-    )
+    options = await service.list_features_translated(db, parent_feature_id=parent.id)
 
     names = {o.feature_name for o in options}
     assert "Fighting Style: Archery" in names
@@ -741,6 +737,27 @@ async def test_list_features_translated_without_parent_returns_all(
     features = await service.list_features_translated(db)
     total = await db.scalar(select(func.count()).select_from(Feature))
     assert len(features) == total
+
+
+async def test_get_feature_translated_resolves_a_named_option(db: AsyncSession) -> None:
+    """A picked level-up option resolves to its translated name (Fase 8)."""
+    await seed_catalog(db)
+    dueling = (
+        await db.execute(
+            select(Feature).where(Feature.index == "fighter-fighting-style-dueling")
+        )
+    ).scalar_one()
+
+    resolved = await service.get_feature_translated(db, dueling.id)
+
+    assert resolved is not None
+    assert resolved.feature_name == "Fighting Style: Dueling"
+
+
+async def test_get_feature_translated_not_found_returns_none(db: AsyncSession) -> None:
+    """get_feature_translated returns None for an unknown ID."""
+    result = await service.get_feature_translated(db, uuid.uuid4())
+    assert result is None
 
 
 @pytest.mark.asyncio

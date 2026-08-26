@@ -7,6 +7,7 @@ import type {
   ClassSummary,
   Feat,
   FeatSummary,
+  Feature,
   Item,
   ItemSummary,
   MagicItem,
@@ -97,6 +98,15 @@ export function getCatalogEntry<C extends CatalogCategory>(
     `/catalog/${CATALOG_CATEGORY_PATH[category]}/${entryId}`,
     { locale },
   );
+}
+
+/**
+ * Get a single catalog feature by ID (e.g. a picked level-up option's
+ * name) — not one of the 9 dedicated-screen categories, so it doesn't go
+ * through `CATALOG_CATEGORY_PATH`.
+ */
+export function getFeature(featureId: string, locale?: string): Promise<Feature> {
+  return apiFetch<Feature>(`/catalog/features/${featureId}`, { locale });
 }
 
 /**

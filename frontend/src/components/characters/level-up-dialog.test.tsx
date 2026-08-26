@@ -178,6 +178,112 @@ describe("LevelUpDialog", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("a requires_choice 422 shows a picker instead of the raw error", async () => {
+    mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, "Choice required", {
+        requires_choice: true,
+        choices: [
+          {
+            feature_id: "fighting-style",
+            required_count: 1,
+            options: [
+              { id: "defense", name: "Fighting Style: Defense" },
+              { id: "dueling", name: "Fighting Style: Dueling" },
+            ],
+          },
+        ],
+      }),
+    );
+    render(
+      <LevelUpDialog characterId="char-1" campaignId="camp-1" classes={[fighterClass]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Subir de nível" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    expect(await screen.findByText(/exige uma escolha/)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("confirming with a pending choice sends feature_choices", async () => {
+    mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, "Choice required", {
+        requires_choice: true,
+        choices: [
+          {
+            feature_id: "fighting-style",
+            required_count: 1,
+            options: [
+              { id: "defense", name: "Fighting Style: Defense" },
+              { id: "dueling", name: "Fighting Style: Dueling" },
+            ],
+          },
+        ],
+      }),
+    );
+    mutateAsync.mockResolvedValueOnce({ hit_point_max: 30 });
+    render(
+      <LevelUpDialog characterId="char-1" campaignId="camp-1" classes={[fighterClass]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Subir de nível" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await screen.findByText(/exige uma escolha/);
+
+    const confirmButton = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Opção"), { target: { value: "dueling" } });
+    expect(confirmButton).not.toBeDisabled();
+    fireEvent.click(confirmButton);
+
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenLastCalledWith({
+        class_definition_id: "fighter-id",
+        ability_score_increases: undefined,
+        feat_id: undefined,
+        feature_choices: [{ feature_id: "fighting-style", feature_option_id: "dueling" }],
+      }),
+    );
+    expect(await screen.findByText(/agora está no nível 4/)).toBeInTheDocument();
+  });
+
+  it("a multi-pick choice requires one selection per required slot", async () => {
+    mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, "Choice required", {
+        requires_choice: true,
+        choices: [
+          {
+            feature_id: "eldritch-invocations",
+            required_count: 2,
+            options: [
+              { id: "agonizing-blast", name: "Agonizing Blast" },
+              { id: "armor-of-shadows", name: "Armor of Shadows" },
+            ],
+          },
+        ],
+      }),
+    );
+    render(
+      <LevelUpDialog characterId="char-1" campaignId="camp-1" classes={[fighterClass]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Subir de nível" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await screen.findByText(/exige uma escolha/);
+
+    const confirmButton = screen.getByRole("button", { name: "Confirmar" });
+    fireEvent.change(screen.getByLabelText("Escolha 1 de 2"), {
+      target: { value: "agonizing-blast" },
+    });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Escolha 2 de 2"), {
+      target: { value: "armor-of-shadows" },
+    });
+    expect(confirmButton).not.toBeDisabled();
+  });
+
   it("shows the backend's error on failure", async () => {
     mutateAsync.mockRejectedValue(new ApiError(422, "This class is already at level 20"));
     render(

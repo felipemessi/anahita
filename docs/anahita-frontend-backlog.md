@@ -356,12 +356,12 @@
   - [x] Teste: escolher uma classe nova envia o payload correto pro mesmo endpoint de level-up; classes já possuídas continuam no fluxo de "subir nível" normal
   - Notas: o `<select>` de classe ganhou um segundo `<optgroup>` ("Multiclasse — adicionar uma nova classe") com as classes do catálogo que o personagem ainda não tem (`class_definition_id` fora do conjunto já possuído); o valor da opção carrega `new:<id>` vs. `existing:<CharacterClass.id>` pra diferenciar sem mudar o payload enviado ao backend, que já aceita `class_definition_id` de uma classe nova (Fase 7). Nível seguinte calculado como 1 pra classe nova (não há `CharacterClass.level` ainda) — mesmo fluxo de ASI/PV, já que o backend resolve isso do mesmo jeito.
 
-- **Como jogador, quero que o subir de nível me pergunte as escolhas mecânicas que ganho (estilo de luta, pacto, domínio etc.), de forma pesquisável.**
-  - [ ] `level-up-dialog.tsx`: quando a resposta do backend indicar `requires_choice`, exibir as opções (`FeatureOption`) com campo de busca (reaproveita `catalog-filter-bar.tsx`) antes de confirmar
-  - [ ] Enviar `feature_choices` no corpo da confirmação de level-up
-  - [ ] `character-sheet.tsx`/seção de Características: exibir as escolhas feitas (ex. "Estilo de Luta: Duelismo")
-  - [ ] Teste: nível com escolha obrigatória bloqueia a confirmação até uma opção ser selecionada; nível sem escolha pula essa etapa
-  - Depende de backend: `FeatureOption`/`CharacterFeatureChoice` e o `requires_choice` no retorno do level-up (Fase 8 do backend)
+- **Como jogador, quero que o subir de nível me pergunte as escolhas mecânicas que ganho (estilo de luta, pacto, domínio etc.), de forma pesquisável. ✅ (2026-08-26)**
+  - [x] `level-up-dialog.tsx`: quando a resposta do backend indicar `requires_choice`, exibir as opções (`FeatureOption`) com campo de busca (reaproveita `catalog-filter-bar.tsx`) antes de confirmar
+  - [x] Enviar `feature_choices` no corpo da confirmação de level-up
+  - [x] `character-sheet.tsx`/seção de Características: exibir as escolhas feitas (ex. "Estilo de Luta: Duelismo")
+  - [x] Teste: nível com escolha obrigatória bloqueia a confirmação até uma opção ser selecionada; nível sem escolha pula essa etapa
+  - Notas: `ApiError` ganhou um campo `detail: unknown` (antes só guardava a string de mensagem) — o 422 de `requires_choice` vem com um objeto estruturado, não uma string, e precisava chegar íntegro até o componente. Fluxo: primeira tentativa de confirmar sem `feature_choices` retorna 422 com `{requires_choice, choices: [{feature_id, required_count, options}]}`; o diálogo detecta isso (`isRequiresChoiceDetail`), renderiza um `<select>` por escolha exigida (`required_count` vezes, cobrindo Eldritch Invocations/Metamagic com mais de uma), com busca por nome quando a lista de opções passa de 5, e só reabilita "Confirmar" quando todas estiverem preenchidas; a segunda tentativa já inclui `feature_choices` e conclui. Lacuna mecânica encontrada e resolvida inline: o backend não tinha `GET /catalog/features/{id}` (só o `GET /catalog/features` de lista) — necessário pra ficha resolver o nome de uma opção já escolhida (`feature_option_id`) fora do fluxo de level-up; adicionado reaproveitando `catalog_service.get_feature_translated`, já existente.
 
 - **Como jogador, quero ver minhas rolagens recentes no rodapé da ficha, não competindo com o resto do conteúdo.**
   - [ ] `character-sheet.tsx`: reposicionar `roll-log`/histórico de rolagens para o final da ficha (abaixo de todas as seções)
