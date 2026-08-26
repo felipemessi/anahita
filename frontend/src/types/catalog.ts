@@ -257,6 +257,7 @@ export interface SpellSummary {
   ritual: boolean;
   concentration: boolean;
   is_custom: boolean;
+  classes: SpellClassRef[];
 }
 
 // --- Equipment -------------------------------------------------------------------
