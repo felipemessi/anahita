@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CATALOG_QUERY_KEY_PREFIX } from "@/components/catalog/locale-switcher";
 import {
   createCustomEntry,
+  getAbilityScores,
   getCatalogEntry,
   getFeature,
   listCatalogEntries,
@@ -49,6 +50,18 @@ export function useCatalogFeature(featureId: string) {
     queryKey: [...CATALOG_QUERY_KEY_PREFIX, "features", "detail", featureId, locale],
     queryFn: () => getFeature(featureId, locale),
     enabled: Boolean(featureId),
+  });
+}
+
+/**
+ * The 6 core ability scores — small, fixed, and locale-independent
+ * (`index` only), so this is fetched and cached once for the whole app.
+ */
+export function useAbilityScores() {
+  return useQuery({
+    queryKey: [...CATALOG_QUERY_KEY_PREFIX, "ability-scores", "list"],
+    queryFn: getAbilityScores,
+    staleTime: Infinity,
   });
 }
 

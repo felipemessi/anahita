@@ -87,6 +87,18 @@ export interface CharacterSpellCastRequest {
   /** Defaults to the spell's own level — set higher to upcast. */
   cast_at_level?: number | null;
   as_ritual?: boolean;
+  /** Which encounter participant this was aimed at — echoed back, never validated here. */
+  target_participant_id?: string | null;
+}
+
+/**
+ * Response for casting a spell: the updated character, plus cast context.
+ * `save_dc` is only populated for a `saving_throw` spell (Fase 8).
+ */
+export interface CharacterSpellCastResponse {
+  character: Character;
+  save_dc: number | null;
+  target_participant_id: string | null;
 }
 
 /** `max` is derived from the catalog on read, never persisted. */

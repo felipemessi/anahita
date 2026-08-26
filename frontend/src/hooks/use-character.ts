@@ -120,9 +120,14 @@ export function useRemoveCharacterSpell(characterId: string) {
   });
 }
 
-/** Cast a known spell, consuming a spell slot (unless a cantrip or ritual). */
+/**
+ * Cast a known spell, consuming a spell slot (unless a cantrip or ritual).
+ * The response's `save_dc` (saving-throw spells only) and
+ * `target_participant_id` let the caller drive the cast UI (Fase 8).
+ */
 export function useCastCharacterSpell(characterId: string) {
   const queryClient = useQueryClient();
+  const queryKey = [...CHARACTERS_QUERY_KEY, characterId];
   return useMutation({
     mutationFn: ({
       spellEntryId,
@@ -131,9 +136,10 @@ export function useCastCharacterSpell(characterId: string) {
       spellEntryId: string;
       data: CharacterSpellCastRequest;
     }) => castCharacterSpell(characterId, spellEntryId, data),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      queryClient.setQueryData(queryKey, response.character);
       void queryClient.invalidateQueries({
-        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+        queryKey,
       });
     },
   });

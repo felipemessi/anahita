@@ -10,6 +10,7 @@ from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.catalog import service
 from app.catalog.schemas import (
+    AbilityScoreDefinitionRead,
     BackgroundCreate,
     BackgroundRead,
     BackgroundSummary,
@@ -144,6 +145,18 @@ async def create_class(
     """Create a homebrew class, scoped to `body.campaign_id`. DM only."""
     await _require_dm(body.campaign_id, user, db)
     return await service.create_custom_class(db, body)
+
+
+@router.get("/ability-scores", response_model=list[AbilityScoreDefinitionRead])
+async def list_ability_scores(db: DB) -> list[AbilityScoreDefinitionRead]:
+    """List the 6 core ability scores (str/dex/con/int/wis/cha).
+
+    No translation needed — `index` is a fixed short code, not display
+    text. Lets the client resolve a `Spell.save_ability_score_id` to the
+    ability it rolls against (Fase 8: saving-throw spell casting).
+    """
+    scores = await service.list_ability_scores(db)
+    return [AbilityScoreDefinitionRead.model_validate(s) for s in scores]
 
 
 @router.get("/spells", response_model=list[SpellSummary])

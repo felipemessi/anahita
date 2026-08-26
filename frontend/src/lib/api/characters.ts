@@ -15,6 +15,7 @@ import type {
   CharacterRestRequest,
   CharacterRestResponse,
   CharacterSpellCastRequest,
+  CharacterSpellCastResponse,
   CharacterSpellCreate,
   CharacterSpellUpdate,
   CharacterSummary,
@@ -107,11 +108,14 @@ export function castCharacterSpell(
   characterId: string,
   spellEntryId: string,
   data: CharacterSpellCastRequest,
-): Promise<Character> {
-  return apiFetch<Character>(`/characters/${characterId}/spells/${spellEntryId}/cast`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+): Promise<CharacterSpellCastResponse> {
+  return apiFetch<CharacterSpellCastResponse>(
+    `/characters/${characterId}/spells/${spellEntryId}/cast`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 /** Take a short or long rest — a long rest restores every spell slot. */
