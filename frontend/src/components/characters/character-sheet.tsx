@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
+import { CatalogFilterBar } from "@/components/catalog/catalog-filter-bar";
 import { AbilityScores } from "@/components/characters/ability-scores";
 import { ClassResources } from "@/components/characters/class-resources";
 import { ConcentrationIndicator } from "@/components/characters/concentration-indicator";
@@ -17,10 +18,11 @@ import { SkillList } from "@/components/characters/skill-list";
 import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
 import { SpellSlots } from "@/components/characters/spell-slots";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useCatalogFeature } from "@/hooks/use-catalog";
+import { useCatalogFeature, useCatalogList } from "@/hooks/use-catalog";
 import { useAddCharacterFeature, useRestCharacter, useUpdateCharacterHp } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 import { calculateModifier } from "@/lib/utils/dnd-rules";
+import type { FeatSummary } from "@/types/catalog";
 import type { Character, FeatureSourceType, RestType } from "@/types/character";
 
 /**
@@ -221,6 +223,7 @@ export function CharacterSheet({
 
         <FeaturesSection
           characterId={character.id}
+          campaignId={campaignId}
           features={character.features}
           featureChoices={character.feature_choices}
         />
@@ -244,10 +247,12 @@ function FeatureChoiceItem({ featureOptionId }: { featureOptionId: string }) {
 
 export function FeaturesSection({
   characterId,
+  campaignId,
   features,
   featureChoices,
 }: {
   characterId: string;
+  campaignId: string;
   features: Character["features"];
   featureChoices: Character["feature_choices"];
 }) {
@@ -255,7 +260,28 @@ export function FeaturesSection({
   const [sourceType, setSourceType] = useState<FeatureSourceType>("class");
   const [sourceName, setSourceName] = useState("");
   const [featureName, setFeatureName] = useState("");
+  const [featureDescription, setFeatureDescription] = useState<string | null>(null);
+  const [featSearch, setFeatSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const { data: catalogFeats } = useCatalogList("feats", { campaign_id: campaignId });
+  const featResults = (catalogFeats ?? []).filter((f) =>
+    f.name.toLowerCase().includes(featSearch.toLowerCase()),
+  );
+
+  function selectFeat(feat: FeatSummary) {
+    setSourceName("Talento");
+    setFeatureName(feat.name);
+    setFeatureDescription(null);
+  }
+
+  function handleSourceTypeChange(next: FeatureSourceType) {
+    setSourceType(next);
+    setSourceName("");
+    setFeatureName("");
+    setFeatureDescription(null);
+    setFeatSearch("");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -266,9 +292,12 @@ export function FeaturesSection({
         source_type: sourceType,
         source_name: sourceName,
         feature_name: featureName,
+        description: featureDescription,
       });
       setSourceName("");
       setFeatureName("");
+      setFeatureDescription(null);
+      setFeatSearch("");
     } catch {
       setError("Não foi possível adicionar a característica.");
     }
@@ -296,52 +325,103 @@ export function FeaturesSection({
         <p className="mt-1 text-sm text-muted-foreground">Nenhuma característica registrada.</p>
       )}
 
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label htmlFor="feature-source-type" className="text-xs text-muted-foreground">
-            Origem
-          </label>
-          <select
-            id="feature-source-type"
-            value={sourceType}
-            onChange={(e) => setSourceType(e.target.value as FeatureSourceType)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+      <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label htmlFor="feature-source-type" className="text-xs text-muted-foreground">
+              Origem
+            </label>
+            <select
+              id="feature-source-type"
+              value={sourceType}
+              onChange={(e) => handleSourceTypeChange(e.target.value as FeatureSourceType)}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="class">Classe</option>
+              <option value="feat">Talento</option>
+            </select>
+          </div>
+
+          {sourceType === "class" ? (
+            <>
+              <div className="space-y-1">
+                <label htmlFor="feature-source-name" className="text-xs text-muted-foreground">
+                  Nome da fonte
+                </label>
+                <input
+                  id="feature-source-name"
+                  value={sourceName}
+                  onChange={(e) => setSourceName(e.target.value)}
+                  placeholder="ex.: Fighter"
+                  className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="feature-name" className="text-xs text-muted-foreground">
+                  Característica
+                </label>
+                <input
+                  id="feature-name"
+                  value={featureName}
+                  onChange={(e) => setFeatureName(e.target.value)}
+                  placeholder="ex.: Second Wind"
+                  className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                />
+              </div>
+            </>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={!sourceName || !featureName || addFeature.isPending}
+            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
           >
-            <option value="class">Classe</option>
-            <option value="feat">Talento</option>
-          </select>
+            Adicionar
+          </button>
         </div>
-        <div className="space-y-1">
-          <label htmlFor="feature-source-name" className="text-xs text-muted-foreground">
-            Nome da fonte
-          </label>
-          <input
-            id="feature-source-name"
-            value={sourceName}
-            onChange={(e) => setSourceName(e.target.value)}
-            placeholder="ex.: Fighter"
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="feature-name" className="text-xs text-muted-foreground">
-            Característica
-          </label>
-          <input
-            id="feature-name"
-            value={featureName}
-            onChange={(e) => setFeatureName(e.target.value)}
-            placeholder="ex.: Second Wind"
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!sourceName || !featureName || addFeature.isPending}
-          className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
-        >
-          Adicionar
-        </button>
+
+        {sourceType === "feat" ? (
+          <div className="space-y-2">
+            {featureName ? (
+              <p className="text-sm">
+                Talento selecionado: <span className="font-medium">{featureName}</span>{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSourceName("");
+                    setFeatureName("");
+                  }}
+                  className="text-xs text-muted-foreground underline"
+                >
+                  trocar
+                </button>
+              </p>
+            ) : (
+              <>
+                <CatalogFilterBar search={featSearch} onSearchChange={setFeatSearch} />
+                <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border">
+                  {featResults.length === 0 ? (
+                    <li className="px-2 py-1.5 text-xs text-muted-foreground">
+                      Nenhum talento encontrado.
+                    </li>
+                  ) : (
+                    featResults.map((feat) => (
+                      <li key={feat.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectFeat(feat)}
+                          className="w-full px-2 py-1.5 text-left text-sm hover:bg-secondary/40"
+                        >
+                          {feat.name}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </>
+            )}
+          </div>
+        ) : null}
       </form>
       {error ? (
         <p role="alert" className="mt-1 text-sm text-destructive">
