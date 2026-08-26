@@ -424,11 +424,11 @@
   - [x] Teste: equipar/desequipar armadura atualiza o valor de CA exibido na ficha após a resposta do servidor
   - Notas: nenhuma mudança de código foi necessária — `useUpdateCharacterEquipment` já invalidava exatamente a query key que `useCharacter` (usada por `app/campaigns/[campaignId]/characters/[characterId]/page.tsx`) assina, então o toggle de `equipped` já disparava um refetch e a CA recalculada pelo backend (`_recalculate_armor_class`, Fase 8 do backend) já chegava na ficha. Adicionado só o teste de regressão que faltava (`use-character.test.ts`), com `useCharacter` e `useUpdateCharacterEquipment` reais sob o mesmo `QueryClient`, provando o fluxo ponta a ponta em vez de assumir pela leitura de código.
 
-- **Como jogador, quero registrar ganho e gasto de moedas por denominação (cobre, prata, ouro, platina), não só um valor abstrato.**
-  - [ ] `currency-tracker.tsx`: inputs separados para as 4 denominações (cp/sp/gp/pp — sem `ep`, decisão do grupo), convertendo o total pro delta em copper esperado por `POST /characters/{id}/currency`
-  - [ ] Exibição do saldo decompõe o valor em copper armazenado pra denominações (maior pra menor: pp→gp→sp→cp), em vez de mostrar só o número bruto de copper
-  - [ ] Teste: ganho/gasto misto (ex. +2 gp -5 sp) calcula o delta certo em copper; exibição decompõe corretamente um saldo conhecido
-  - Notas: sem mudança de backend — `Character.currency_cp` continua como coluna única normalizada (decisão da Fase 6); a conversão por denominação acontece só na UI.
+- **Como jogador, quero registrar ganho e gasto de moedas por denominação (cobre, prata, ouro, platina), não só um valor abstrato. ✅ (2026-08-26)**
+  - [x] `currency-tracker.tsx`: inputs separados para as 4 denominações (cp/sp/gp/pp — sem `ep`, decisão do grupo), convertendo o total pro delta em copper esperado por `POST /characters/{id}/currency`
+  - [x] Exibição do saldo decompõe o valor em copper armazenado pra denominações (maior pra menor: pp→gp→sp→cp), em vez de mostrar só o número bruto de copper
+  - [x] Teste: ganho/gasto misto (ex. +2 gp -5 sp) calcula o delta certo em copper; exibição decompõe corretamente um saldo conhecido
+  - Notas: sem mudança de backend — `Character.currency_cp` continua como coluna única normalizada (decisão da Fase 6); a conversão por denominação acontece só na UI. A exibição do saldo já decompunha corretamente (só precisava tirar `ep` da lista de denominações usada tanto na exibição quanto nos inputs, por decisão do grupo). Trocado o par de botões "Ganhar"/"Gastar" com um valor único por 4 inputs (um por denominação), cada um aceitando negativo — um único "Registrar" soma `valor × taxa` de cada denominação num delta de copper e envia uma chamada só, cobrindo ganho/gasto misto na mesma ação (ex. "+2 gp -5 sp").
 
 - **Como DM, quero que qualquer lista de catálogo usada para adicionar algo à ficha seja pesquisável, e que adicionar de fato integre o efeito mecânico correspondente.**
   - [ ] Campo de busca por nome (reaproveitando `catalog-filter-bar.tsx`) em toda lista de seleção usada pra adicionar algo à ficha que hoje não tem busca (features/talentos avulsos, opções de feature da história de level-up acima)
