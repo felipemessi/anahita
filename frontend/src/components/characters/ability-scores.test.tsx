@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { AbilityScores } from "./ability-scores";
-import { RollLogProvider } from "./roll-log";
+import { RollLogPanel, RollLogProvider } from "./roll-log";
 
 const scores = [
   {
@@ -36,6 +36,7 @@ it("clicking an ability modifier rolls 1d20 + the modifier", () => {
   render(
     <RollLogProvider>
       <AbilityScores scores={scores} />
+      <RollLogPanel />
     </RollLogProvider>,
   );
 
@@ -49,6 +50,7 @@ it("clicking a saving throw rolls 1d20 + the save bonus", () => {
   render(
     <RollLogProvider>
       <AbilityScores scores={scores} />
+      <RollLogPanel />
     </RollLogProvider>,
   );
 
@@ -61,6 +63,7 @@ it("marks proficient saving throws visually", () => {
   render(
     <RollLogProvider>
       <AbilityScores scores={scores} />
+      <RollLogPanel />
     </RollLogProvider>,
   );
 

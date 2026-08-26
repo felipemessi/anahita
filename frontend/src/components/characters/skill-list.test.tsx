@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { RollLogProvider } from "./roll-log";
+import { RollLogPanel, RollLogProvider } from "./roll-log";
 import { SkillList } from "./skill-list";
 
 const skills = [
@@ -24,6 +24,7 @@ it("clicking a skill's bonus rolls 1d20 + the bonus", () => {
   render(
     <RollLogProvider>
       <SkillList skills={skills} />
+      <RollLogPanel />
     </RollLogProvider>,
   );
 
