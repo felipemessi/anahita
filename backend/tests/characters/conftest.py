@@ -119,6 +119,35 @@ async def cleric_life_subclass_id(db: AsyncSession, cleric_class_id: str) -> str
 
 
 @pytest.fixture
+async def warlock_class_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Warlock class's id."""
+    await seed_catalog(db)
+    result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "warlock")
+    )
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def druid_class_id(db: AsyncSession) -> str:
+    """Seed the catalog (idempotent) and return the SRD Druid class's id."""
+    await seed_catalog(db)
+    result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "druid")
+    )
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
+async def druid_land_subclass_id(db: AsyncSession, druid_class_id: str) -> str:
+    """Return the SRD Druid's Circle of the Land subclass id."""
+    result = await db.execute(
+        select(SubclassDefinition).where(SubclassDefinition.index == "land")
+    )
+    return str(result.scalar_one().id)
+
+
+@pytest.fixture
 async def longsword_item_id(db: AsyncSession) -> str:
     """Seed the catalog (idempotent) and return the SRD Longsword item's id."""
     await seed_catalog(db)

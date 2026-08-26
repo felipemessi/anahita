@@ -196,17 +196,24 @@ class CharacterFeature(Base):
 class CharacterFeatureChoice(Base):
     """A named option picked for a class feature that offers a choice.
 
-    `feature_id` is the parent choice feature (e.g. "Fighting Style"),
-    `feature_option_id` the specific option picked among its children (e.g.
-    "Fighting Style: Dueling") — both point at `catalog_features.id`, since
-    the option is just a `Feature` row with `parent_feature_id` set to the
-    parent's id (PRD Fase 8; see `CharacterService.level_up`).
+    `feature_id` is the feature granted at the level that required a pick
+    (e.g. "Fighting Style", or "Metamagic" at level 10 for a second round
+    of picks), `feature_option_id` the specific option chosen — both point
+    at `catalog_features.id`, since an option is just a `Feature` row with
+    `parent_feature_id` set (PRD Fase 8; see `CharacterService.level_up`).
+    A character can hold more than one row for the same `feature_id`
+    (multi-pick features like Eldritch Invocations/Metamagic, Fase 8) —
+    unique on the actual `(feature_id, feature_option_id)` pair instead, so
+    the same option can't be picked twice for the same feature.
     """
 
     __tablename__ = "character_feature_choices"
     __table_args__ = (
         UniqueConstraint(
-            "character_id", "feature_id", name="uq_character_feature_choices"
+            "character_id",
+            "feature_id",
+            "feature_option_id",
+            name="uq_character_feature_choices",
         ),
     )
 

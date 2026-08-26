@@ -338,18 +338,20 @@ _ABILITY_FULL_NAME = {
     "cha": "Charisma",
 }
 
-#: Hand-curated `parent_index` for Channel Divinity's uses — unlike Fighting
-#: Style/Pact Boon, the SRD source never sets `parent` on these even though
-#: the PHB text presents them as "choose one of the following" (PRD Fase 8).
-#: Covers every Channel Divinity option in the SRD 2014 `en` data (only the
-#: Life domain and Devotion oath are SRD content, so this is exhaustive as
-#: of this dataset) — extend it if a future SRD update adds another
-#: domain/oath with its own Channel Divinity option.
-_CHANNEL_DIVINITY_PARENT_OVERRIDES = {
+#: Hand-curated `parent_index` for options the SRD's own `parent` field
+#: misses, even though the PHB text presents them as "choose one/more of
+#: the following" (PRD Fase 8). Covers every known gap in the SRD 2014 `en`
+#: data: Channel Divinity's uses (only Life domain + Devotion oath are SRD
+#: content, so exhaustive for those), and Sorcerer's "Metamagic: Twinned
+#: Spell" (the SRD's own `parent` is unset for this one option, unlike its
+#: 7 siblings under `metamagic-1`— apparent SRD data gap, not a pattern).
+#: Extend if a future SRD update adds another such gap.
+_FEATURE_PARENT_OVERRIDES = {
     "channel-divinity-turn-undead": "channel-divinity-1-rest",
     "channel-divinity-preserve-life": "channel-divinity-1-rest",
     "channel-divinity-sacred-weapon": "channel-divinity",
     "channel-divinity-turn-the-unholy": "channel-divinity",
+    "metamagic-twinned-spell": "metamagic-1",
 }
 
 
@@ -390,7 +392,7 @@ def _feature_entry(feature: dict[str, Any]) -> dict[str, Any]:
         "parent_index": (
             feature["parent"]["index"]
             if feature.get("parent")
-            else _CHANNEL_DIVINITY_PARENT_OVERRIDES.get(feature["index"])
+            else _FEATURE_PARENT_OVERRIDES.get(feature["index"])
         ),
     }
 
