@@ -19,29 +19,37 @@ describe("CurrencyTracker", () => {
     useUpdateCharacterCurrency.mockReturnValue({ mutateAsync, isPending: false });
   });
 
-  it("splits the copper balance into denominations for display", () => {
+  it("splits the copper balance into denominations for display (no ep)", () => {
     render(<CurrencyTracker characterId="char-1" currencyCp={1234} />);
 
-    // 1234 cp -> 1 pp, 2 gp, 3 sp, 4 cp.
-    expect(screen.getByText("1 pp 2 gp 3 sp 4 cp")).toBeInTheDocument();
+    // 1234 cp -> 1 PP, 2 GP, 3 SP, 4 CP.
+    expect(screen.getByText("1 PP 2 GP 3 SP 4 CP")).toBeInTheDocument();
   });
 
-  it("gaining currency posts a positive delta", async () => {
+  it("a single-denomination gain computes the right copper delta", async () => {
     render(<CurrencyTracker characterId="char-1" currencyCp={0} />);
 
-    fireEvent.change(screen.getByLabelText(/quantidade/i), { target: { value: "50" } });
-    fireEvent.click(screen.getByRole("button", { name: "Ganhar" }));
+    fireEvent.change(screen.getByLabelText("GP"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar" }));
 
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ delta: 50 }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ delta: 500 }));
   });
 
-  it("spending currency posts a negative delta", async () => {
-    render(<CurrencyTracker characterId="char-1" currencyCp={100} />);
+  it("a mixed gain/spend across denominations computes the combined copper delta", async () => {
+    render(<CurrencyTracker characterId="char-1" currencyCp={1000} />);
 
-    fireEvent.change(screen.getByLabelText(/quantidade/i), { target: { value: "50" } });
-    fireEvent.click(screen.getByRole("button", { name: "Gastar" }));
+    // +2 gp -5 sp -> +200cp -50cp = +150cp
+    fireEvent.change(screen.getByLabelText("GP"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("SP"), { target: { value: "-5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar" }));
 
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ delta: -50 }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ delta: 150 }));
+  });
+
+  it("disables the submit button when every denomination is empty/zero", () => {
+    render(<CurrencyTracker characterId="char-1" currencyCp={0} />);
+
+    expect(screen.getByRole("button", { name: "Registrar" })).toBeDisabled();
   });
 
   it("shows the backend's insufficient-funds error", async () => {
@@ -50,8 +58,8 @@ describe("CurrencyTracker", () => {
     );
     render(<CurrencyTracker characterId="char-1" currencyCp={10} />);
 
-    fireEvent.change(screen.getByLabelText(/quantidade/i), { target: { value: "50" } });
-    fireEvent.click(screen.getByRole("button", { name: "Gastar" }));
+    fireEvent.change(screen.getByLabelText("SP"), { target: { value: "-5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar" }));
 
     expect(await screen.findByText(/insufficient funds/i)).toBeInTheDocument();
   });
