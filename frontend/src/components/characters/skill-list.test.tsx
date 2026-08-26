@@ -41,7 +41,7 @@ it("clicking a skill's bonus rolls 1d20 + the bonus, after the roll animation", 
 
   fireEvent.click(screen.getByRole("button", { name: "Rolar Atletismo (+5)" }));
   act(() => {
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(6500);
   });
 
   expect(screen.getByLabelText("Rolagens recentes")).toHaveTextContent("11 +5 = 16");

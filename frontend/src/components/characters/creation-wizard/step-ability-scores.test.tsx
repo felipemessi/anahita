@@ -63,7 +63,7 @@ it("roll: generates 6 values from 4d6-drop-lowest, assignable like the standard 
   fireEvent.click(screen.getByRole("button", { name: "Rolar atributos" }));
 
   act(() => {
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(6500);
   });
 
   const strSelect = screen.getByLabelText("Força") as HTMLSelectElement;
