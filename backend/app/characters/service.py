@@ -53,17 +53,20 @@ from app.characters.schemas import (
     CharacterConcentrationRequest,
     CharacterCurrencyRequest,
     CharacterDeathSaveRequest,
+    CharacterDeathSaveResponse,
     CharacterEquipmentCreate,
     CharacterEquipmentRead,
     CharacterEquipmentUpdate,
     CharacterFeatureChoiceRead,
     CharacterFeatureCreate,
     CharacterFeatureRead,
+    CharacterHitDiceRollResult,
     CharacterHitDiceSpend,
     CharacterLevelUpRequest,
     CharacterRead,
     CharacterResourceRead,
     CharacterRestRequest,
+    CharacterRestResponse,
     CharacterSkillRead,
     CharacterSpellCastRequest,
     CharacterSpellCastResponse,
@@ -1101,7 +1104,7 @@ class CharacterService:
         requester_id: uuid.UUID,
         data: CharacterRestRequest,
         db: AsyncSession,
-    ) -> CharacterRead:
+    ) -> CharacterRestResponse:
         """Take a short or long rest. Owner only.
 
         A long rest resets every spell slot's `used` count to 0, and
@@ -1116,6 +1119,7 @@ class CharacterService:
         resources too, PHB rule.
         """
         character = await self._load_character_owned_by(character_id, requester_id, db)
+        hit_dice_rolls: list[CharacterHitDiceRollResult] = []
         if data.rest_type == "long":
             for slot in character.spell_slots:
                 slot.used = 0
@@ -1128,27 +1132,35 @@ class CharacterService:
                 class_entry.hit_dice_used -= restored
                 remaining -= restored
         else:
-            await self._spend_hit_dice(character, data.hit_dice_spent, db)
+            hit_dice_rolls = await self._spend_hit_dice(
+                character, data.hit_dice_spent, db
+            )
         for resource in character.resources:
             recharge = _RESOURCE_RECHARGE.get(resource.resource_key)
             if recharge == "short" or (recharge == "long" and data.rest_type == "long"):
                 resource.used = 0
         await db.commit()
-        return await self._reload_as_read(character.id, db)
+        return CharacterRestResponse(
+            character=await self._reload_as_read(character.id, db),
+            hit_dice_rolls=hit_dice_rolls,
+        )
 
     async def _spend_hit_dice(
         self,
         character: Character,
         spends: list[CharacterHitDiceSpend],
         db: AsyncSession,
-    ) -> None:
+    ) -> list[CharacterHitDiceRollResult]:
         """Roll and apply healing for each class's hit dice spent on a short rest.
 
         Each die rolled is the spending class's `hit_die` plus the
         character's CON modifier (never healing below 0, and never past
-        `hit_point_max`), unless `manual_roll` is supplied instead.
+        `hit_point_max`), unless `manual_roll` is supplied instead. Returns
+        one roll result per spend, in the same order, for the client's
+        dice-roll animation (Fase 8).
         """
         con_mod = self._ability_modifier(character, "con")
+        results: list[CharacterHitDiceRollResult] = []
         for spend in spends:
             class_entry = next(
                 (c for c in character.classes if c.id == spend.character_class_id),
@@ -1169,7 +1181,9 @@ class CharacterService:
                     ),
                 )
             if spend.manual_roll is not None:
-                healed = spend.manual_roll
+                roll_result = spend.manual_roll
+                modifier = 0
+                healed = roll_result
             else:
                 class_def = await catalog_service.get_class(
                     db, class_entry.class_definition_id
@@ -1179,14 +1193,24 @@ class CharacterService:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="Class not found",
                     )
-                roll_result = dice.roll(f"{spend.count}d{class_def.hit_die}")
-                healed = max(0, roll_result.total + con_mod * spend.count)
+                roll_result = dice.roll(f"{spend.count}d{class_def.hit_die}").total
+                modifier = con_mod * spend.count
+                healed = max(0, roll_result + modifier)
             old_hp = character.hit_point_current
             character.hit_point_current = min(
                 character.hit_point_max, character.hit_point_current + healed
             )
             self._register_hp_change(character, old_hp, character.hit_point_current)
             class_entry.hit_dice_used += spend.count
+            results.append(
+                CharacterHitDiceRollResult(
+                    character_class_id=class_entry.id,
+                    roll_result=roll_result,
+                    modifier=modifier,
+                    healed=healed,
+                )
+            )
+        return results
 
     async def use_resource(
         self,
@@ -1313,7 +1337,7 @@ class CharacterService:
         requester_id: uuid.UUID,
         data: CharacterDeathSaveRequest,
         db: AsyncSession,
-    ) -> CharacterRead:
+    ) -> CharacterDeathSaveResponse:
         """Roll a death saving throw. Owner only, only at 0 hit points.
 
         1 counts as two failures; 20 restores 1 HP and consciousness
@@ -1356,7 +1380,10 @@ class CharacterService:
             character.death_save_failures = 0
 
         await db.commit()
-        return await self._reload_as_read(character.id, db)
+        return CharacterDeathSaveResponse(
+            character=await self._reload_as_read(character.id, db),
+            roll_result=roll_result,
+        )
 
     async def set_concentration(
         self,

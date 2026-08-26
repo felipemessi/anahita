@@ -138,7 +138,11 @@ export function useCastCharacterSpell(characterId: string) {
   });
 }
 
-/** Take a short or long rest — a long rest restores every spell slot. */
+/**
+ * Take a short or long rest — a long rest restores every spell slot. The
+ * response's `hit_dice_rolls` (short rest only) drives the dice-roll
+ * animation before the sheet reflects the healed HP (Fase 8).
+ */
 export function useRestCharacter(characterId: string) {
   const queryClient = useQueryClient();
   const queryKey = [...CHARACTERS_QUERY_KEY, characterId];
@@ -164,21 +168,28 @@ export function useRestCharacter(characterId: string) {
         queryClient.setQueryData(queryKey, context.previous);
       }
     },
+    onSuccess: (response) => {
+      queryClient.setQueryData(queryKey, response.character);
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey });
     },
   });
 }
 
-/** Roll a death saving throw — only accepted at 0 hit points. */
+/**
+ * Roll a death saving throw — only accepted at 0 hit points. The
+ * response's `roll_result` drives the dice-roll animation before the
+ * sheet reflects the updated successes/failures (Fase 8).
+ */
 export function useRollDeathSave(characterId: string) {
   const queryClient = useQueryClient();
+  const queryKey = [...CHARACTERS_QUERY_KEY, characterId];
   return useMutation({
     mutationFn: (data: CharacterDeathSaveRequest) => rollDeathSave(characterId, data),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
-      });
+    onSuccess: (response) => {
+      queryClient.setQueryData(queryKey, response.character);
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 }

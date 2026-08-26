@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const useCharacter = vi.fn();
 vi.mock("@/hooks/use-character", () => ({
@@ -40,6 +40,11 @@ describe("ParticipantCard", () => {
   beforeEach(() => {
     useCharacter.mockReturnValue({ data: undefined });
     useCatalogEntry.mockReturnValue({ data: undefined });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("shows the concentration save DC when set", () => {
@@ -83,6 +88,9 @@ describe("ParticipantCard", () => {
       name: "Rolar Resistência de Constituição (+4)",
     });
     fireEvent.click(rollButton);
+    act(() => {
+      vi.advanceTimersByTime(2500);
+    });
 
     expect(screen.getByRole("region", { name: "Rolagens recentes" })).toHaveTextContent(
       "Resistência de Constituição",

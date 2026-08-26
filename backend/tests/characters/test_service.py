@@ -859,9 +859,9 @@ async def test_long_rest_restores_all_spell_slots(
         character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
     )
 
-    character = await service.rest(
+    character = (await service.rest(
         character_id, owner.id, CharacterRestRequest(rest_type="long"), db
-    )
+    )).character
     assert all(s.used == 0 for s in character.spell_slots)
 
 
@@ -887,9 +887,9 @@ async def test_short_rest_does_not_restore_spell_slots(
         character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
     )
 
-    character = await service.rest(
+    character = (await service.rest(
         character_id, owner.id, CharacterRestRequest(rest_type="short"), db
-    )
+    )).character
     used_slot = next(s for s in character.spell_slots if s.spell_level == 1)
     assert used_slot.used == 1
 
@@ -912,7 +912,7 @@ async def test_short_rest_spend_hit_dice_heals_and_tracks_usage(
     )
     class_entry_id = character.classes[0].id
 
-    character = await service.rest(
+    character = (await service.rest(
         character_id,
         owner.id,
         CharacterRestRequest(
@@ -924,7 +924,7 @@ async def test_short_rest_spend_hit_dice_heals_and_tracks_usage(
             ],
         ),
         db,
-    )
+    )).character
 
     assert character.hit_point_current == 8  # 1 + 7 (well under hit_point_max of 11)
     assert character.classes[0].hit_dice_used == 2
@@ -948,7 +948,7 @@ async def test_short_rest_spend_hit_dice_caps_at_max_hp(
     )
     class_entry_id = character.classes[0].id
 
-    character = await service.rest(
+    character = (await service.rest(
         character_id,
         owner.id,
         CharacterRestRequest(
@@ -960,7 +960,7 @@ async def test_short_rest_spend_hit_dice_caps_at_max_hp(
             ],
         ),
         db,
-    )
+    )).character
 
     assert character.hit_point_current == 11  # hit_point_max, not 30
 
@@ -1011,7 +1011,7 @@ async def test_long_rest_restores_half_hit_dice_minimum_one(
     class_entry_id = character.classes[0].id
 
     # Spend all 4 hit dice on a short rest first.
-    character = await service.rest(
+    character = (await service.rest(
         character_id,
         owner.id,
         CharacterRestRequest(
@@ -1023,13 +1023,13 @@ async def test_long_rest_restores_half_hit_dice_minimum_one(
             ],
         ),
         db,
-    )
+    )).character
     assert character.classes[0].hit_dice_used == 4
 
     # Long rest restores half of 4 = 2.
-    character = await service.rest(
+    character = (await service.rest(
         character_id, owner.id, CharacterRestRequest(rest_type="long"), db
-    )
+    )).character
     assert character.classes[0].hit_dice_used == 2
 
 
@@ -1047,9 +1047,11 @@ async def test_death_save_natural_20_restores_1_hp(
         character_id, owner.id, CharacterUpdate(hit_point_current=0), db
     )
 
-    character = await service.death_save(
-        character_id, owner.id, CharacterDeathSaveRequest(manual_roll=20), db
-    )
+    character = (
+        await service.death_save(
+            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=20), db
+        )
+    ).character
     assert character.hit_point_current == 1
     assert character.death_save_successes == 0
     assert character.death_save_failures == 0
@@ -1070,9 +1072,11 @@ async def test_death_save_natural_1_counts_two_failures(
         character_id, owner.id, CharacterUpdate(hit_point_current=0), db
     )
 
-    character = await service.death_save(
-        character_id, owner.id, CharacterDeathSaveRequest(manual_roll=1), db
-    )
+    character = (
+        await service.death_save(
+            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=1), db
+        )
+    ).character
     assert character.death_save_failures == 2
     assert character.is_dead is False
 
@@ -1092,9 +1096,11 @@ async def test_death_save_three_failures_marks_dead(
     )
 
     for _ in range(3):
-        character = await service.death_save(
-            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=5), db
-        )
+        character = (
+            await service.death_save(
+                character_id, owner.id, CharacterDeathSaveRequest(manual_roll=5), db
+            )
+        ).character
     assert character.death_save_failures == 3
     assert character.is_dead is True
 
@@ -1114,9 +1120,11 @@ async def test_death_save_three_successes_stabilizes(
     )
 
     for _ in range(3):
-        character = await service.death_save(
-            character_id, owner.id, CharacterDeathSaveRequest(manual_roll=15), db
-        )
+        character = (
+            await service.death_save(
+                character_id, owner.id, CharacterDeathSaveRequest(manual_roll=15), db
+            )
+        ).character
     assert character.death_save_successes == 0
     assert character.death_save_failures == 0
     assert character.is_dead is False
@@ -2101,9 +2109,9 @@ async def test_long_rest_restores_resources(
     await service.use_resource(character_id, owner.id, "rage_count", db)
     await service.use_resource(character_id, owner.id, "rage_count", db)
 
-    character = await service.rest(
+    character = (await service.rest(
         character_id, owner.id, CharacterRestRequest(rest_type="long"), db
-    )
+    )).character
     resource = next(r for r in character.resources if r.resource_key == "rage_count")
     assert resource.used == 0
 
@@ -2120,9 +2128,9 @@ async def test_short_rest_does_not_restore_long_recharge_resource(
     service = CharacterService()
     await service.use_resource(character_id, owner.id, "rage_count", db)
 
-    character = await service.rest(
+    character = (await service.rest(
         character_id, owner.id, CharacterRestRequest(rest_type="short"), db
-    )
+    )).character
     resource = next(r for r in character.resources if r.resource_key == "rage_count")
     assert resource.used == 1
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useShowServerRoll } from "@/components/characters/roll-log";
 import { useCatalogList } from "@/hooks/use-catalog";
 import { useRestCharacter } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
@@ -26,6 +27,7 @@ export function HitDiceTracker({
     campaign_id: campaignId,
   });
   const rest = useRestCharacter(characterId);
+  const showServerRoll = useShowServerRoll();
   const [countByClass, setCountByClass] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -40,10 +42,19 @@ export function HitDiceTracker({
     if (!count || count <= 0) return;
     setError(null);
     try {
-      await rest.mutateAsync({
+      const { hit_dice_rolls } = await rest.mutateAsync({
         rest_type: "short",
         hit_dice_spent: [{ character_class_id: classEntry.id, count }],
       });
+      const rolled = hit_dice_rolls[0];
+      if (rolled) {
+        showServerRoll({
+          label: `Dado de vida (${nameFor(classEntry)})`,
+          rollResult: rolled.roll_result,
+          modifier: rolled.modifier,
+          total: rolled.healed,
+        });
+      }
       setCountByClass((prev) => ({ ...prev, [classEntry.id]: "1" }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível gastar o dado de vida.");

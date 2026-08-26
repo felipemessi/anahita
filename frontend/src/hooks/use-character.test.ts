@@ -112,7 +112,10 @@ describe("useRestCharacter", () => {
   });
 
   it("optimistically zeroes every spell slot's used count on a long rest", async () => {
-    let resolveRequest!: (value: typeof character) => void;
+    let resolveRequest!: (value: {
+      character: typeof character;
+      hit_dice_rolls: unknown[];
+    }) => void;
     restCharacter.mockReturnValue(
       new Promise((resolve) => {
         resolveRequest = resolve;
@@ -133,13 +136,16 @@ describe("useRestCharacter", () => {
     });
 
     resolveRequest({
-      ...character,
-      spell_slots: character.spell_slots.map((s) => ({ ...s, used: 0 })),
+      character: {
+        ...character,
+        spell_slots: character.spell_slots.map((s) => ({ ...s, used: 0 })),
+      },
+      hit_dice_rolls: [],
     });
   });
 
   it("leaves spell slots untouched on a short rest", async () => {
-    restCharacter.mockResolvedValue(character);
+    restCharacter.mockResolvedValue({ character, hit_dice_rolls: [] });
     const { queryClient, wrapper } = setup();
     const { result } = renderHook(() => useRestCharacter("char-1"), { wrapper });
 

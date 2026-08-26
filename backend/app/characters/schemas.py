@@ -403,3 +403,37 @@ class CharacterSpellCastResponse(BaseModel):
     character: CharacterRead
     save_dc: int | None = None
     target_participant_id: uuid.UUID | None = None
+
+
+class CharacterDeathSaveResponse(BaseModel):
+    """Response for rolling a death saving throw: character plus the roll.
+
+    `roll_result` is the raw 1d20 (or `manual_roll` override) — the client
+    doesn't need to re-derive it from the updated successes/failures to
+    show the roll (Fase 8: dice-roll animation on the sheet).
+    """
+
+    character: CharacterRead
+    roll_result: int
+
+
+class CharacterHitDiceRollResult(BaseModel):
+    """One class's hit dice roll from a short rest, in request order."""
+
+    character_class_id: uuid.UUID
+    roll_result: int
+    modifier: int
+    healed: int
+
+
+class CharacterRestResponse(BaseModel):
+    """Response for taking a rest: character plus any hit dice rolled.
+
+    `hit_dice_rolls` is empty for a long rest (dice are restored, not
+    rolled) and has one entry per `CharacterRestRequest.hit_dice_spent`
+    item, in the same order, for a short rest (Fase 8: dice-roll animation
+    on the sheet).
+    """
+
+    character: CharacterRead
+    hit_dice_rolls: list[CharacterHitDiceRollResult] = Field(default_factory=list)

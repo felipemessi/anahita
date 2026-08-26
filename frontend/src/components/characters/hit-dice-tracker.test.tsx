@@ -11,6 +11,11 @@ vi.mock("@/hooks/use-character", () => ({
   useRestCharacter: () => useRestCharacter(),
 }));
 
+const useShowServerRoll = vi.fn();
+vi.mock("@/components/characters/roll-log", () => ({
+  useShowServerRoll: () => useShowServerRoll(),
+}));
+
 import { ApiError } from "@/lib/api/client";
 
 import { HitDiceTracker } from "./hit-dice-tracker";
@@ -19,12 +24,20 @@ const fighterClass = { id: "cc-1", class_definition_id: "fighter-id", subclass_i
 
 describe("HitDiceTracker", () => {
   const mutateAsync = vi.fn();
+  const showServerRoll = vi.fn();
 
   beforeEach(() => {
     mutateAsync.mockReset();
-    mutateAsync.mockResolvedValue(undefined);
+    mutateAsync.mockResolvedValue({
+      character: {},
+      hit_dice_rolls: [
+        { character_class_id: "cc-1", roll_result: 6, modifier: 2, healed: 8 },
+      ],
+    });
     useRestCharacter.mockReturnValue({ mutateAsync, isPending: false });
     useCatalogList.mockReturnValue({ data: [{ id: "fighter-id", name: "Fighter" }] });
+    showServerRoll.mockReset();
+    useShowServerRoll.mockReturnValue(showServerRoll);
   });
 
   it("shows dice available out of the class level", () => {
@@ -49,6 +62,14 @@ describe("HitDiceTracker", () => {
       expect(mutateAsync).toHaveBeenCalledWith({
         rest_type: "short",
         hit_dice_spent: [{ character_class_id: "cc-1", count: 2 }],
+      }),
+    );
+    await waitFor(() =>
+      expect(showServerRoll).toHaveBeenCalledWith({
+        label: "Dado de vida (Fighter)",
+        rollResult: 6,
+        modifier: 2,
+        total: 8,
       }),
     );
   });
