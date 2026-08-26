@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { AbilityScores } from "./ability-scores";
 import { RollLogPanel, RollLogProvider } from "./roll-log";
@@ -27,11 +27,16 @@ const scores = [
   },
 ];
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
-it("clicking an ability modifier rolls 1d20 + the modifier", () => {
+it("clicking an ability modifier rolls 1d20 + the modifier, after the roll animation", () => {
   vi.spyOn(Math, "random").mockReturnValue(0.5); // die = 11
   render(
     <RollLogProvider>
@@ -41,11 +46,14 @@ it("clicking an ability modifier rolls 1d20 + the modifier", () => {
   );
 
   fireEvent.click(screen.getByRole("button", { name: "Rolar Força (+3)" }));
+  act(() => {
+    vi.advanceTimersByTime(2500);
+  });
 
   expect(screen.getByLabelText("Rolagens recentes")).toHaveTextContent("11 +3 = 14");
 });
 
-it("clicking a saving throw rolls 1d20 + the save bonus", () => {
+it("clicking a saving throw rolls 1d20 + the save bonus, after the roll animation", () => {
   vi.spyOn(Math, "random").mockReturnValue(0); // die = 1
   render(
     <RollLogProvider>
@@ -55,6 +63,9 @@ it("clicking a saving throw rolls 1d20 + the save bonus", () => {
   );
 
   fireEvent.click(screen.getByRole("button", { name: "Rolar Resistência de Força (+5)" }));
+  act(() => {
+    vi.advanceTimersByTime(2500);
+  });
 
   expect(screen.getByLabelText("Rolagens recentes")).toHaveTextContent("1 +5 = 6");
 });

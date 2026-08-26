@@ -13,12 +13,14 @@ from app.characters.schemas import (
     CharacterCreate,
     CharacterCurrencyRequest,
     CharacterDeathSaveRequest,
+    CharacterDeathSaveResponse,
     CharacterEquipmentCreate,
     CharacterEquipmentUpdate,
     CharacterFeatureCreate,
     CharacterLevelUpRequest,
     CharacterRead,
     CharacterRestRequest,
+    CharacterRestResponse,
     CharacterSpellCastRequest,
     CharacterSpellCastResponse,
     CharacterSpellCreate,
@@ -186,26 +188,26 @@ async def cast_spell(
     return await service.cast_spell(character_id, spell_id, user.id, body, db)
 
 
-@router.post("/{character_id}/rest", response_model=CharacterRead)
+@router.post("/{character_id}/rest", response_model=CharacterRestResponse)
 async def rest(
     character_id: uuid.UUID,
     body: CharacterRestRequest,
     user: CurrentUser,
     db: DB,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterRead:
+) -> CharacterRestResponse:
     """Take a short or long rest. Owner only."""
     return await service.rest(character_id, user.id, body, db)
 
 
-@router.post("/{character_id}/death-save", response_model=CharacterRead)
+@router.post("/{character_id}/death-save", response_model=CharacterDeathSaveResponse)
 async def death_save(
     character_id: uuid.UUID,
     body: CharacterDeathSaveRequest,
     user: CurrentUser,
     db: DB,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterRead:
+) -> CharacterDeathSaveResponse:
     """Roll a death saving throw. Owner only, only at 0 hit points."""
     return await service.death_save(character_id, user.id, body, db)
 

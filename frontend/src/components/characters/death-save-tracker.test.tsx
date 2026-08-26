@@ -6,17 +6,25 @@ vi.mock("@/hooks/use-character", () => ({
   useRollDeathSave: () => useRollDeathSave(),
 }));
 
+const useShowServerRoll = vi.fn();
+vi.mock("@/components/characters/roll-log", () => ({
+  useShowServerRoll: () => useShowServerRoll(),
+}));
+
 import { ApiError } from "@/lib/api/client";
 
 import { DeathSaveTracker } from "./death-save-tracker";
 
 describe("DeathSaveTracker", () => {
   const mutateAsync = vi.fn();
+  const showServerRoll = vi.fn();
 
   beforeEach(() => {
     mutateAsync.mockReset();
-    mutateAsync.mockResolvedValue(undefined);
+    mutateAsync.mockResolvedValue({ roll_result: 15 });
     useRollDeathSave.mockReturnValue({ mutateAsync, isPending: false });
+    showServerRoll.mockReset();
+    useShowServerRoll.mockReturnValue(showServerRoll);
   });
 
   it("doesn't render when hit_point_current is above 0", () => {
@@ -62,6 +70,14 @@ describe("DeathSaveTracker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Rolar" }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({}));
+    await waitFor(() =>
+      expect(showServerRoll).toHaveBeenCalledWith({
+        label: "Teste de morte",
+        rollResult: 15,
+        modifier: 0,
+        total: 15,
+      }),
+    );
   });
 
   it("shows a stabilized state after successes reset to 0/0 without dying", () => {

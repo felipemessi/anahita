@@ -112,6 +112,24 @@ export interface CharacterRestRequest {
   hit_dice_spent?: CharacterHitDiceSpend[];
 }
 
+/** One class's hit dice roll from a short rest, in request order (Fase 8). */
+export interface CharacterHitDiceRollResult {
+  character_class_id: string;
+  roll_result: number;
+  modifier: number;
+  healed: number;
+}
+
+/**
+ * Response for taking a rest: the updated character, plus any hit dice
+ * rolled — `hit_dice_rolls` is empty for a long rest (dice are restored,
+ * not rolled), used to drive the dice-roll animation for a short rest.
+ */
+export interface CharacterRestResponse {
+  character: Character;
+  hit_dice_rolls: CharacterHitDiceRollResult[];
+}
+
 export interface CharacterEquipmentCreate {
   item_id: string;
   equipped?: boolean;
@@ -190,6 +208,15 @@ export interface CharacterClass {
 export interface CharacterDeathSaveRequest {
   /** Pre-rolled 1d20 result. */
   manual_roll?: number;
+}
+
+/**
+ * Response for rolling a death saving throw: the updated character, plus
+ * the raw 1d20 result — used to drive the dice-roll animation (Fase 8).
+ */
+export interface CharacterDeathSaveResponse {
+  character: Character;
+  roll_result: number;
 }
 
 /**

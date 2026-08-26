@@ -6,11 +6,13 @@ import type {
   CharacterCreate,
   CharacterCurrencyRequest,
   CharacterDeathSaveRequest,
+  CharacterDeathSaveResponse,
   CharacterEquipmentCreate,
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
   CharacterLevelUpRequest,
   CharacterRestRequest,
+  CharacterRestResponse,
   CharacterSpellCastRequest,
   CharacterSpellCreate,
   CharacterSpellUpdate,
@@ -115,8 +117,8 @@ export function castCharacterSpell(
 export function restCharacter(
   characterId: string,
   data: CharacterRestRequest,
-): Promise<Character> {
-  return apiFetch<Character>(`/characters/${characterId}/rest`, {
+): Promise<CharacterRestResponse> {
+  return apiFetch<CharacterRestResponse>(`/characters/${characterId}/rest`, {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -126,8 +128,8 @@ export function restCharacter(
 export function rollDeathSave(
   characterId: string,
   data: CharacterDeathSaveRequest,
-): Promise<Character> {
-  return apiFetch<Character>(`/characters/${characterId}/death-save`, {
+): Promise<CharacterDeathSaveResponse> {
+  return apiFetch<CharacterDeathSaveResponse>(`/characters/${characterId}/death-save`, {
     method: "POST",
     body: JSON.stringify(data),
   });

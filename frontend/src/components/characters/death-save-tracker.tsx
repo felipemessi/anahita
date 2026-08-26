@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { useShowServerRoll } from "@/components/characters/roll-log";
 import { useRollDeathSave } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 
@@ -32,6 +33,7 @@ export function DeathSaveTracker({
   isDead: boolean;
 }) {
   const rollDeathSave = useRollDeathSave(characterId);
+  const showServerRoll = useShowServerRoll();
   const [error, setError] = useState<string | null>(null);
   const hadProgress = useRef(false);
   if (successes > 0 || failures > 0) {
@@ -46,7 +48,13 @@ export function DeathSaveTracker({
   async function handleRoll() {
     setError(null);
     try {
-      await rollDeathSave.mutateAsync({});
+      const { roll_result } = await rollDeathSave.mutateAsync({});
+      showServerRoll({
+        label: "Teste de morte",
+        rollResult: roll_result,
+        modifier: 0,
+        total: roll_result,
+      });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível rolar o teste de morte.");
     }
