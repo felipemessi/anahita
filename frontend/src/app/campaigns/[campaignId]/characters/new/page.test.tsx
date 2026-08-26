@@ -117,6 +117,7 @@ describe("CharacterCreationWizardPage", () => {
         { ability: "cha", base_score: 8 },
       ],
       classes: [{ class_definition_id: "class-1", subclass_id: null, level: 1 }],
+      generation_method: "standard_array",
     });
   });
 });

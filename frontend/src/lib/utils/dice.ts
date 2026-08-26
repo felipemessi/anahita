@@ -9,6 +9,17 @@ export function rollD20(): number {
   return Math.floor(Math.random() * 20) + 1;
 }
 
+/** Roll a single d6 (1-6 inclusive). */
+export function rollD6(): number {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+/** Roll 4d6 and drop the lowest die — the PHB's "roll" ability score method. */
+export function roll4d6DropLowest(): number {
+  const dice = [rollD6(), rollD6(), rollD6(), rollD6()].sort((a, b) => a - b);
+  return dice[1]! + dice[2]! + dice[3]!;
+}
+
 export interface DiceRollResult {
   /** Human-readable label for what was rolled, e.g. "Força" or "Furtividade". */
   label: string;

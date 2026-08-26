@@ -268,6 +268,13 @@ export interface CharacterResource {
   max: number;
 }
 
+/**
+ * How a player generated a character's base ability scores (Fase 8) —
+ * `point_buy` and `standard_array` are validated server-side against the
+ * PHB rules; `custom`/`roll` accept any values, the client decides.
+ */
+export type AbilityGenerationMethod = "standard_array" | "point_buy" | "custom" | "roll";
+
 export interface CharacterCreate {
   campaign_member_id: string;
   name: string;
@@ -281,6 +288,7 @@ export interface CharacterCreate {
   inspiration?: boolean;
   ability_scores: CharacterAbilityScoreCreate[];
   classes: CharacterClassCreate[];
+  generation_method?: AbilityGenerationMethod | null;
 }
 
 export interface Character {
