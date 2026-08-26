@@ -222,6 +222,10 @@ export interface SpellDamage {
   dice_expression: string;
 }
 
+/** How a Spell resolves mechanically when cast, and who/what it targets (Fase 8). */
+export type SpellActionType = "attack_roll" | "saving_throw" | "cast_only";
+export type SpellTargetType = "self" | "ally" | "enemy" | "area";
+
 export interface Spell {
   id: string;
   index: string | null;
@@ -234,6 +238,9 @@ export interface Spell {
   components: string;
   ritual: boolean;
   concentration: boolean;
+  action_type: SpellActionType | null;
+  target_type: SpellTargetType | null;
+  save_ability_score_id: string | null;
   description: string;
   higher_levels: string | null;
   is_custom: boolean;

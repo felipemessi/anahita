@@ -3,9 +3,12 @@
 import { useState } from "react";
 
 import { ClassResources } from "@/components/characters/class-resources";
-import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
-import { useCharacter } from "@/hooks/use-character";
+import { RollButton } from "@/components/characters/roll-button";
+import { useAbilityScores, useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
+import { useCastCharacterSpell, useCharacter } from "@/hooks/use-character";
 import { useCombat } from "@/hooks/use-combat";
+import { calculateModifier } from "@/lib/utils/dnd-rules";
+import type { Monster } from "@/types/catalog";
 import type { CombatActionType, EncounterParticipant } from "@/types/combat";
 
 const FLAVOR_ACTIONS: { type: CombatActionType; label: string }[] = [
@@ -39,6 +42,7 @@ export function ActionPicker({
   const { data: monster } = useCatalogEntry("monsters", participant.monster_id ?? "");
   const { data: catalogItems } = useCatalogList("equipment", { campaign_id: campaignId });
   const { data: catalogSpells } = useCatalogList("spells", { campaign_id: campaignId });
+  const castSpell = useCastCharacterSpell(character?.id ?? "");
 
   function itemName(itemId: string): string {
     return catalogItems?.find((i) => i.id === itemId)?.name ?? itemId;
@@ -60,12 +64,49 @@ export function ActionPicker({
   const [manualDamageRoll, setManualDamageRoll] = useState("");
   const [manualTargetRoll, setManualTargetRoll] = useState("");
 
+  // "cast_spell_effect": a non-attack spell (saving_throw/cast_only), cast
+  // straight from the character's own known spells (POST .../spells/{id}/cast)
+  // — separate from "attack_spell", which stays on the declare_action/combat
+  // log path (Fase 6). Fase 8.
+  const [effectSpellEntryId, setEffectSpellEntryId] = useState("");
+  const [effectTargetId, setEffectTargetId] = useState("");
+  const [castResult, setCastResult] = useState<{
+    saveDc: number;
+    saveAbilityScoreId: string;
+    targetParticipantId: string | null;
+  } | null>(null);
+
+  const isCastEffect = kind === "cast_spell_effect";
+  const effectEntry = character?.spells.find((s) => s.id === effectSpellEntryId);
+  const { data: effectSpellDetail } = useCatalogEntry("spells", effectEntry?.spell_id ?? "");
+  const effectTargetType = effectSpellDetail?.target_type ?? null;
+  const effectNeedsTarget = isCastEffect && effectTargetType !== null && effectTargetType !== "self";
+
   const isFlavor = FLAVOR_ACTIONS.some((a) => a.type === kind);
   const isContest = kind === "grapple" || kind === "shove";
-  const needsTarget = !isFlavor;
-  const canRollManually = !isFlavor;
+  const needsTarget = !isFlavor && !isCastEffect;
+  const canRollManually = !isFlavor && !isCastEffect;
+
+  async function handleCastEffect() {
+    if (!effectSpellEntryId) return;
+    setCastResult(null);
+    const response = await castSpell.mutateAsync({
+      spellEntryId: effectSpellEntryId,
+      data: {
+        target_participant_id: effectNeedsTarget ? effectTargetId || undefined : undefined,
+      },
+    });
+    if (response.save_dc !== null && effectSpellDetail?.save_ability_score_id) {
+      setCastResult({
+        saveDc: response.save_dc,
+        saveAbilityScoreId: effectSpellDetail.save_ability_score_id,
+        targetParticipantId: response.target_participant_id,
+      });
+    }
+  }
 
   function handleDeclare() {
+    if (isCastEffect) return;
     const target_id = needsTarget ? targetId : participant.id;
     if (needsTarget && !target_id) return;
 
@@ -274,15 +315,83 @@ export function ActionPicker({
           </div>
         ) : null}
 
+        {isCastEffect && character ? (
+          <div className="space-y-1">
+            <label htmlFor="action-effect-spell" className="text-xs text-muted-foreground">
+              Magia
+            </label>
+            <select
+              id="action-effect-spell"
+              value={effectSpellEntryId}
+              onChange={(e) => {
+                setEffectSpellEntryId(e.target.value);
+                setCastResult(null);
+              }}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">Selecione…</option>
+              {character.spells.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {spellName(s.spell_id)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        {effectNeedsTarget ? (
+          <div className="space-y-1">
+            <label htmlFor="action-effect-target" className="text-xs text-muted-foreground">
+              Alvo
+            </label>
+            <select
+              id="action-effect-target"
+              value={effectTargetId}
+              onChange={(e) => setEffectTargetId(e.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              <option value="">Selecione…</option>
+              {otherParticipants.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        {isCastEffect && effectSpellDetail?.action_type === "attack_roll" ? (
+          <p className="text-xs text-amber-500">
+            Essa magia é de ataque — use &quot;Conjurar magia (ataque)&quot; em vez disso.
+          </p>
+        ) : null}
+
         <button
           type="button"
-          onClick={handleDeclare}
-          disabled={needsTarget && !targetId}
+          onClick={isCastEffect ? handleCastEffect : handleDeclare}
+          disabled={
+            isCastEffect
+              ? !effectSpellEntryId ||
+                effectSpellDetail?.action_type === "attack_roll" ||
+                (effectNeedsTarget && !effectTargetId) ||
+                castSpell.isPending
+              : needsTarget && !targetId
+          }
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
           Declarar
         </button>
       </div>
+
+      {castResult ? (
+        <SpellSaveCallout
+          dc={castResult.saveDc}
+          saveAbilityScoreId={castResult.saveAbilityScoreId}
+          targetParticipant={otherParticipants.find(
+            (p) => p.id === castResult.targetParticipantId,
+          )}
+        />
+      ) : null}
 
       {canRollManually ? (
         <div className="mt-2">
@@ -342,6 +451,68 @@ export function ActionPicker({
   );
 }
 
+/**
+ * The DC of a just-cast `saving_throw` spell, plus a click-to-roll shortcut
+ * for the target's save — resolves `saveAbilityScoreId` (a
+ * `Spell.save_ability_score_id`) to its ability code via `useAbilityScores`
+ * (Fase 8), same modifier-resolution pattern as
+ * `ParticipantCard`'s concentration-save callout.
+ */
+function SpellSaveCallout({
+  dc,
+  saveAbilityScoreId,
+  targetParticipant,
+}: {
+  dc: number;
+  saveAbilityScoreId: string;
+  targetParticipant: EncounterParticipant | undefined;
+}) {
+  const { data: abilityScores } = useAbilityScores();
+  const { data: targetCharacter } = useCharacter(targetParticipant?.character_id ?? "");
+  const { data: targetMonster } = useCatalogEntry(
+    "monsters",
+    targetParticipant?.monster_id ?? "",
+  );
+
+  const abilityIndex = abilityScores?.find((a) => a.id === saveAbilityScoreId)?.index;
+  const ability = targetCharacter?.ability_scores.find((s) => s.ability === abilityIndex);
+  const modifier =
+    ability?.save_bonus ??
+    (targetMonster && abilityIndex
+      ? calculateModifier(MONSTER_ABILITY_SCORE[abilityIndex]?.(targetMonster) ?? 10)
+      : 0);
+  const label = ABILITY_SAVE_LABEL[abilityIndex ?? ""] ?? "Resistência";
+
+  return (
+    <p className="mt-2 flex items-center gap-2 text-xs font-medium text-amber-500">
+      <span>
+        CD {dc}
+        {targetParticipant ? ` (${targetParticipant.name})` : ""}
+      </span>
+      <RollButton label={label} modifier={modifier} className="underline hover:text-foreground" />
+    </p>
+  );
+}
+
+const ABILITY_SAVE_LABEL: Record<string, string> = {
+  str: "Resistência de Força",
+  dex: "Resistência de Destreza",
+  con: "Resistência de Constituição",
+  int: "Resistência de Inteligência",
+  wis: "Resistência de Sabedoria",
+  cha: "Resistência de Carisma",
+};
+
+/** A catalog monster's raw ability score, keyed by short ability code. */
+const MONSTER_ABILITY_SCORE: Record<string, (m: Monster) => number> = {
+  str: (m) => m.strength,
+  dex: (m) => m.dexterity,
+  con: (m) => m.constitution,
+  int: (m) => m.intelligence,
+  wis: (m) => m.wisdom,
+  cha: (m) => m.charisma,
+};
+
 function buildKindOptions(
   participant: EncounterParticipant,
 ): { value: string; label: string }[] {
@@ -351,7 +522,8 @@ function buildKindOptions(
   }
   options.push({ value: "attack_weapon_manual", label: "Atacar manualmente" });
   if (participant.character_id) {
-    options.push({ value: "attack_spell", label: "Conjurar magia" });
+    options.push({ value: "attack_spell", label: "Conjurar magia (ataque)" });
+    options.push({ value: "cast_spell_effect", label: "Conjurar magia (efeito)" });
   }
   options.push({ value: "grapple", label: "Agarrar" });
   options.push({ value: "shove", label: "Empurrar" });

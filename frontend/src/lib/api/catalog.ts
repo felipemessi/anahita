@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api/client";
 import type {
+  AbilityScoreDefinition,
   Background,
   BackgroundSummary,
   CatalogCategory,
@@ -107,6 +108,15 @@ export function getCatalogEntry<C extends CatalogCategory>(
  */
 export function getFeature(featureId: string, locale?: string): Promise<Feature> {
   return apiFetch<Feature>(`/catalog/features/${featureId}`, { locale });
+}
+
+/**
+ * List the 6 core ability scores (str/dex/con/int/wis/cha) — no
+ * translation, `index` is a fixed short code. Lets the client resolve a
+ * `Spell.save_ability_score_id` to the ability it rolls against (Fase 8).
+ */
+export function getAbilityScores(): Promise<AbilityScoreDefinition[]> {
+  return apiFetch<AbilityScoreDefinition[]>("/catalog/ability-scores");
 }
 
 /**

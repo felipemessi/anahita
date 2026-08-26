@@ -17,11 +17,13 @@ vi.mock("@/hooks/use-combat", () => ({
 
 vi.mock("@/hooks/use-character", () => ({
   useCharacter: () => ({ data: undefined }),
+  useCastCharacterSpell: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@/hooks/use-catalog", () => ({
   useCatalogEntry: () => ({ data: undefined }),
   useCatalogList: () => ({ data: undefined }),
+  useAbilityScores: () => ({ data: undefined }),
 }));
 
 vi.mock("@/hooks/use-world", () => ({
