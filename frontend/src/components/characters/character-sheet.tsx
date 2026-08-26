@@ -16,6 +16,7 @@ import { RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
 import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
 import { SpellSlots } from "@/components/characters/spell-slots";
+import { useCatalogFeature } from "@/hooks/use-catalog";
 import { useAddCharacterFeature, useRestCharacter, useUpdateCharacterHp } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 import { calculateModifier } from "@/lib/utils/dnd-rules";
@@ -201,18 +202,35 @@ export function CharacterSheet({
 
         <CurrencyTracker characterId={character.id} currencyCp={character.currency_cp} />
 
-        <FeaturesSection characterId={character.id} features={character.features} />
+        <FeaturesSection
+          characterId={character.id}
+          features={character.features}
+          featureChoices={character.feature_choices}
+        />
       </article>
     </RollLogProvider>
   );
 }
 
-function FeaturesSection({
+/** One level-up choice picked, resolved to its option's name (Fase 8). */
+function FeatureChoiceItem({ featureOptionId }: { featureOptionId: string }) {
+  const { data: option } = useCatalogFeature(featureOptionId);
+  if (!option) return null;
+  return (
+    <li>
+      <span className="font-medium">{option.feature_name}</span>
+    </li>
+  );
+}
+
+export function FeaturesSection({
   characterId,
   features,
+  featureChoices,
 }: {
   characterId: string;
   features: Character["features"];
+  featureChoices: Character["feature_choices"];
 }) {
   const addFeature = useAddCharacterFeature(characterId);
   const [sourceType, setSourceType] = useState<FeatureSourceType>("class");
@@ -241,7 +259,7 @@ function FeaturesSection({
     <section aria-label="Características" className="rounded-lg border border-border bg-card p-4">
       <h2 className="font-semibold">Características</h2>
 
-      {features.length > 0 ? (
+      {features.length > 0 || featureChoices.length > 0 ? (
         <ul className="mt-2 space-y-1 text-sm">
           {features.map((feature) => (
             <li key={feature.id}>
@@ -250,6 +268,9 @@ function FeaturesSection({
                 ({feature.source_name})
               </span>
             </li>
+          ))}
+          {featureChoices.map((choice) => (
+            <FeatureChoiceItem key={choice.id} featureOptionId={choice.feature_option_id} />
           ))}
         </ul>
       ) : (

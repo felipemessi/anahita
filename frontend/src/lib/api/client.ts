@@ -26,6 +26,13 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /**
+     * The raw `detail` field of the error response body — usually the
+     * same string as `message`, but some endpoints send a structured
+     * object instead (e.g. level-up's `requires_choice` 422). Callers that
+     * need the structured shape should narrow this themselves.
+     */
+    public readonly detail?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -111,9 +118,9 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message =
-      (body as { detail?: string } | null)?.detail ?? response.statusText;
-    throw new ApiError(response.status, message);
+    const detail = (body as { detail?: unknown } | null)?.detail;
+    const message = typeof detail === "string" ? detail : response.statusText;
+    throw new ApiError(response.status, message, detail);
   }
 
   if (response.status === 204) {
