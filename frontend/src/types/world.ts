@@ -44,6 +44,7 @@ export interface Location {
   description: string;
   /** Hierarchy: region → city → tavern. */
   parent_location_id: string | null;
+  created_at: string;
 }
 
 export interface LocationCreate {

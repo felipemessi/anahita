@@ -345,11 +345,11 @@
 
 > Depende do backend Fase 8 (`docs/anahita-backend-backlog.md`), ainda pendente para os itens marcados abaixo como "depende de backend" — os demais já podem ser feitos hoje, sem endpoint novo, contra o que já existe nas Fases 6/7. Levantado pelo grupo em 2026-08-25 (revisão de Dashboard/Ficha em uso).
 
-- **Como jogador/DM, quero ver no dashboard da campanha a próxima sessão, NPCs/locais recentes e handouts pendentes de verdade, não placeholders.**
-  - [ ] `lib/api/campaigns.ts`: `getCampaignDashboard`, `hooks/use-campaign.ts`: `useCampaignDashboard`
-  - [ ] `app/campaigns/[campaignId]/page.tsx`: substituir os três placeholders "em breve" (próxima sessão, NPCs/locais recentes, handouts pendentes) por dados reais do endpoint
-  - [ ] Teste: dashboard renderiza próxima sessão/NPCs recentes/handouts pendentes a partir do mock da API
-  - Depende de backend: `GET /campaigns/{id}/dashboard` (Fase 8 do backend)
+- **Como jogador/DM, quero ver no dashboard da campanha a próxima sessão, NPCs/locais recentes e handouts pendentes de verdade, não placeholders. ✅ (2026-08-26)**
+  - [x] `lib/api/campaigns.ts`: `getCampaignDashboard`, `hooks/use-campaign.ts`: `useCampaignDashboard`
+  - [x] `app/campaigns/[campaignId]/page.tsx`: substituir os três placeholders "em breve" (próxima sessão, NPCs/locais recentes, handouts pendentes) por dados reais do endpoint
+  - [x] Teste: dashboard renderiza próxima sessão/NPCs recentes/handouts pendentes a partir do mock da API
+  - Notas: reaproveitado `SessionCard` já existente pra "próxima sessão" (mesmo componente da lista de sessões). `types/world.ts::Location` ganhou `created_at` (faltava no tipo — o backend já expõe desde a Fase 8, `LocationRead`). Handouts pendentes usam um tipo dedicado leve (`DashboardHandout`: id/title/handout_type/created_at), sem puxar o `Handout` completo (com `url` resolvida) já que a lista do dashboard é só um resumo, não abre o visualizador.
 
 - **Como jogador, quero subir de nível adicionando uma classe nova (multiclasse) pela ficha, não só subindo uma classe que já tenho.**
   - [ ] `level-up-dialog.tsx`: opção "adicionar uma nova classe" — lista as classes do catálogo da campanha que o personagem ainda não possui, reaproveitando o mesmo fluxo de confirmação de PV/ASI já existente

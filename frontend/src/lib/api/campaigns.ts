@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api/client";
 import type {
   Campaign,
   CampaignCreate,
+  CampaignDashboard,
   CampaignInvite,
   CampaignInviteCreate,
   CampaignMember,
@@ -42,6 +43,13 @@ export function updateCampaign(
 /** Get the authenticated user's own membership (id + role) in a campaign. */
 export function getMyMembership(campaignId: string): Promise<CampaignMember> {
   return apiFetch<CampaignMember>(`/campaigns/${campaignId}/members/me`);
+}
+
+/** Get a campaign's dashboard summary. Viewable by any of its members. */
+export function getCampaignDashboard(
+  campaignId: string,
+): Promise<CampaignDashboard> {
+  return apiFetch<CampaignDashboard>(`/campaigns/${campaignId}/dashboard`);
 }
 
 /** List every member of a campaign. Viewable by any of its members. */

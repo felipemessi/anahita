@@ -6,6 +6,7 @@ import {
   createCampaign,
   createInvite,
   getCampaign,
+  getCampaignDashboard,
   getMyMembership,
   listCampaigns,
   listMembers,
@@ -42,6 +43,15 @@ export function useMyMembership(campaignId: string) {
   return useQuery({
     queryKey: [...CAMPAIGNS_QUERY_KEY, campaignId, "members", "me"],
     queryFn: () => getMyMembership(campaignId),
+    enabled: Boolean(campaignId),
+  });
+}
+
+/** A campaign's dashboard summary (next session, recent NPCs/locations, handouts). */
+export function useCampaignDashboard(campaignId: string) {
+  return useQuery({
+    queryKey: [...CAMPAIGNS_QUERY_KEY, campaignId, "dashboard"],
+    queryFn: () => getCampaignDashboard(campaignId),
     enabled: Boolean(campaignId),
   });
 }

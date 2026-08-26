@@ -3,6 +3,10 @@
  * Keep in sync manually — no codegen yet (PRD frontend backlog Fase 0).
  */
 
+import type { HandoutType } from "@/types/handout";
+import type { GameSession } from "@/types/session";
+import type { Location, Npc } from "@/types/world";
+
 export type CampaignStatus = "active" | "paused" | "archived";
 
 export type CampaignRole = "dm" | "player";
@@ -53,4 +57,25 @@ export interface CampaignInviteCreate {
 
 export interface CampaignInviteRedeem {
   invite_code: string;
+}
+
+/** A pending (unrevealed) handout, as summarized on the dashboard — DM-only. */
+export interface DashboardHandout {
+  id: string;
+  title: string;
+  handout_type: HandoutType;
+  created_at: string;
+}
+
+/**
+ * Cross-domain dashboard summary for a campaign, shaped by the requester's
+ * role — a player always gets an empty `pending_handouts`/count (mirrors
+ * backend/app/campaigns/schemas.py::CampaignDashboardRead).
+ */
+export interface CampaignDashboard {
+  next_session: GameSession | null;
+  recent_npcs: Npc[];
+  recent_locations: Location[];
+  pending_handouts: DashboardHandout[];
+  pending_handouts_count: number;
 }
