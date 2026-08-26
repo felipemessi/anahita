@@ -6,16 +6,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const updateCharacterHp = vi.fn();
 const restCharacter = vi.fn();
 const updateCharacterCurrency = vi.fn();
+const updateCharacterEquipment = vi.fn();
+const getCharacter = vi.fn();
 vi.mock("@/lib/api/characters", () => ({
   updateCharacterHp: (...args: unknown[]) => updateCharacterHp(...args),
   restCharacter: (...args: unknown[]) => restCharacter(...args),
   updateCharacterCurrency: (...args: unknown[]) => updateCharacterCurrency(...args),
+  updateCharacterEquipment: (...args: unknown[]) => updateCharacterEquipment(...args),
+  getCharacter: (...args: unknown[]) => getCharacter(...args),
 }));
 
 import {
   CHARACTERS_QUERY_KEY,
+  useCharacter,
   useRestCharacter,
   useUpdateCharacterCurrency,
+  useUpdateCharacterEquipment,
   useUpdateCharacterHp,
 } from "./use-character";
 
@@ -221,5 +227,30 @@ describe("useUpdateCharacterCurrency", () => {
       ]);
       expect(cached?.currency_cp).toBe(500);
     });
+  });
+});
+
+describe("useUpdateCharacterEquipment", () => {
+  beforeEach(() => {
+    updateCharacterEquipment.mockReset();
+    getCharacter.mockReset();
+  });
+
+  it("toggling equipped invalidates the character query, so armor_class reflects the server's recalculated value", async () => {
+    updateCharacterEquipment.mockResolvedValue(undefined);
+    getCharacter.mockResolvedValue({ ...character, armor_class: 16 });
+
+    const { wrapper } = setup();
+    const { result: characterResult } = renderHook(() => useCharacter("char-1"), { wrapper });
+    const { result: updateResult } = renderHook(
+      () => useUpdateCharacterEquipment("char-1"),
+      { wrapper },
+    );
+
+    expect(characterResult.current.data?.armor_class).toBe(14);
+
+    updateResult.current.mutate({ equipmentId: "eq-1", data: { equipped: true } });
+
+    await waitFor(() => expect(characterResult.current.data?.armor_class).toBe(16));
   });
 });
