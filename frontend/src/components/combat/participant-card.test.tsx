@@ -11,7 +11,7 @@ vi.mock("@/hooks/use-catalog", () => ({
   useCatalogEntry: (...args: unknown[]) => useCatalogEntry(...args),
 }));
 
-import { RollLogProvider } from "@/components/characters/roll-log";
+import { RollLogPanel, RollLogProvider } from "@/components/characters/roll-log";
 
 import { ParticipantCard } from "./participant-card";
 
@@ -75,6 +75,7 @@ describe("ParticipantCard", () => {
           participant={{ ...baseParticipant, concentration_dc: 12 }}
           isCurrentTurn={false}
         />
+        <RollLogPanel />
       </RollLogProvider>,
     );
 

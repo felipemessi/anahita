@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 
 import { useMyMembership } from "@/hooks/use-campaign";
 import { useCombat } from "@/hooks/use-combat";
-import { RollLogProvider } from "@/components/characters/roll-log";
+import { RollLogPanel, RollLogProvider } from "@/components/characters/roll-log";
 import { ActionLog } from "@/components/combat/action-log";
 import { ActionPicker } from "@/components/combat/action-picker";
 import { ConditionBadges } from "@/components/combat/condition-badges";
@@ -134,6 +134,8 @@ export default function CombatPage() {
             ) : null}
 
             {isDm ? <TurnIndicator /> : null}
+
+            <RollLogPanel />
           </>
         )}
       </main>

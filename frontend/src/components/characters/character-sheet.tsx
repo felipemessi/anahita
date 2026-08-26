@@ -12,7 +12,7 @@ import { HitDiceTracker } from "@/components/characters/hit-dice-tracker";
 import { LevelUpDialog } from "@/components/characters/level-up-dialog";
 import { PassiveScores } from "@/components/characters/passive-scores";
 import { RollButton } from "@/components/characters/roll-button";
-import { RollLogProvider } from "@/components/characters/roll-log";
+import { RollLogPanel, RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
 import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
 import { SpellSlots } from "@/components/characters/spell-slots";
@@ -207,6 +207,8 @@ export function CharacterSheet({
           features={character.features}
           featureChoices={character.feature_choices}
         />
+
+        <RollLogPanel />
       </article>
     </RollLogProvider>
   );
