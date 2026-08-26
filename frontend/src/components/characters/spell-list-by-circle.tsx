@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { circleLabel, SpellSearch } from "@/components/characters/spell-search";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
 import {
   useAddCharacterSpell,
@@ -51,9 +52,24 @@ export function SpellListByCircle({
     .filter((c): c is ClassSummary => Boolean(c));
   const [sourceClassIndex, setSourceClassIndex] = useState<string | null>(null);
   const activeClassIndex = sourceClassIndex ?? classOptions[0]?.index ?? null;
+  const activeClassOption = classOptions.find((c) => c.index === activeClassIndex);
+  const { data: activeClassDetail } = useCatalogEntry("classes", activeClassOption?.id ?? "");
+  const [pendingAddSpell, setPendingAddSpell] = useState<SpellSummary | null>(null);
 
   function nameFor(spellId: string): string {
     return catalogSpells?.find((s) => s.id === spellId)?.name ?? spellId;
+  }
+
+  /** Highest circle `activeClassIndex` can cast at the character's current level in it. */
+  function maxAvailableCircle(): number {
+    if (!activeClassDetail || !activeClassOption) return 0;
+    const classLevel = classes.find(
+      (c) => c.class_definition_id === activeClassOption.id,
+    )?.level;
+    const slots =
+      activeClassDetail.levels.find((l) => l.level === classLevel)?.spell_slots ?? [];
+    const available = slots.filter((s) => s.slot_count > 0).map((s) => s.spell_level);
+    return available.length > 0 ? Math.max(...available) : 0;
   }
 
   const grouped = new Map<number, CharacterSpell[]>();
@@ -64,7 +80,7 @@ export function SpellListByCircle({
   }
   const circles = [...grouped.keys()].sort((a, b) => a - b);
 
-  async function handleAdd(spell: SpellSummary) {
+  async function addSpellNow(spell: SpellSummary) {
     setError(null);
     try {
       await addSpell.mutateAsync({
@@ -76,6 +92,27 @@ export function SpellListByCircle({
         err instanceof ApiError ? err.message : "Não foi possível adicionar a magia.",
       );
     }
+  }
+
+  /**
+   * Cantrips are always eligible; a leveled spell above what the active
+   * class can cast at the character's current level asks for confirmation
+   * first — complementary to the backend's known/prepared-limit check
+   * (Fase 6), not a replacement for it.
+   */
+  async function handleAdd(spell: SpellSummary) {
+    if (spell.level > 0 && spell.level > maxAvailableCircle()) {
+      setPendingAddSpell(spell);
+      return;
+    }
+    await addSpellNow(spell);
+  }
+
+  async function handleConfirmAdd() {
+    if (!pendingAddSpell) return;
+    const spell = pendingAddSpell;
+    setPendingAddSpell(null);
+    await addSpellNow(spell);
   }
 
   async function handleTogglePrepared(spell: CharacterSpell) {
@@ -143,10 +180,10 @@ export function SpellListByCircle({
         <p className="text-sm text-muted-foreground">Nenhuma magia conhecida.</p>
       ) : (
         circles.map((level) => (
-          <div key={level}>
-            <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-              {circleLabel(level)}
-            </h3>
+          <details key={level} open>
+            <summary className="cursor-pointer list-none text-xs font-semibold uppercase text-muted-foreground marker:content-none">
+              <h3 className="inline">{circleLabel(level)}</h3>
+            </summary>
             <ul className="mt-1 divide-y divide-border">
               {grouped.get(level)?.map((spell) => (
                 <li key={spell.id} className="py-2">
@@ -207,7 +244,7 @@ export function SpellListByCircle({
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         ))
       )}
 
@@ -240,6 +277,21 @@ export function SpellListByCircle({
           {error}
         </p>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingAddSpell !== null}
+        title="Círculo indisponível"
+        description={
+          pendingAddSpell
+            ? `${pendingAddSpell.name} é de um círculo que ${
+                activeClassOption?.name ?? "esta classe"
+              } ainda não conjura neste nível. Adicionar mesmo assim?`
+            : undefined
+        }
+        confirmLabel="Adicionar mesmo assim"
+        onConfirm={handleConfirmAdd}
+        onCancel={() => setPendingAddSpell(null)}
+      />
     </section>
   );
 }

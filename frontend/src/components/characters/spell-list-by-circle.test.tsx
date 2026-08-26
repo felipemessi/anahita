@@ -82,7 +82,34 @@ describe("SpellListByCircle", () => {
       mutateAsync: castSpellMutate,
       isPending: false,
     });
-    useCatalogEntry.mockReturnValue({ data: undefined, isLoading: false });
+    useCatalogEntry.mockImplementation((category: string, id: string) => {
+      if (category === "classes" && id === "wizard-id") {
+        return {
+          data: {
+            id: "wizard-id",
+            index: "wizard",
+            name: "Wizard",
+            hit_die: 6,
+            primary_ability: "int",
+            saving_throw_proficiencies: "Intelligence, Wisdom",
+            is_custom: false,
+            levels: [
+              {
+                id: "wizard-level-1",
+                level: 1,
+                proficiency_bonus: 2,
+                ability_score_bonuses: null,
+                features: [],
+                resources: [],
+                spell_slots: [{ id: "slot-1", spell_level: 1, slot_count: 2 }],
+              },
+            ],
+            subclasses: [],
+          },
+        };
+      }
+      return { data: undefined, isLoading: false };
+    });
     useCatalogList.mockImplementation((category: string) => {
       if (category === "classes") return { data: [wizardClass] };
       if (category === "spells") return { data: catalogSpellSummaries };
@@ -167,6 +194,88 @@ describe("SpellListByCircle", () => {
     // The other spell's button is untouched — still "preparada", not
     // flipped or disabled by the first click's in-flight state.
     expect(screen.getByRole("button", { name: "preparada" })).toBeEnabled();
+  });
+
+  it("adding a spell within the class's available circle adds it directly, no confirmation", async () => {
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[]}
+        classes={characterClasses}
+        spellSlots={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /magic missile/i }));
+
+    await waitFor(() =>
+      expect(addSpellMutate).toHaveBeenCalledWith({
+        spell_id: "spell-magic-missile",
+        source_class: "wizard",
+      }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("adding a spell above the class's available circle asks for confirmation first", async () => {
+    useCatalogList.mockImplementation((category: string) => {
+      if (category === "classes") return { data: [wizardClass] };
+      if (category === "spells") {
+        return { data: [...catalogSpellSummaries, { id: "spell-fireball", name: "Fireball", level: 3 }] };
+      }
+      return { data: [] };
+    });
+
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[]}
+        classes={characterClasses}
+        spellSlots={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /fireball/i }));
+
+    expect(screen.getByRole("alertdialog", { name: "Círculo indisponível" })).toBeInTheDocument();
+    expect(addSpellMutate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar mesmo assim" }));
+
+    await waitFor(() =>
+      expect(addSpellMutate).toHaveBeenCalledWith({
+        spell_id: "spell-fireball",
+        source_class: "wizard",
+      }),
+    );
+  });
+
+  it("cancelling the circle-confirmation modal doesn't add the spell", () => {
+    useCatalogList.mockImplementation((category: string) => {
+      if (category === "classes") return { data: [wizardClass] };
+      if (category === "spells") {
+        return { data: [...catalogSpellSummaries, { id: "spell-fireball", name: "Fireball", level: 3 }] };
+      }
+      return { data: [] };
+    });
+
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[]}
+        classes={characterClasses}
+        spellSlots={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /fireball/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(addSpellMutate).not.toHaveBeenCalled();
   });
 
   it("shows the backend's limit error instead of a generic message", async () => {
