@@ -10,6 +10,7 @@ import {
   castCharacterSpell,
   createCharacter,
   getCharacter,
+  getResourceOptions,
   listCharacters,
   levelUpCharacter,
   removeCharacterEquipment,
@@ -221,11 +222,25 @@ export function useLevelUpCharacter(characterId: string) {
   });
 }
 
+/**
+ * The named options for a class resource (e.g. a Paladin/Cleric's Channel
+ * Divinity) — empty when the resource has no option concept for this
+ * character (Fase 8).
+ */
+export function useResourceOptions(characterId: string, resourceKey: string) {
+  return useQuery({
+    queryKey: [...CHARACTERS_QUERY_KEY, characterId, "resource-options", resourceKey],
+    queryFn: () => getResourceOptions(characterId, resourceKey),
+    enabled: Boolean(characterId) && Boolean(resourceKey),
+  });
+}
+
 /** Spend one use of a class resource (rage, ki, ...). */
 export function useSpendCharacterResource(characterId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (resourceKey: string) => spendCharacterResource(characterId, resourceKey),
+    mutationFn: ({ resourceKey, optionId }: { resourceKey: string; optionId?: string }) =>
+      spendCharacterResource(characterId, resourceKey, optionId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],

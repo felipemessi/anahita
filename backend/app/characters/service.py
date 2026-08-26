@@ -21,6 +21,7 @@ from app.catalog.models import (
     Item,
     Spell,
 )
+from app.catalog.schemas import FeatureRead
 from app.characters.domain import (
     MULTICLASS_ABILITY_REQUIREMENTS,
     SKILL_ABILITY,
@@ -1211,6 +1212,31 @@ class CharacterService:
                 )
             )
         return results
+
+    async def get_resource_options(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        resource_key: str,
+        db: AsyncSession,
+        *,
+        locale: str = "en",
+    ) -> list[FeatureRead]:
+        """List the named options `character` has for `resource_key` (Fase 8).
+
+        Lets the client know upfront whether `use_resource` will need an
+        `option_id` (e.g. a Paladin choosing Sacred Weapon vs. Turn the
+        Unholy for Channel Divinity) — empty when `resource_key` has no
+        option concept, or matches none of the character's classes, same
+        resolution as `_resource_options`.
+        """
+        character = await self._load_character_owned_by(character_id, requester_id, db)
+        options = await self._resource_options(character, resource_key, db)
+        translated = [
+            await catalog_service.get_feature_translated(db, option.id, locale=locale)
+            for option in options
+        ]
+        return [t for t in translated if t is not None]
 
     async def use_resource(
         self,

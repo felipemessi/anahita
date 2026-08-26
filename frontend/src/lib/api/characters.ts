@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import type { Feature } from "@/types/catalog";
 import type {
   Character,
   CharacterClassCreate,
@@ -157,13 +158,29 @@ export function setCharacterConcentration(
   });
 }
 
+/**
+ * List the named options for a class resource (e.g. a Paladin/Cleric's
+ * Channel Divinity) — empty when the resource has no option concept, or
+ * matches none of the character's classes (Fase 8).
+ */
+export function getResourceOptions(
+  characterId: string,
+  resourceKey: string,
+): Promise<Feature[]> {
+  return apiFetch<Feature[]>(
+    `/characters/${characterId}/resources/${encodeURIComponent(resourceKey)}/options`,
+  );
+}
+
 /** Spend one use of a class resource (rage, ki, ...). */
 export function spendCharacterResource(
   characterId: string,
   resourceKey: string,
+  optionId?: string,
 ): Promise<Character> {
+  const query = optionId ? `?option_id=${encodeURIComponent(optionId)}` : "";
   return apiFetch<Character>(
-    `/characters/${characterId}/resources/${encodeURIComponent(resourceKey)}/use`,
+    `/characters/${characterId}/resources/${encodeURIComponent(resourceKey)}/use${query}`,
     { method: "POST" },
   );
 }

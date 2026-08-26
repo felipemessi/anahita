@@ -1968,6 +1968,49 @@ async def _create_cleric_of_life(
     return character.id
 
 
+async def test_get_resource_options_lists_channel_divinity_choices(
+    db: AsyncSession,
+    human_race_id: str,
+    cleric_class_id: str,
+    cleric_life_subclass_id: str,
+) -> None:
+    """A Life Cleric's Channel Divinity options are listed by name (Fase 8)."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_cleric_of_life(
+        db, owner, member, human_race_id, cleric_class_id, cleric_life_subclass_id
+    )
+    service = CharacterService()
+
+    options = await service.get_resource_options(
+        character_id, owner.id, "channel_divinity_charges", db
+    )
+
+    assert len(options) == 2
+    assert {o.index for o in options} == {
+        "channel-divinity-turn-undead",
+        "channel-divinity-preserve-life",
+    }
+
+
+async def test_get_resource_options_empty_for_resource_without_options(
+    db: AsyncSession, human_race_id: str, barbarian_class_id: str
+) -> None:
+    """A resource without an option concept (rage) lists no options."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, barbarian_class_id
+    )
+    service = CharacterService()
+
+    options = await service.get_resource_options(
+        character_id, owner.id, "rage_count", db
+    )
+
+    assert options == []
+
+
 async def test_use_resource_multiple_options_requires_option_id(
     db: AsyncSession,
     human_race_id: str,

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
+from app.catalog.schemas import FeatureRead
 from app.characters.schemas import (
     CharacterClassCreate,
     CharacterConcentrationRequest,
@@ -101,6 +102,29 @@ async def level_up(
 ) -> CharacterRead:
     """Level up a character by one level in one class. Owner only."""
     return await service.level_up(character_id, user.id, body, db)
+
+
+@router.get(
+    "/{character_id}/resources/{resource_key}/options",
+    response_model=list[FeatureRead],
+)
+async def get_resource_options(
+    character_id: uuid.UUID,
+    resource_key: str,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+    locale: Annotated[
+        str, Query(description="Locale for translated text (en, pt-BR)")
+    ] = "en",
+) -> list[FeatureRead]:
+    """List the named options for a class resource (e.g. Channel Divinity).
+
+    Owner only.
+    """
+    return await service.get_resource_options(
+        character_id, user.id, resource_key, db, locale=locale
+    )
 
 
 @router.post(

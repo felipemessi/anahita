@@ -391,11 +391,11 @@
   - [ ] Teste: cancelar o modal não dispara a chamada; confirmar dispara normalmente
   - Notas: a mecânica de reset já está correta no backend (Fases 6/7) — só falta a confirmação na UI.
 
-- **Como jogador de Paladin/Cleric, quero escolher qual opção de Canalizar Divindade estou usando quando tenho mais de uma.**
-  - [ ] `class-resources.tsx`: para o recurso `channel_divinity_charges`, exibir um seletor das opções disponíveis (`FeatureOption`) antes de confirmar o uso, quando houver mais de uma
-  - [ ] Enviar `option_id` no `POST /characters/{id}/resources/{resource_key}/use`
-  - [ ] Teste: recurso com múltiplas opções exige seleção antes de habilitar o botão "usar"; recurso com uma única opção usa direto, sem seletor
-  - Depende de backend: `option_id` no endpoint de uso de recurso + vínculo `FeatureOption` (Fase 8 do backend)
+- **Como jogador de Paladin/Cleric, quero escolher qual opção de Canalizar Divindade estou usando quando tenho mais de uma. ✅ (2026-08-26)**
+  - [x] `class-resources.tsx`: para o recurso `channel_divinity_charges`, exibir um seletor das opções disponíveis (`FeatureOption`) antes de confirmar o uso, quando houver mais de uma
+  - [x] Enviar `option_id` no `POST /characters/{id}/resources/{resource_key}/use`
+  - [x] Teste: recurso com múltiplas opções exige seleção antes de habilitar o botão "usar"; recurso com uma única opção usa direto, sem seletor
+  - Notas: o backend já aceitava `option_id` em `use_resource` (Fase 8 do backend), mas não expunha a *lista* de opções disponíveis pro cliente descobrir se um recurso precisa de seleção — só `last_feature_option_id` (a última usada). Lacuna mecânica encontrada e resolvida inline: novo `GET /characters/{id}/resources/{resource_key}/options` (`CharacterService.get_resource_options`, reaproveitando `_resource_options` já existente) retorna as `FeatureRead` do catálogo (traduzidas) — vazio quando o recurso não tem conceito de opção ou nenhuma bate com as classes do personagem. `class-resources.tsx` virou `ResourceRow` por item (hook próprio `useResourceOptions`), com `<select>` exigido só quando há mais de uma opção; `useSpendCharacterResource` passou a receber `{resourceKey, optionId}` em vez de só `resourceKey` (único consumidor era este componente).
 
 - **Como jogador, quero escolher o alvo ao conjurar uma magia (aliado/inimigo/eu mesmo) e ver a DC quando ela exigir resistência.**
   - [ ] `spell-list-by-circle.tsx`/tela de combate: ao conjurar, pedir `target_participant_id` conforme `target_type` da magia (self não pede alvo; enemy/ally listam os participantes do encontro atual)
