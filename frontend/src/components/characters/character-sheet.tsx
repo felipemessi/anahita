@@ -16,6 +16,7 @@ import { RollLogPanel, RollLogProvider } from "@/components/characters/roll-log"
 import { SkillList } from "@/components/characters/skill-list";
 import { SpellListByCircle } from "@/components/characters/spell-list-by-circle";
 import { SpellSlots } from "@/components/characters/spell-slots";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useCatalogFeature } from "@/hooks/use-catalog";
 import { useAddCharacterFeature, useRestCharacter, useUpdateCharacterHp } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
@@ -38,6 +39,7 @@ export function CharacterSheet({
   const [hpError, setHpError] = useState<string | null>(null);
   const rest = useRestCharacter(character.id);
   const [restError, setRestError] = useState<string | null>(null);
+  const [pendingRest, setPendingRest] = useState<RestType | null>(null);
 
   const dexScore = character.ability_scores.find((s) => s.ability === "dex");
   const initiative = dexScore
@@ -65,6 +67,13 @@ export function CharacterSheet({
         err instanceof ApiError ? err.message : "Não foi possível descansar.",
       );
     }
+  }
+
+  async function handleConfirmRest() {
+    if (!pendingRest) return;
+    const restType = pendingRest;
+    setPendingRest(null);
+    await handleRest(restType);
   }
 
   return (
@@ -133,7 +142,7 @@ export function CharacterSheet({
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
-              onClick={() => handleRest("short")}
+              onClick={() => setPendingRest("short")}
               disabled={rest.isPending}
               className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
             >
@@ -141,7 +150,7 @@ export function CharacterSheet({
             </button>
             <button
               type="button"
-              onClick={() => handleRest("long")}
+              onClick={() => setPendingRest("long")}
               disabled={rest.isPending}
               className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-40"
             >
@@ -153,6 +162,14 @@ export function CharacterSheet({
               {restError}
             </p>
           ) : null}
+          <ConfirmDialog
+            open={pendingRest !== null}
+            title={pendingRest === "short" ? "Descanso curto" : "Descanso longo"}
+            description="Isso pode resetar PV, espaços de magia e recursos de classe. Deseja continuar?"
+            confirmLabel="Descansar"
+            onConfirm={handleConfirmRest}
+            onCancel={() => setPendingRest(null)}
+          />
         </section>
 
         <DeathSaveTracker
