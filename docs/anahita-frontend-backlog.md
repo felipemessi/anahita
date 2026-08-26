@@ -387,10 +387,10 @@
   - [x] Teste: perícia proficiente renderiza o destaque; rolagem de perícia usa o bônus completo (modificador + proficiência quando aplicável)
   - Notas: o clique-para-rolar já usava `skill.bonus` (o texto "(proficiente)"/"(especialização)" também já existia) — faltava só o destaque visual. Adicionado um indicador de bolinha (mesmo padrão `●` já usado em `ability-scores.tsx` pra resistências proficientes): vazia sem proficiência, preenchida parcial (borda + fundo translúcido) com proficiência, sólida com especialização; a linha inteira também ganha `font-medium` quando proficiente.
 
-- **Como jogador, quero confirmar antes de disparar um descanso curto ou longo, já que isso reseta PV/slots/recursos.**
-  - [ ] Modal de confirmação (`AlertDialog` já usado em outros pontos destrutivos da ficha) antes de `POST /characters/{id}/rest` nos dois modos
-  - [ ] Teste: cancelar o modal não dispara a chamada; confirmar dispara normalmente
-  - Notas: a mecânica de reset já está correta no backend (Fases 6/7) — só falta a confirmação na UI.
+- **Como jogador, quero confirmar antes de disparar um descanso curto ou longo, já que isso reseta PV/slots/recursos. ✅ (2026-08-26)**
+  - [x] Modal de confirmação (`AlertDialog` já usado em outros pontos destrutivos da ficha) antes de `POST /characters/{id}/rest` nos dois modos
+  - [x] Teste: cancelar o modal não dispara a chamada; confirmar dispara normalmente
+  - Notas: a mecânica de reset já está correta no backend (Fases 6/7) — só faltava a confirmação na UI. Nenhum `AlertDialog` existia de fato no código (a nota do backlog estava desatualizada) — criado `components/ui/confirm-dialog.tsx` como primeiro primitivo genérico de `components/ui/` (convenção shadcn citada no `CLAUDE.md`, ainda não iniciada), reaproveitando o mesmo estilo de overlay fixo/centralizado do `DiceRollModal`. `character-sheet.tsx`: os botões "Descanso curto"/"Descanso longo" agora só abrem o `ConfirmDialog` (`pendingRest`); a chamada de fato (`handleRest`) só dispara em `onConfirm`. Testado no nível do `ConfirmDialog` (genérico: fechado não renderiza, cancelar chama `onCancel` sem `onConfirm`, confirmar chama `onConfirm`) — não foi escrito um teste de integração da `CharacterSheet` inteira pelo mesmo motivo já registrado na história do rodapé de rolagens (árvore de hooks grande demais pra mockar); a fiação em `character-sheet.tsx` foi conferida por leitura de código. Escopo: só os dois botões de "descanso" — o botão "gastar dado de vida" do `HitDiceTracker` não abre confirmação, já que ele é uma ação aditiva sobre um descanso curto já em andamento, não a declaração do descanso em si.
 
 - **Como jogador de Paladin/Cleric, quero escolher qual opção de Canalizar Divindade estou usando quando tenho mais de uma. ✅ (2026-08-26)**
   - [x] `class-resources.tsx`: para o recurso `channel_divinity_charges`, exibir um seletor das opções disponíveis (`FeatureOption`) antes de confirmar o uso, quando houver mais de uma
