@@ -20,17 +20,26 @@ const ABILITIES = Object.keys(ABILITY_LABELS) as AbilityScore[];
 
 type AsiMode = "plus-two" | "plus-one-plus-one" | "feat";
 
+/** `existing:<CharacterClass.id>` or `new:<catalog class_definition_id>`. */
+type Selection = { kind: "existing"; characterClassId: string } | { kind: "new"; classDefinitionId: string };
+
+function parseSelection(value: string): Selection | null {
+  const [kind, id] = value.split(":");
+  if (!id) return null;
+  if (kind === "existing") return { kind: "existing", characterClassId: id };
+  if (kind === "new") return { kind: "new", classDefinitionId: id };
+  return null;
+}
+
 /**
- * Guided level-up flow: pick which class to level up, and — only at a
- * level that grants an ability score improvement (`ClassLevel`'s
- * `ability_score_bonuses`, resolved from the catalog) — choose between
- * distributing +2 (one ability) / +1+1 (two abilities) or a catalog feat.
- * HP gained is rolled server-side; shown after the fact rather than
- * confirmed beforehand, same "let the server roll" convention as rest.
- *
- * Scoped to leveling up a class the character already has — multiclassing
- * into a brand-new class has no frontend flow yet at all (a pre-existing
- * gap, not introduced by this story).
+ * Guided level-up flow: pick which class to level up — or, via a second
+ * option group, a brand-new class the character doesn't have yet
+ * (multiclassing in at level 1) — and, only at a level that grants an
+ * ability score improvement (`ClassLevel`'s `ability_score_bonuses`,
+ * resolved from the catalog) — choose between distributing +2 (one
+ * ability) / +1+1 (two abilities) or a catalog feat. HP gained is rolled
+ * server-side; shown after the fact rather than confirmed beforehand, same
+ * "let the server roll" convention as rest.
  */
 export function LevelUpDialog({
   characterId,
@@ -48,7 +57,9 @@ export function LevelUpDialog({
   const levelUp = useLevelUpCharacter(characterId);
 
   const [open, setOpen] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id ?? "");
+  const [selection, setSelection] = useState(
+    classes[0] ? `existing:${classes[0].id}` : "",
+  );
   const [asiMode, setAsiMode] = useState<AsiMode>("plus-two");
   const [abilityA, setAbilityA] = useState<AbilityScore>("str");
   const [abilityB, setAbilityB] = useState<AbilityScore>("dex");
@@ -56,25 +67,35 @@ export function LevelUpDialog({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
-  const selectedClass = classes.find((c) => c.id === selectedClassId);
-  const classDefinitionId = selectedClass?.class_definition_id ?? null;
+  const parsed = parseSelection(selection);
+  const selectedClass =
+    parsed?.kind === "existing"
+      ? classes.find((c) => c.id === parsed.characterClassId)
+      : undefined;
+  const classDefinitionId =
+    parsed?.kind === "existing"
+      ? (selectedClass?.class_definition_id ?? null)
+      : (parsed?.classDefinitionId ?? null);
   const { data: catalogClassDetail } = useCatalogEntry("classes", classDefinitionId ?? "");
   const nextLevel = (selectedClass?.level ?? 0) + 1;
   const isAsiLevel =
     catalogClassDetail?.levels.find((l) => l.level === nextLevel)?.ability_score_bonuses !=
     null;
 
+  const ownedClassDefIds = new Set(classes.map((c) => c.class_definition_id));
+  const newClassOptions = catalogClasses?.filter((c) => !ownedClassDefIds.has(c.id)) ?? [];
+
   function nameFor(classEntry: CharacterClass): string {
     return catalogClasses?.find((c) => c.id === classEntry.class_definition_id)?.name ?? "Classe";
   }
 
   async function handleSubmit() {
-    if (!selectedClass) return;
+    if (!classDefinitionId) return;
     setError(null);
     setResult(null);
     try {
       const character = await levelUp.mutateAsync({
-        class_definition_id: selectedClass.class_definition_id,
+        class_definition_id: classDefinitionId,
         ability_score_increases:
           isAsiLevel && asiMode !== "feat"
             ? asiMode === "plus-two"
@@ -83,8 +104,12 @@ export function LevelUpDialog({
             : undefined,
         feat_id: isAsiLevel && asiMode === "feat" ? featId : undefined,
       });
+      const label =
+        parsed?.kind === "existing" && selectedClass
+          ? nameFor(selectedClass)
+          : (catalogClasses?.find((c) => c.id === classDefinitionId)?.name ?? "Classe");
       setResult(
-        `${nameFor(selectedClass)} agora está no nível ${nextLevel}. PV máximo: ${character.hit_point_max}.`,
+        `${label} agora está no nível ${nextLevel}. PV máximo: ${character.hit_point_max}.`,
       );
       setOpen(false);
     } catch (err) {
@@ -117,15 +142,26 @@ export function LevelUpDialog({
             </label>
             <select
               id="level-up-class"
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
+              value={selection}
+              onChange={(e) => setSelection(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             >
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {nameFor(c)} (nível {c.level} → {c.level + 1})
-                </option>
-              ))}
+              <optgroup label="Subir nível">
+                {classes.map((c) => (
+                  <option key={c.id} value={`existing:${c.id}`}>
+                    {nameFor(c)} (nível {c.level} → {c.level + 1})
+                  </option>
+                ))}
+              </optgroup>
+              {newClassOptions.length > 0 ? (
+                <optgroup label="Multiclasse — adicionar uma nova classe">
+                  {newClassOptions.map((c) => (
+                    <option key={c.id} value={`new:${c.id}`}>
+                      {c.name} (nova, nível 1)
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
           </div>
 

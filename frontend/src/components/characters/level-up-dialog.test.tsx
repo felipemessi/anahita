@@ -122,6 +122,62 @@ describe("LevelUpDialog", () => {
     );
   });
 
+  it("adding a new class sends its class_definition_id at level 1", async () => {
+    useCatalogList.mockImplementation((category: string) => {
+      if (category === "classes") {
+        return {
+          data: [
+            { id: "fighter-id", name: "Fighter" },
+            { id: "wizard-id", name: "Wizard" },
+          ],
+        };
+      }
+      if (category === "feats") return { data: [{ id: "feat-grappler", name: "Grappler" }] };
+      return { data: [] };
+    });
+    useCatalogEntry.mockImplementation((_category: string, id: string) => {
+      if (id === "wizard-id") {
+        return { data: classDetail([{ level: 1, ability_score_bonuses: null }]) };
+      }
+      return { data: classDetail([{ level: 4, ability_score_bonuses: null }]) };
+    });
+    mutateAsync.mockResolvedValue({ hit_point_max: 34 });
+    render(
+      <LevelUpDialog characterId="char-1" campaignId="camp-1" classes={[fighterClass]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Subir de nível" }));
+    fireEvent.change(screen.getByLabelText("Classe"), {
+      target: { value: "new:wizard-id" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith({
+        class_definition_id: "wizard-id",
+        ability_score_increases: undefined,
+        feat_id: undefined,
+      }),
+    );
+    expect(await screen.findByText(/agora está no nível 1/)).toBeInTheDocument();
+  });
+
+  it("a class the character already has never appears in the multiclass group", () => {
+    useCatalogList.mockImplementation((category: string) => {
+      if (category === "classes") return { data: [{ id: "fighter-id", name: "Fighter" }] };
+      return { data: [] };
+    });
+    render(
+      <LevelUpDialog characterId="char-1" campaignId="camp-1" classes={[fighterClass]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Subir de nível" }));
+
+    expect(
+      screen.queryByText("Multiclasse — adicionar uma nova classe"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the backend's error on failure", async () => {
     mutateAsync.mockRejectedValue(new ApiError(422, "This class is already at level 20"));
     render(
