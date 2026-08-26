@@ -351,10 +351,10 @@
   - [x] Teste: dashboard renderiza próxima sessão/NPCs recentes/handouts pendentes a partir do mock da API
   - Notas: reaproveitado `SessionCard` já existente pra "próxima sessão" (mesmo componente da lista de sessões). `types/world.ts::Location` ganhou `created_at` (faltava no tipo — o backend já expõe desde a Fase 8, `LocationRead`). Handouts pendentes usam um tipo dedicado leve (`DashboardHandout`: id/title/handout_type/created_at), sem puxar o `Handout` completo (com `url` resolvida) já que a lista do dashboard é só um resumo, não abre o visualizador.
 
-- **Como jogador, quero subir de nível adicionando uma classe nova (multiclasse) pela ficha, não só subindo uma classe que já tenho.**
-  - [ ] `level-up-dialog.tsx`: opção "adicionar uma nova classe" — lista as classes do catálogo da campanha que o personagem ainda não possui, reaproveitando o mesmo fluxo de confirmação de PV/ASI já existente
-  - [ ] Teste: escolher uma classe nova envia o payload correto pro mesmo endpoint de level-up; classes já possuídas continuam no fluxo de "subir nível" normal
-  - Notas: `POST /characters/{id}/level-up` já aceita `class_definition_id` de uma classe nova (reaproveita a validação de `add_class`, Fase 7 do backend) — sem mudança de backend nesta história, é só UI que falta.
+- **Como jogador, quero subir de nível adicionando uma classe nova (multiclasse) pela ficha, não só subindo uma classe que já tenho. ✅ (2026-08-26)**
+  - [x] `level-up-dialog.tsx`: opção "adicionar uma nova classe" — lista as classes do catálogo da campanha que o personagem ainda não possui, reaproveitando o mesmo fluxo de confirmação de PV/ASI já existente
+  - [x] Teste: escolher uma classe nova envia o payload correto pro mesmo endpoint de level-up; classes já possuídas continuam no fluxo de "subir nível" normal
+  - Notas: o `<select>` de classe ganhou um segundo `<optgroup>` ("Multiclasse — adicionar uma nova classe") com as classes do catálogo que o personagem ainda não tem (`class_definition_id` fora do conjunto já possuído); o valor da opção carrega `new:<id>` vs. `existing:<CharacterClass.id>` pra diferenciar sem mudar o payload enviado ao backend, que já aceita `class_definition_id` de uma classe nova (Fase 7). Nível seguinte calculado como 1 pra classe nova (não há `CharacterClass.level` ainda) — mesmo fluxo de ASI/PV, já que o backend resolve isso do mesmo jeito.
 
 - **Como jogador, quero que o subir de nível me pergunte as escolhas mecânicas que ganho (estilo de luta, pacto, domínio etc.), de forma pesquisável.**
   - [ ] `level-up-dialog.tsx`: quando a resposta do backend indicar `requires_choice`, exibir as opções (`FeatureOption`) com campo de busca (reaproveita `catalog-filter-bar.tsx`) antes de confirmar
