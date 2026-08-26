@@ -10570,7 +10570,7 @@
           }
         },
         "prerequisites": [],
-        "parent_index": null
+        "parent_index": "metamagic-1"
       },
       {
         "index": "sorcerer-ability-score-improvement-1",

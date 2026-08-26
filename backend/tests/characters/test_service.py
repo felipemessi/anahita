@@ -1691,6 +1691,220 @@ async def test_level_up_without_choice_feature_requires_nothing(
     assert character.feature_choices == []
 
 
+async def _eldritch_invocation_ids(db: AsyncSession, count: int) -> list[uuid.UUID]:
+    result = await db.execute(
+        select(Feature.id)
+        .where(Feature.index.like("eldritch-invocation-%"))
+        .order_by(Feature.index)
+        .limit(count)
+    )
+    return list(result.scalars().all())
+
+
+async def test_level_up_multi_choice_feature_requires_correct_count(
+    db: AsyncSession, human_race_id: str, warlock_class_id: str
+) -> None:
+    """Eldritch Invocations grants 2 picks at level 2 — 1 pick isn't enough."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, warlock_class_id
+    )
+    invocations_feature = (
+        await db.execute(select(Feature).where(Feature.index == "eldritch-invocations"))
+    ).scalar_one()
+    option_ids = await _eldritch_invocation_ids(db, 1)
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(warlock_class_id),
+                manual_hit_die_roll=6,
+                feature_choices=[
+                    CharacterFeatureChoiceInput(
+                        feature_id=invocations_feature.id,
+                        feature_option_id=option_ids[0],
+                    )
+                ],
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+    assert isinstance(exc.value.detail, dict)
+    choice_detail = exc.value.detail["choices"][0]
+    assert choice_detail["required_count"] == 2
+
+
+async def test_level_up_multi_choice_feature_persists_all_picks(
+    db: AsyncSession, human_race_id: str, warlock_class_id: str
+) -> None:
+    """2 distinct picks for Eldritch Invocations both persist."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, warlock_class_id
+    )
+    invocations_feature = (
+        await db.execute(select(Feature).where(Feature.index == "eldritch-invocations"))
+    ).scalar_one()
+    option_ids = await _eldritch_invocation_ids(db, 2)
+    service = CharacterService()
+
+    character = await service.level_up(
+        character_id,
+        owner.id,
+        CharacterLevelUpRequest(
+            class_definition_id=uuid.UUID(warlock_class_id),
+            manual_hit_die_roll=6,
+            feature_choices=[
+                CharacterFeatureChoiceInput(
+                    feature_id=invocations_feature.id, feature_option_id=option_ids[0]
+                ),
+                CharacterFeatureChoiceInput(
+                    feature_id=invocations_feature.id, feature_option_id=option_ids[1]
+                ),
+            ],
+        ),
+        db,
+    )
+
+    persisted_option_ids = {c.feature_option_id for c in character.feature_choices}
+    assert persisted_option_ids == set(option_ids)
+
+
+async def test_level_up_multi_choice_feature_rejects_duplicate_pick(
+    db: AsyncSession, human_race_id: str, warlock_class_id: str
+) -> None:
+    """Picking the same Eldritch Invocation option twice in one request is rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, warlock_class_id
+    )
+    invocations_feature = (
+        await db.execute(select(Feature).where(Feature.index == "eldritch-invocations"))
+    ).scalar_one()
+    option_ids = await _eldritch_invocation_ids(db, 1)
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(warlock_class_id),
+                manual_hit_die_roll=6,
+                feature_choices=[
+                    CharacterFeatureChoiceInput(
+                        feature_id=invocations_feature.id,
+                        feature_option_id=option_ids[0],
+                    ),
+                    CharacterFeatureChoiceInput(
+                        feature_id=invocations_feature.id,
+                        feature_option_id=option_ids[0],
+                    ),
+                ],
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def _create_druid_of_the_land(
+    db: AsyncSession,
+    owner: User,
+    member: CampaignMember,
+    human_race_id: str,
+    druid_class_id: str,
+    druid_land_subclass_id: str,
+) -> uuid.UUID:
+    service = CharacterService()
+    character = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Thornwood",
+            race_id=uuid.UUID(human_race_id),
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(
+                    class_definition_id=uuid.UUID(druid_class_id),
+                    subclass_id=uuid.UUID(druid_land_subclass_id),
+                )
+            ],
+        ),
+        db,
+    )
+    return character.id
+
+
+async def test_level_up_subclass_choice_feature_requires_pick(
+    db: AsyncSession,
+    human_race_id: str,
+    druid_class_id: str,
+    druid_land_subclass_id: str,
+) -> None:
+    """Circle of the Land (a subclass feature) requires a terrain pick at level 2."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_druid_of_the_land(
+        db, owner, member, human_race_id, druid_class_id, druid_land_subclass_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.level_up(
+            character_id,
+            owner.id,
+            CharacterLevelUpRequest(
+                class_definition_id=uuid.UUID(druid_class_id), manual_hit_die_roll=6
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_level_up_subclass_choice_feature_persists_pick(
+    db: AsyncSession,
+    human_race_id: str,
+    druid_class_id: str,
+    druid_land_subclass_id: str,
+) -> None:
+    """A valid Circle of the Land terrain pick persists and shows up on the sheet."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_druid_of_the_land(
+        db, owner, member, human_race_id, druid_class_id, druid_land_subclass_id
+    )
+    service = CharacterService()
+    circle_feature = (
+        await db.execute(select(Feature).where(Feature.index == "circle-of-the-land"))
+    ).scalar_one()
+    arctic_result = await db.execute(
+        select(Feature).where(Feature.index == "circle-of-the-land-arctic")
+    )
+    arctic_id = arctic_result.scalar_one().id
+
+    leveled = await service.level_up(
+        character_id,
+        owner.id,
+        CharacterLevelUpRequest(
+            class_definition_id=uuid.UUID(druid_class_id),
+            manual_hit_die_roll=6,
+            feature_choices=[
+                CharacterFeatureChoiceInput(
+                    feature_id=circle_feature.id, feature_option_id=arctic_id
+                )
+            ],
+        ),
+        db,
+    )
+    assert leveled.feature_choices[0].feature_option_id == arctic_id
+
+
 async def test_use_resource_consumes_and_rejects_past_limit(
     db: AsyncSession, human_race_id: str, barbarian_class_id: str
 ) -> None:

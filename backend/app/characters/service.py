@@ -56,7 +56,6 @@ from app.characters.schemas import (
     CharacterEquipmentCreate,
     CharacterEquipmentRead,
     CharacterEquipmentUpdate,
-    CharacterFeatureChoiceInput,
     CharacterFeatureChoiceRead,
     CharacterFeatureCreate,
     CharacterFeatureRead,
@@ -126,12 +125,33 @@ _RESOURCE_RECHARGE: dict[str, Literal["short", "long"]] = {
 #: `resource_key` -> the catalog `Feature.index` values that group its named
 #: options (Fase 8) — e.g. Cleric's and Paladin's Channel Divinity each have
 #: their own parent feature ("channel-divinity-1-rest"/"channel-divinity",
-#: see `_CHANNEL_DIVINITY_PARENT_OVERRIDES` in `convert_srd.py`), but both
-#: back the same `channel_divinity_charges` resource. A resource_key not
-#: listed here has no option concept — `use_resource` never requires or
-#: records one for it.
+#: see `_FEATURE_PARENT_OVERRIDES` in `convert_srd.py`), but both back the
+#: same `channel_divinity_charges` resource. A resource_key not listed here
+#: has no option concept — `use_resource` never requires or records one
+#: for it.
 _RESOURCE_OPTION_PARENT_FEATURES: dict[str, tuple[str, ...]] = {
     "channel_divinity_charges": ("channel-divinity-1-rest", "channel-divinity"),
+}
+
+#: `Feature.index` -> the `ClassLevelResource.resource_key` whose running
+#: total gates how many picks that feature grants at a level-up (Fase 8
+#: multi-select choices) — see `CharacterService._resource_known_delta`.
+#: A feature not listed here always grants exactly 1 pick.
+_MULTI_CHOICE_RESOURCE_KEYS: dict[str, str] = {
+    "eldritch-invocations": "invocations_known",
+    "metamagic-1": "metamagic_known",
+    "metamagic-2": "metamagic_known",
+    "metamagic-3": "metamagic_known",
+}
+
+#: `Feature.index` -> the `Feature.index` whose children are the actual
+#: option pool, for a feature that grants more picks at a later level
+#: without listing any options of its own (Sorcerer's `metamagic-2`/`-3`
+#: at levels 10/17 — the 8 Metamagic options only ever live under
+#: `metamagic-1`, level 3). A feature not listed here is its own source.
+_MULTI_CHOICE_OPTIONS_SOURCE: dict[str, str] = {
+    "metamagic-2": "metamagic-1",
+    "metamagic-3": "metamagic-1",
 }
 
 
@@ -373,10 +393,7 @@ class CharacterService:
         `requires_choice`/the available options — see
         `_apply_feature_choices`.
         """
-        if (
-            data.ability_score_increases is not None
-            and data.feat_id is not None
-        ):
+        if data.ability_score_increases is not None and data.feat_id is not None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="ability_score_increases and feat_id are mutually exclusive",
@@ -415,9 +432,7 @@ class CharacterService:
             # New class — multiclassing in, same prerequisite check as
             # `add_class`.
             if class_def.index is not None:
-                current_class_indices = await self._current_class_indices(
-                    character, db
-                )
+                current_class_indices = await self._current_class_indices(character, db)
                 ability_scores = {
                     EngineAbility(score.ability.value): (
                         score.base_score + score.asi_bonus + score.misc_bonus
@@ -487,7 +502,9 @@ class CharacterService:
         elif data.feat_id is not None:
             await self._apply_feat_selection(character, data.feat_id, db)
 
-        await self._apply_feature_choices(character, class_level_row, data, db)
+        await self._apply_feature_choices(
+            character, class_def, class_entry, new_level_in_class, data, db
+        )
 
         await db.commit()
         return await self._reload_as_read(character.id, db)
@@ -581,56 +598,120 @@ class CharacterService:
     async def _apply_feature_choices(
         self,
         character: Character,
-        class_level_row: ClassLevel | None,
+        class_def: ClassDefinition,
+        class_entry: CharacterClass,
+        new_level_in_class: int,
         data: CharacterLevelUpRequest,
         db: AsyncSession,
     ) -> None:
         """Require and persist a choice for every choice feature granted this level.
 
-        A "choice feature" is any `Feature` granted at `class_level_row`
-        that has named options (other `Feature` rows with
-        `parent_feature_id` set to it — e.g. "Fighting Style" -> "Fighting
-        Style: Dueling"). Every such feature must have a matching entry in
-        `data.feature_choices`, or the whole level-up is rejected (422,
-        nothing committed) with `requires_choice`/the available options so
-        the client can retry with a pick.
-        """
-        if class_level_row is None:
-            return
-        granted_features = [clf.feature for clf in class_level_row.level_features]
+        A "choice feature" is any `Feature` granted at this level — the
+        base class progression or (if the character has one) its
+        subclass's own progression at the same level, e.g. Circle of the
+        Land's terrain pick — that has named options (other `Feature` rows
+        with `parent_feature_id` set to it, e.g. "Fighting Style" ->
+        "Fighting Style: Dueling").
 
-        pending: list[dict[str, Any]] = []
-        to_persist: list[CharacterFeatureChoiceInput] = []
-        for feature in granted_features:
-            options_result = await db.execute(
-                select(Feature).where(Feature.parent_feature_id == feature.id)
+        Most choice features grant exactly one pick; a few
+        (`_MULTI_CHOICE_RESOURCE_KEYS`, e.g. Eldritch Invocations,
+        Metamagic) grant as many as their "known" `ClassLevelResource`
+        grew by this level — `_MULTI_CHOICE_OPTIONS_SOURCE` redirects to
+        where the actual option pool lives, for the follow-up levels
+        (Metamagic's 2nd/3rd pick-more levels) that grant more picks but
+        list no options of their own. Every required pick needs a matching
+        entry in `data.feature_choices`, or the whole level-up is rejected
+        (422, nothing committed) with `requires_choice`/the available
+        options so the client can retry.
+        """
+        granted_features: list[Feature] = []
+        base_row = self._class_level_row(class_def, new_level_in_class)
+        if base_row is not None:
+            granted_features.extend(clf.feature for clf in base_row.level_features)
+        if class_entry.subclass_id is not None:
+            subclass_row = next(
+                (
+                    cl
+                    for cl in class_def.class_levels
+                    if cl.subclass_definition_id == class_entry.subclass_id
+                    and cl.level == new_level_in_class
+                ),
+                None,
             )
-            option_ids = {o.id for o in options_result.scalars().all()}
-            if not option_ids:
+            if subclass_row is not None:
+                granted_features.extend(
+                    clf.feature for clf in subclass_row.level_features
+                )
+        if not granted_features:
+            return
+
+        already_chosen_option_ids = {
+            c.feature_option_id for c in character.feature_choices
+        }
+        pending: list[dict[str, Any]] = []
+        to_persist: list[tuple[uuid.UUID, uuid.UUID]] = []
+        for feature in granted_features:
+            options_source = feature
+            source_index = _MULTI_CHOICE_OPTIONS_SOURCE.get(feature.index or "")
+            if source_index is not None:
+                source_result = await db.execute(
+                    select(Feature).where(Feature.index == source_index)
+                )
+                options_source = source_result.scalar_one_or_none() or feature
+
+            options_result = await db.execute(
+                select(Feature).where(Feature.parent_feature_id == options_source.id)
+            )
+            options = list(options_result.scalars().all())
+            if not options:
+                continue
+            option_ids = {o.id for o in options}
+
+            resource_key = _MULTI_CHOICE_RESOURCE_KEYS.get(feature.index or "")
+            required_count = (
+                self._resource_known_delta(class_def, new_level_in_class, resource_key)
+                if resource_key is not None
+                else 1
+            )
+            if required_count <= 0:
                 continue
 
-            choice = next(
-                (c for c in data.feature_choices if c.feature_id == feature.id), None
-            )
-            if choice is None:
+            matching = [c for c in data.feature_choices if c.feature_id == feature.id]
+            if len(matching) < required_count:
                 pending.append(
                     {
                         "feature_id": feature.id,
+                        "required_count": required_count,
                         "options": await catalog_service.list_features_translated(
-                            db, parent_feature_id=feature.id
+                            db, parent_feature_id=options_source.id
                         ),
                     }
                 )
                 continue
-            if choice.feature_option_id not in option_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail=(
-                        f"{choice.feature_option_id} is not an option of feature "
-                        f"{feature.id}"
-                    ),
-                )
-            to_persist.append(choice)
+
+            seen_in_request: set[uuid.UUID] = set()
+            for choice in matching:
+                if choice.feature_option_id not in option_ids:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail=(
+                            f"{choice.feature_option_id} is not an option of "
+                            f"feature {feature.id}"
+                        ),
+                    )
+                if (
+                    choice.feature_option_id in seen_in_request
+                    or choice.feature_option_id in already_chosen_option_ids
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail=(
+                            f"{choice.feature_option_id} was already picked "
+                            "(can't pick the same option twice)"
+                        ),
+                    )
+                seen_in_request.add(choice.feature_option_id)
+                to_persist.append((feature.id, choice.feature_option_id))
 
         if pending:
             raise HTTPException(
@@ -640,6 +721,7 @@ class CharacterService:
                     "choices": [
                         {
                             "feature_id": str(p["feature_id"]),
+                            "required_count": p["required_count"],
                             "options": [
                                 {"id": str(o.id), "name": o.feature_name}
                                 for o in p["options"]
@@ -650,14 +732,49 @@ class CharacterService:
                 },
             )
 
-        for choice in to_persist:
+        for feature_id, feature_option_id in to_persist:
             db.add(
                 CharacterFeatureChoice(
                     character_id=character.id,
-                    feature_id=choice.feature_id,
-                    feature_option_id=choice.feature_option_id,
+                    feature_id=feature_id,
+                    feature_option_id=feature_option_id,
                 )
             )
+
+    def _resource_known_delta(
+        self, class_def: ClassDefinition, level: int, resource_key: str
+    ) -> int:
+        """How many *new* picks a "known"-style resource grants at `level`.
+
+        `resource_key` (e.g. `invocations_known`, `metamagic_known`) is a
+        running total on the base class progression — the delta from
+        `level - 1` is how many new choices this level-up grants. Missing
+        rows/values default to 0 rather than raising, since a class
+        without this resource simply grants none.
+        """
+
+        def value_at(lvl: int) -> int:
+            row = next(
+                (
+                    cl
+                    for cl in class_def.class_levels
+                    if cl.subclass_definition_id is None and cl.level == lvl
+                ),
+                None,
+            )
+            if row is None:
+                return 0
+            resource = next(
+                (r for r in row.resources if r.resource_key == resource_key), None
+            )
+            if resource is None:
+                return 0
+            try:
+                return int(resource.value)
+            except ValueError:
+                return 0
+
+        return max(0, value_at(level) - value_at(level - 1))
 
     async def list_characters_for_campaign(
         self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
@@ -690,9 +807,7 @@ class CharacterService:
             .options(*_CHARACTER_LOAD_OPTIONS)
         )
         characters = list(result.scalars().all())
-        all_spell_ids = list(
-            {s.spell_id for c in characters for s in c.spells}
-        )
+        all_spell_ids = list({s.spell_id for c in characters for s in c.spells})
         spells = await catalog_service.get_spells_by_ids(db, all_spell_ids)
         spell_catalog = {s.id: s for s in spells}
 
@@ -712,9 +827,7 @@ class CharacterService:
             if is_dm or owns_it:
                 max_slots = await self._max_spell_slots(c, db)
                 max_resources = await self._max_resources(c, db)
-                reads.append(
-                    self._to_read(c, spell_catalog, max_slots, max_resources)
-                )
+                reads.append(self._to_read(c, spell_catalog, max_slots, max_resources))
             else:
                 reads.append(self._to_summary(c))
         return reads
@@ -783,9 +896,7 @@ class CharacterService:
         db: AsyncSession,
     ) -> CharacterRead:
         """Add a known/prepared spell to a character. Owner only."""
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
 
         spell = await catalog_service.get_spell(db, data.spell_id)
         if spell is None:
@@ -828,9 +939,7 @@ class CharacterService:
         Preparing (not unpreparing) re-checks the prepared-caster limit —
         see `_validate_spell_limit`.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         entry = self._require_spell_entry(character, spell_entry_id)
 
         if data.prepared:
@@ -860,9 +969,7 @@ class CharacterService:
         db: AsyncSession,
     ) -> CharacterRead:
         """Forget a known spell. Owner only."""
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         entry = self._require_spell_entry(character, spell_entry_id)
         await db.delete(entry)
         await db.commit()
@@ -884,9 +991,7 @@ class CharacterService:
         `target_participant_id`/`save_dc` are cast context, not character
         state — see `CharacterSpellCastResponse`.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         entry = self._require_spell_entry(character, spell_entry_id)
         spell = await catalog_service.get_spell(db, entry.spell_id)
         if spell is None:
@@ -1010,9 +1115,7 @@ class CharacterService:
         `_RESOURCE_RECHARGE` entry matches — a long rest restores short-rest
         resources too, PHB rule.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         if data.rest_type == "long":
             for slot in character.spell_slots:
                 slot.used = 0
@@ -1028,9 +1131,7 @@ class CharacterService:
             await self._spend_hit_dice(character, data.hit_dice_spent, db)
         for resource in character.resources:
             recharge = _RESOURCE_RECHARGE.get(resource.resource_key)
-            if recharge == "short" or (
-                recharge == "long" and data.rest_type == "long"
-            ):
+            if recharge == "short" or (recharge == "long" and data.rest_type == "long"):
                 resource.used = 0
         await db.commit()
         return await self._reload_as_read(character.id, db)
@@ -1108,9 +1209,7 @@ class CharacterService:
         resource, optional (and ignored) when they have none or exactly
         one, see `_RESOURCE_OPTION_PARENT_FEATURES`.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         if resource_key not in _RESOURCE_RECHARGE:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -1222,9 +1321,7 @@ class CharacterService:
         Three failures marks the character dead; three successes
         stabilizes them (track resets, still unconscious at 0 HP).
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         if character.is_dead:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -1274,17 +1371,13 @@ class CharacterService:
         on — only one at a time (PHB rule); see also `cast_spell`, which
         does the same automatically when casting a concentration spell.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         if data.spell_id is None:
             character.concentrating_spell_id = None
             await db.commit()
             return await self._reload_as_read(character.id, db)
 
-        entry = next(
-            (s for s in character.spells if s.spell_id == data.spell_id), None
-        )
+        entry = next((s for s in character.spells if s.spell_id == data.spell_id), None)
         if entry is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1308,9 +1401,7 @@ class CharacterService:
         db: AsyncSession,
     ) -> CharacterRead:
         """Add an item to a character's personal inventory. Owner only."""
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
 
         item = await catalog_service.get_item(db, data.item_id)
         if item is None:
@@ -1355,9 +1446,7 @@ class CharacterService:
         `PATCH /characters/{id}` override of `armor_class` still works, but
         only until the next equip/unequip toggle recomputes it.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         entry = self._require_equipment_entry(character, equipment_id)
 
         if data.equipped is not None:
@@ -1380,9 +1469,7 @@ class CharacterService:
         db: AsyncSession,
     ) -> CharacterRead:
         """Remove an item from a character's inventory. Owner only."""
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         entry = self._require_equipment_entry(character, equipment_id)
         was_equipped = entry.equipped
         await db.delete(entry)
@@ -1454,9 +1541,7 @@ class CharacterService:
 
         The resulting balance can never go below zero (422).
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         new_balance = character.currency_cp + data.delta
         if new_balance < 0:
             raise HTTPException(
@@ -1474,9 +1559,7 @@ class CharacterService:
         self, character: Character, equipment_id: uuid.UUID
     ) -> CharacterEquipment:
         """Return the character's `CharacterEquipment` row, 404 if not on this sheet."""
-        entry = next(
-            (e for e in character.equipment if e.id == equipment_id), None
-        )
+        entry = next((e for e in character.equipment if e.id == equipment_id), None)
         if entry is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1496,9 +1579,7 @@ class CharacterService:
         Free-text (`source_name`/`feature_name`/`description`), not a
         catalog reference — see `CharacterFeatureCreate`.
         """
-        character = await self._load_character_owned_by(
-            character_id, requester_id, db
-        )
+        character = await self._load_character_owned_by(character_id, requester_id, db)
         db.add(
             CharacterFeature(
                 character_id=character.id,
@@ -1535,9 +1616,7 @@ class CharacterService:
         self, character: Character, spell_entry_id: uuid.UUID
     ) -> CharacterSpell:
         """Return the character's `CharacterSpell` row, 404 if not on this sheet."""
-        entry = next(
-            (s for s in character.spells if s.id == spell_entry_id), None
-        )
+        entry = next((s for s in character.spells if s.id == spell_entry_id), None)
         if entry is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1950,9 +2029,7 @@ class CharacterService:
         equipment = [
             CharacterEquipmentRead.model_validate(e) for e in character.equipment
         ]
-        features = [
-            CharacterFeatureRead.model_validate(f) for f in character.features
-        ]
+        features = [CharacterFeatureRead.model_validate(f) for f in character.features]
         feature_choices = [
             CharacterFeatureChoiceRead.model_validate(c)
             for c in character.feature_choices
