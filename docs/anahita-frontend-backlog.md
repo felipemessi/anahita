@@ -469,10 +469,11 @@
   - [ ] Corrigir a causa raiz encontrada (pode depender do fix de "adicionar personagem ao combate" da Fase 13)
   - [ ] Teste: dropdown de alvo lista participantes corretamente em ambos os cenários
 
-- **Como mestre, quero editar o nome da minha campanha.**
-  - [ ] Confirmar com o usuário se o link para `app/campaigns/[campaignId]/settings/page.tsx` está descobrível na navegação atual — a tela e o `PATCH /campaigns/{id}` já existem e funcionam
-  - [ ] Se for um problema de descoberta (não de funcionalidade), adicionar uma entrada visível de "Configurações" no menu/nav da campanha
-  - [ ] Teste: link de Configurações está visível e leva ao formulário de edição de nome
+- **Como mestre, quero editar o nome da minha campanha.** ✅ (2026-08-28)
+  - [x] Confirmar com o usuário se o link para `app/campaigns/[campaignId]/settings/page.tsx` está descobrível na navegação atual — a tela e o `PATCH /campaigns/{id}` já existem e funcionam
+  - [x] Se for um problema de descoberta (não de funcionalidade), adicionar uma entrada visível de "Configurações" no menu/nav da campanha
+  - [x] Teste: link de Configurações está visível e leva ao formulário de edição de nome
+  - Notas: confirmado por leitura de código que `settings/page.tsx` e `PATCH /campaigns/{id}` já funcionavam (cobertos por `settings/page.test.tsx` e pelo router do backend) — não era um bug de funcionalidade. O item "Configurações" já existia em `campaign-sidebar.tsx`/`mobile-nav.tsx` desde a Fase 1, mas visível igualmente para DM e jogador, misturado a mais 10 itens de conteúdo sem nenhum destaque — fácil de passar despercebido, especialmente na barra inferior mobile. Corrigido tratando-o como ação DM-only (mesmo padrão do item "Diário"): marcado `dmOnly: true` em `NAV_ITEMS` (oculto para jogadores em ambos os componentes de navegação) e adicionado um separador visual (`separatorBefore`) acima do item na sidebar desktop para destacá-lo como ação administrativa. Testes novos em `campaign-sidebar.test.tsx` cobrindo visibilidade pro DM e ocultação pro jogador.
 
 ---
 

@@ -25,4 +25,21 @@ describe("CampaignSidebar", () => {
 
     expect(screen.getByText("Recap")).toBeInTheDocument();
   });
+
+  it("shows the Configurações link to the DM, pointing at the settings route", () => {
+    render(<CampaignSidebar campaignId="campaign-1" role="dm" />);
+
+    const link = screen.getByText("Configurações");
+    expect(link).toBeInTheDocument();
+    expect(link.closest("a")).toHaveAttribute(
+      "href",
+      "/campaigns/campaign-1/settings",
+    );
+  });
+
+  it("hides the Configurações link entirely for a player", () => {
+    render(<CampaignSidebar campaignId="campaign-1" role="player" />);
+
+    expect(screen.queryByText("Configurações")).not.toBeInTheDocument();
+  });
 });

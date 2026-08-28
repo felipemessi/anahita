@@ -72,6 +72,10 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   aparece normalmente (atrás de qualquer sessão já datada). Também
   corrigido um caso em que uma sessão marcada para "hoje" podia não
   aparecer dependendo do fuso horário de quem a criou.
+- (Fase 9) Link para "Configurações" da campanha (editar nome, descrição e
+  cenário) estava pouco visível na navegação, misturado sem destaque a
+  outros 10 itens de conteúdo — agora aparece como uma ação exclusiva do
+  mestre, separada visualmente das demais seções na barra lateral.
 
 ### Changed
 - Padrão `__pycache__` no `.gitignore` ampliado para também casar arquivos,
