@@ -25,6 +25,13 @@
 | 6    | Interatividade de Ficha e Combate | Completo (magias por círculo com limites/slots, inventário editável, moeda, sessão aberta populando combate com iniciativa obrigatória, ações declaradas resolvidas automaticamente via `engine/dice.py` com override manual, visibilidade de ficha restrita a dono/DM) | 2026-08-24 |
 | 7    | Sobrevivência, Descanso e Recursos | Completo (dados de vida em descanso curto/longo por classe, testes de morte automáticos, concentração com DC exposta, perícias passivas, subida de nível com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com controle de uso e recarga) | 2026-08-25 |
 | 8    | Dashboard e Refinamentos de Ficha  | Completo (dashboard de campanha cross-domain, geração de atributos com point buy/standard array validados, escolhas mecânicas de nível reaproveitando `parent_feature_id` do catálogo incluindo seleção múltipla e features de subclasse, opção de Canalizar Divindade rastreada, magias classificadas por tipo de ação/alvo com DC de resistência, CA recalculada a partir do equipamento, proficiência de arma real no ataque de combate) | 2026-08-25 |
+| 9    | Correções e Regressões             | Pendente | 2026-08-28 |
+| 10   | Ficha do Personagem: Edição, Identidade e Navegação | Pendente | 2026-08-28 |
+| 11   | Catálogo Homebrew: Profundidade e Estrutura | Pendente | 2026-08-28 |
+| 12   | Recursos de Classe e Interatividade Mágica | Pendente | 2026-08-28 |
+| 13   | Fluxo de Sessões: Fundamentos Faltantes | Pendente | 2026-08-28 |
+| 14   | Loot e Inventário Integrado        | Pendente | 2026-08-28 |
+| 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
 
 ---
 
@@ -233,6 +240,185 @@
   - [x] `router.py`: `GET /encounters/{id}/log`
   - [x] Teste: sequência de ações gera log na ordem correta
   - Notas: registrado em `participant joined/left`, dano/cura (`update_participant` REST e `live_update_participant` via WS, delta de `hit_point_current`), condição ganha/perdida, avanço de turno (`Round N: Fulano's turn`) e fim de encontro — todos com `action_type=other` (o enum do PRD — attack/spell/move/dash/dodge/disengage/help/hide/ready/other — é vocabulário de ação declarada em turno, não mapeia 1:1 para essas ações administrativas/de sistema; usar `other` uniformemente evita reinterpretar o enum). Migração nova (`700e6e3f1e67`) tornando `combat_logs.actor_id`/`target_id` `ON DELETE SET NULL` em vez de FK simples — a tabela original (história 1) exigia `actor_id` `NOT NULL`, o que quebraria ao remover um participante referenciado por um log já existente (`remove_participant` é uma ação normal do protocolo); a entrada de log sobrevive à remoção, só perde a referência. `actor_id`/`target_id` nem sempre têm um "ator" real no sentido do PRD (ex. dano não rastreia quem atacou) — usados como "quem entrou/saiu" (join/leave) ou "quem foi afetado" (target, dano/condição), documentado em `CombatLog`/`CombatLogRead`. 5 novos testes (`tests/combat/test_log.py` + 1 em `test_router.py`).
+
+---
+
+## Fase 9 — Correções e Regressões
+
+> Objetivo: um levantamento do grupo em 2026-08-28 apontou vários itens como "não funciona" que o código já implementa (rota + service prontos). Antes de desenhar qualquer feature nova, reproduzir e corrigir a causa raiz de cada um. Levantado junto com as Fases 10-15 abaixo, a partir de feedback de uso real (ver `docs/anahita-frontend-backlog.md` para a contraparte de UI de cada item).
+
+- **Como jogador, quero ver a próxima sessão agendada no dashboard da campanha.**
+  - [ ] Reproduzir: criar uma sessão pelo formulário rápido de sessões e confirmar se ela aparece no card "próxima sessão" do dashboard
+  - [ ] Causa raiz suspeita: `get_campaign_dashboard()` (`app/queries/dashboard_queries.py`) filtra por `Session.scheduled_date.is_not(None)`, mas nada hoje força uma sessão a ter `scheduled_date` — sessões criadas sem data ficam invisíveis pra sempre no dashboard
+  - [ ] Decidir e implementar: exigir `scheduled_date` na criação (`SessionCreate`), ou fazer o dashboard cair pra `created_at`/status quando `scheduled_date` for nulo
+  - [ ] Revisar a comparação de data (`datetime.now(UTC).date()`) — checar se pode gerar off-by-one perto da meia-noite pra usuários fora de UTC; ajustar se confirmado
+  - [ ] Testes: sessão sem `scheduled_date` aparece (ou é corretamente tratada) no dashboard; sessão agendada para "hoje" aparece independente do fuso do servidor
+  - Notas: story deve começar reproduzindo o problema (não presumir a causa como certa) antes de commitar a um fix.
+
+- **Como mestre, quero criar conteúdo homebrew em todas as categorias do catálogo (magia, equipamento, item mágico, monstro, antecedente, talento, regra).**
+  - [ ] Reproduzir com o usuário como DM: tentar `POST /catalog/{spells,items,magic-items,monsters,backgrounds,feats,rules}` pela UI de cada categoria e capturar o erro/comportamento exato
+  - [ ] As 9 rotas já existem e funcionam em `app/catalog/router.py` (`_require_dm` guardando cada uma) — investigar se a falha é de permissão (role da campanha em questão), validação (422 silencioso no cliente) ou algo específico de alguma categoria
+  - [ ] Corrigir a causa raiz encontrada; se for só uma mensagem de erro pouco clara devolvida ao cliente, melhorar o detail do 422/403 pra distinguir os casos
+  - [ ] Testes de regressão cobrindo o caso específico corrigido
+  - Notas: não redesenhar as rotas sem antes confirmar que o bug é real — o backend já passou por uma leva de testes destas 9 rotas na Fase 1 (`tests/catalog/test_router_homebrew.py`).
+
+- **Como mestre, quero selecionar o alvo de um ataque/magia em combate.**
+  - [ ] Reproduzir: declarar uma ação com alvo (`declare_action`) num encontro só com monstros vs. um encontro com participantes mistos
+  - [ ] Investigar se a lista de alvos fica vazia quando o encontro só tem monstros (relacionado à Fase 13 história 3 — jogadores não conseguem ser adicionados ao combate hoje) ou se é um bug isolado de `declare_action`/`_resolve_attack`
+  - [ ] Corrigir a causa raiz; se for só consequência do gap de participantes (Fase 13), documentar a dependência e não duplicar o fix
+  - [ ] Teste de regressão cobrindo o caso reproduzido
+  - Notas: `declare_action`→`_resolve_attack` (`app/combat/service.py`) já resolve `target_participant_id` corretamente em teste unitário — o bug relatado pode ser só sintoma de encontro sem alvos válidos.
+
+---
+
+## Fase 10 — Ficha do Personagem: Edição, Identidade e Navegação
+
+> Objetivo: fechar o gap real de edição pós-criação da ficha e dar suporte de dados para a reorganização de navegação pedida pelo grupo.
+
+- **Como jogador, quero editar as informações do meu personagem depois de criado (nome, alinhamento, antecedente, atributos-base — não só HP/AC/inspiração).**
+  - [ ] Expandir `CharacterUpdate` (`app/characters/schemas.py`) para aceitar `name`, `alignment_id`, `background`, e (com validação/aviso de efeitos em cascata) `ability_scores` — todos opcionais, mesmo padrão dos campos já existentes
+  - [ ] `service.py`: ao editar `ability_scores`, recalcular campos derivados (modificadores, CA se depender de DEX, PV máximo se depender de CON) — reaproveitar a mesma lógica de recálculo já usada na criação
+  - [ ] Decidir e documentar a política pra edição de raça/classe pós-criação (bloquear, ou permitir com recálculo completo de CA/PV/perícias) — se bloquear, deixar explícito no schema/erro
+  - [ ] Testes: edição de nome/alinhamento/antecedente simples; edição de ability score recalcula modificadores e campos derivados; dono errado é rejeitado (403)
+
+- **Como jogador, quero colocar uma imagem no meu personagem, para ser exibida "redonda" na ficha e (depois) no mapa de sessão.**
+  - [ ] `Character` ganha campo de imagem (`portrait_key`, seguindo o padrão de `storage_key` já usado por `Handout` — reaproveitar `StorageService`)
+  - [ ] Migração Alembic
+  - [ ] `POST /characters/{id}/portrait` (upload multipart, reaproveitando o padrão de upload de Handouts) — só o dono da ficha
+  - [ ] Testes: upload troca o portrait, remoção volta ao estado sem imagem, dono errado rejeitado (403)
+
+- **Como jogador, quero marcar minhas proficiências com base nas capacidades da minha raça e classe(s), não livremente.**
+  - [ ] Modelar quais proficiências uma raça/classe *oferece como escolha* (ex. "escolha 2 de: Atletismo, Intimidação...") vs. as que já vêm fixas — gap pré-existente já documentado nas notas da Fase 7 ("não existe endpoint para setar proficiência de perícia... gap pré-existente, fora do escopo desta história")
+  - [ ] `POST /characters/{id}/proficiencies` (ou equivalente): aceita só proficiências dentro do conjunto de escolha válido pra raça/classe do personagem (422 se fora do conjunto)
+  - [ ] Testes: escolha dentro do conjunto válido é aceita, escolha fora do conjunto é rejeitada (422), proficiências fixas de raça/classe são aplicadas automaticamente sem exigir escolha
+
+- **Como jogador, quero que a ficha do personagem exponha as sessões associadas a ele, para dar suporte à navegação reorganizada pedida no frontend.**
+  - [ ] Modelar a associação `Character` ↔ `Session` (hoje inexistente — `Character` não tem relação alguma com `Session`) — decidir se é "sessões em que o personagem participou" (derivado de presença em combate/notas) ou uma lista explícita
+  - [ ] `GET /characters/{id}/sessions` retornando as sessões associadas, na ordem padrão (por `session_number`)
+  - [ ] Testes: personagem sem sessões associadas retorna lista vazia; associação reflete corretamente participação real
+  - Notas: pré-requisito da história de navegação/reorganização do frontend (Fase 10 do `docs/anahita-frontend-backlog.md`) — não pular o desenho dessa associação achando que é só UI.
+
+- **Como jogador, quero reordenar a exibição das sessões na minha ficha para organização pessoal (sem afetar a ordem oficial de `session_number`).**
+  - [ ] Campo de ordenação pessoal por personagem (não uma coluna compartilhada em `Session`) — ex. tabela de junção `character_id`/`session_id`/`sort_order`
+  - [ ] `PATCH /characters/{id}/sessions/order` (reordenação em lote)
+  - [ ] Testes: reordenação não afeta `session_number` global nem a ordem vista por outro personagem/jogador
+  - Notas: depende da história anterior (associação `Character`↔`Session`) existir primeiro.
+
+---
+
+## Fase 11 — Catálogo Homebrew: Profundidade e Estrutura
+
+> Objetivo: uma vez corrigido o bug de criação (Fase 9), fechar as lacunas reais de modelagem e permitir exclusão de conteúdo homebrew.
+
+- **Como mestre, quero customizar todos os atributos possíveis de uma raça homebrew (bônus de atributo, traços, sub-raças, idiomas, proficiências, resistências).**
+  - [ ] Estender `RaceCreate` (hoje só `name/description/speed/size/darkvision_range`) e adicionar endpoints de anexo pra `RaceAbilityBonus`, `RaceTrait`, `Subrace`/`SubraceTrait`
+  - [ ] `POST /catalog/races/{id}/ability-bonuses`, `/traits`, `/subraces` — todos DM-only, só sobre raça homebrew da própria campanha
+  - [ ] Modelar proficiências concedidas pela raça (`ProficiencyRace`) e idiomas como campos estruturados (não só `language_desc` livre) na criação/edição de raça homebrew
+  - [ ] Testes: raça homebrew ganha bônus de atributo/traço/sub-raça corretamente; tentativa de anexar a raça SRD (não-homebrew) ou de outra campanha é rejeitada
+
+- **Como mestre, quero poder excluir uma raça/classe/magia/... homebrew que eu criei.**
+  - [ ] `DELETE /catalog/{races,classes,spells,items,magic-items,monsters,backgrounds,feats,rules}/{id}` para as 9 categorias — reaproveitar o padrão `_require_dm` já usado em `router.py` para create
+  - [ ] `service.py`: rejeitar exclusão de conteúdo SRD (`campaign_id IS NULL`) com 403/400; permitir só homebrew da própria campanha
+  - [ ] Decidir e implementar a política pra referências existentes (ex. um personagem já usa a raça homebrew que o DM quer apagar) — bloquear com 409, ou permitir e deixar a referência órfã com fallback de exibição
+  - [ ] Testes: delete de homebrew da própria campanha funciona; delete de SRD é rejeitado; delete de homebrew de outra campanha é rejeitado (404); delete com referência existente segue a política decidida
+
+---
+
+## Fase 12 — Recursos de Classe e Interatividade Mágica
+
+> Objetivo: recursos de classe e magias devem gerar efeitos reais (ataque, cura, dano, resistência), não só decrementar um contador.
+
+- **Como jogador, quero que recursos de classe que geram ações (ex. Turn Undead via Canalizar Divindade) disparem a ação correspondente, não só decrementem um contador.**
+  - [ ] Conectar `CharacterService.use_resource` (hoje só `entry.used += 1`) ao fluxo de `declare_action` do combate — um novo `action_type` (ou reaproveitar `cast_spell_effect`/`attack_spell`) que consome o recurso e resolve o efeito mecânico correspondente numa chamada só
+  - [ ] Mapear, pelo menos pro caso citado (Canalizar Divindade → Turn Undead), qual efeito mecânico cada `FeatureOption` de recurso aciona (resistência de mortos-vivos, dano, etc.)
+  - [ ] Testes: uso do recurso em combate consome o contador **e** aplica o efeito ao(s) alvo(s) corretamente; uso fora de combate falha com erro claro (ou é tratado como bookkeeping-only, a decidir)
+
+- **Como jogador, quero que magias com alvo apliquem o efeito automaticamente ao alvo em combate (cura, dano com resistência), mantendo a ficha como bookkeeping-only fora de combate.**
+  - [ ] Auditar `declare_action`→`_resolve_attack` (`app/combat/service.py`): confirmar se magias de cura/buff (não-ataque) já aplicam efeito ao alvo, ou só as de ataque/dano com resistência
+  - [ ] Se cura/buff não estiverem cobertas, estender o fluxo de resolução pra aplicar o efeito (ex. HP gain) ao `target_participant_id` quando a magia não é `attack_roll`/`saving_throw`
+  - [ ] Confirmar e documentar que o comportamento da ficha fora de combate (`POST /characters/{id}/spells/{id}/cast`, bookkeeping-only — consome slot, define concentração, calcula DC, sem aplicar efeito a ninguém) já está correto por design, sem mudança de código necessária ali
+  - [ ] Testes: magia de cura em combate aplica HP ao alvo corretamente; magia de dano com resistência já testada anteriormente continua passando; cast pela ficha (fora de combate) não altera HP de ninguém
+
+- **Como jogador, quero que a duração de uma magia respeite as regras de tempo do combate (rodadas) quando em combate, e o tempo real quando fora de combate, com contador visível nos segundos finais.**
+  - [ ] Modelar duração de magia: quando lançada dentro de um `encounter_id`, duração em rodadas (reaproveitando o padrão de `EncounterParticipantCondition.duration_rounds`, respeitando os segundos-por-turno do encontro); quando fora de combate, duração em tempo real (`expires_at` calculado a partir de `datetime.now(UTC)` + duração da magia)
+  - [ ] Expandir o que hoje é só `concentrating_spell_id` (ponteiro booleano-ish) para carregar a duração/expiração ativa
+  - [ ] Endpoint ou campo de leitura que informe o tempo restante (rodadas ou segundos) pra UI renderizar o contador
+  - [ ] Testes: duração em rodadas decrementa por avanço de turno; duração em tempo real expira corretamente após o tempo passar; leitura do tempo restante bate com o esperado nos dois modos
+
+---
+
+## Fase 13 — Fluxo de Sessões: Fundamentos Faltantes
+
+> Objetivo: fechar as lacunas de gestão básica de sessão e visibilidade de NPC antes do redesign maior (Fase 15).
+
+- **Como mestre, quero concluir uma sessão.**
+  - [ ] `SessionStatus` já tem `completed` no enum — adicionar `POST /sessions/{id}/complete` (ou `PATCH` de status) transicionando `in_progress`→`completed`, DM-only
+  - [ ] Testes: transição válida funciona; transição de `planned` direto pra `completed` (pulando `in_progress`) é rejeitada ou tratada conforme decisão; jogador não pode concluir (403)
+
+- **Como mestre, quero editar o nome de uma sessão.**
+  - [ ] `SessionUpdate` (hoje inexistente) + `PATCH /sessions/{id}` — DM-only, campo `title` (e talvez `scheduled_date`, reaproveitando pro fix da Fase 9)
+  - [ ] Testes: edição funciona; jogador não pode editar (403)
+
+- **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.**
+  - [ ] Backend já aceita (`EncounterParticipantCreate.character_id`) — confirmar que a rota `POST /encounters/{id}/participants` funciona ponta a ponta com `character_id` preenchido (o gap real é de frontend, ver Fase 13 do backlog de frontend); se houver validação faltando (ex. mesmo personagem duplicado no encontro), adicionar
+  - [ ] Testes: adicionar personagem funciona; personagem duplicado no mesmo encontro é rejeitado
+
+- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
+  - [ ] `NPC` ganha `is_revealed: bool` (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`
+  - [ ] Migração Alembic
+  - [ ] `GET /campaigns/{id}/npcs` (e detalhe) para jogador só retorna `is_revealed=true`; DM sempre vê tudo
+  - [ ] `POST /npcs/{id}/reveal` (ou `PATCH`), DM-only
+  - [ ] Testes: jogador não vê NPC oculto na lista nem no detalhe (404 ou filtro, a decidir); DM vê tudo; reveal muda a visibilidade corretamente
+
+---
+
+## Fase 14 — Loot e Inventário Integrado
+
+> Objetivo: reivindicar um item de loot deve de fato colocá-lo no inventário do personagem.
+
+- **Como jogador, quero que ao reivindicar um item de loot ele entre no meu inventário de personagem de verdade.**
+  - [ ] Estender `InventoryService.claim_loot_drop` (hoje só marca `LootDrop.claimed_by`) para criar/mesclar o item reivindicado em `CharacterEquipment` (ou tabela de inventário equivalente) do personagem
+  - [ ] Tratar os 3 tipos de loot (`item` de catálogo, `magic_item`, custom por nome) na hora de criar a entrada de equipamento
+  - [ ] Testes: claim de cada um dos 3 tipos cria a entrada correta no inventário do personagem; claim duplicado continua rejeitado (409, comportamento já existente)
+
+- **Como mestre, quero atribuir um item de loot a qualquer jogador diretamente, não só esperar que ele reivindique.**
+  - [ ] Confirmar/formalizar que `claim_loot_drop` já aceita ser chamado pelo DM em nome de qualquer personagem da campanha (regra "próprio jogador ou DM" já existente) — se a checagem de autorização não cobrir esse caso claramente, ajustar
+  - [ ] Testes: DM atribui loot a um personagem que não é o seu; jogador tentando atribuir a outro personagem que não o seu é rejeitado (403)
+
+---
+
+## Fase 15 — Redesign de Sessões: Mapas Dinâmicos e Tokens
+
+> Objetivo: repensar o fluxo de sessão como validado com o grupo — mapa com imagem enviada pelo mestre + grid de 1,5m (5ft) sobreposto; tokens posicionáveis vinculados a personagem/NPC/monstro; movimento limitado por deslocamento (`speed`) em combate (por turno) e livre fora de combate; sincronização em tempo real via WebSocket, reaproveitando a infra do combat tracker; mestre pode mover qualquer token a qualquer momento; seleção de alvo (1 ou mais) direto no mapa para magias/ataques. Esta é a maior fase do backlog — trabalhar uma história de fundação por vez, sem pular pra regras de movimento antes do schema/WS básico existirem.
+
+- **Como mestre, quero subir uma imagem de mapa para uma sessão/encontro, com grid de 1,5m sobreposto.**
+  - [ ] `app/sessions/models.py` (ou `app/combat/models.py`, a decidir pela relação mais natural): `SessionMap` — `storage_key` (imagem, reaproveitar `StorageService`), `width_px`/`height_px`, `grid_size_px` (tamanho de uma célula de 1,5m em pixels)
+  - [ ] Migração Alembic
+  - [ ] `POST /sessions/{id}/maps` (ou `/encounters/{id}/maps`) — upload multipart, DM-only
+  - [ ] Testes: upload cria o mapa corretamente; jogador não pode subir mapa (403)
+
+- **Como jogador/mestre, quero que cada personagem/NPC/monstro em cena tenha um token posicionável no mapa.**
+  - [ ] `MapToken` — posição (`x`/`y` em células de grid), vínculo a `character_id`/`npc_id`/`monster_id` (mutuamente exclusivo, mesmo padrão de `EncounterParticipant`), `map_id`, visibilidade
+  - [ ] Migração Alembic
+  - [ ] `POST /maps/{id}/tokens`, `PATCH /tokens/{id}` (posição), `DELETE /tokens/{id}` — DM sempre autorizado; jogador só pode mover o próprio token (ver regra de movimento abaixo)
+  - [ ] Testes: criação/posicionamento de token de cada tipo (personagem/NPC/monstro); token não pode referenciar mais de um tipo ao mesmo tempo
+
+- **Como jogador, quero que meu token respeite o deslocamento do meu personagem quando estou em combate, e se mova livremente fora de combate; o mestre pode mover qualquer token a qualquer momento.**
+  - [ ] Validação de movimento em `PATCH /tokens/{id}`: se o mapa está vinculado a um encontro `active` e é o turno do personagem, limitar a distância percorrida (em células) ao `speed` do personagem (reaproveitar `engine/` pra conversão célula↔pé); fora desse contexto, movimento livre para o dono do personagem; DM sempre livre
+  - [ ] Testes: movimento além do speed no próprio turno é rejeitado (422); movimento fora de combate não tem limite; DM move qualquer token mesmo fora do seu turno; jogador não move token de outro jogador (403)
+
+- **Como grupo, quero ver a posição dos tokens atualizando em tempo real para todos os presentes na sessão.**
+  - [ ] Estender o protocolo WS do combat tracker (`app/combat/ws_router.py`/`ws_manager.py`) com eventos `token_moved`/`token_added`/`token_removed` (servidor→cliente) e `move_token` (cliente→servidor), reaproveitando a mesma conexão `/ws/combat/{encounter_id}` quando o encontro tem mapa, ou um canal próprio `/ws/map/{map_id}` se o mapa existir fora de um encontro
+  - [ ] Testes: mover um token faz broadcast pra todos os clientes conectados; reconexão recebe o estado atual dos tokens via `state_sync` estendido
+
+- **Como mestre/jogador, quero selecionar 1 ou mais alvos diretamente no mapa ao declarar um ataque ou conjurar uma magia.**
+  - [ ] Estender `declare_action`/`DeclareActionRequest` pra aceitar uma lista de `target_participant_id`s (hoje singular) quando a ação afeta múltiplos alvos (ex. Fireball em área)
+  - [ ] Resolver a lista de alvos válidos a partir dos tokens presentes na célula/área selecionada no mapa (cálculo geométrico simples: distância entre células)
+  - [ ] Testes: ação com múltiplos alvos aplica o efeito a cada um corretamente; ação de alvo único continua funcionando com a lista de tamanho 1
+
+Notas gerais da fase: cada história acima deve fechar seu próprio ciclo completo (models → migração → schemas → service → router → testes) antes da próxima começar, mesmo padrão disciplinado das Fases 0-8. A ordem sugerida acima (mapa → token → movimento → tempo real → seleção de alvo) é a ordem de dependência natural.
+
+---
 
 ---
 

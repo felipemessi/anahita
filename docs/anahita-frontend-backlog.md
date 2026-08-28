@@ -25,6 +25,13 @@
 | 6    | Interatividade de Ficha e Combate       | Concluída (magias por círculo com busca/preparo/slots, inventário e moeda editáveis, sessão aberta + iniciativa obrigatória, ações de combate declaradas com resultado ao vivo, resumo de personagem pra outros jogadores com auto-abertura do próprio, rolagem manual em todo ponto de rolagem de combate) | 2026-08-25 |
 | 7    | Sobrevivência, Descanso e Recursos      | Concluída (dados de vida em descanso curto, testes de morte automáticos com estado estável inferido no cliente, indicador de concentração com DC no combat tracker, perícias passivas, level-up com PV/ASI/talento, ações lendárias e reações de monstro, recursos de classe com atalho na declaração de ação) | 2026-08-25 |
 | 8    | Dashboard e Refinamentos de Ficha       | Concluída (dashboard de campanha com dados reais, multiclasse e escolhas de nível no level-up, rolagens recentes no rodapé, animação de dado em toda a ficha e no combate, geração de atributos com 4 métodos, opções de Canalizar Divindade, alvo/DC de magias saving_throw, bugfix de preparo de magia, acordeão de magias por círculo com checagem de elegibilidade, CA reativa a equipamento, moeda por denominação, busca no catálogo de talentos) | 2026-08-26 |
+| 9    | Correções e Regressões                  | Pendente | 2026-08-28 |
+| 10   | Ficha do Personagem: Edição, Identidade e Navegação | Pendente | 2026-08-28 |
+| 11   | Catálogo Homebrew: Profundidade e Estrutura | Pendente | 2026-08-28 |
+| 12   | Recursos de Classe e Interatividade Mágica | Pendente | 2026-08-28 |
+| 13   | Fluxo de Sessões: Fundamentos Faltantes | Pendente | 2026-08-28 |
+| 14   | Loot e Inventário Integrado             | Pendente | 2026-08-28 |
+| 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
 
 ---
 
@@ -439,3 +446,177 @@
 **Lacunas descobertas na Fase 8 — resolvidas ao fechar a fase.**
 
 - [x] Animação de dado (~1.5s) no ataque/dano resolvido em combate (`action-picker.tsx` → `ActionLog`, via `declareAction`/WebSocket). ✅ (2026-08-26) — Notas: reavaliando o receio original (registrado na história de animação de dado) contra o código de verdade: `combat-provider.tsx`'s `action_resolved` só alimenta `actionLog` (a lista de texto do log) — não toca PV/turno/condições de participante (essas vêm de eventos próprios, `participant_updated`/`turn_advanced`), então atrasar só a revelação da entrada do log **num cliente específico** nunca competia com nem atrasava o estado de combate compartilhado; o risco de dessincronização presumido antes não se confirmou lendo o fluxo real. `DeclareActionResultRead`/`DeclareActionResultPayload` já carregavam `attack_roll`/`attack_bonus`/`attacker_check`/`target_check`/`damage_rolled` estruturados no broadcast (não precisou de mudança de backend) — só não estavam sendo usados no frontend. `action-log.tsx`: ao chegar uma entrada nova em `actionLog` com algum desses campos, enfileira e anima cada rolagem envolvida em sequência via `DiceRollModal` (ex. ataque → dano), sem bloquear a lista em si (que já reflete o texto da entrada imediatamente, como antes — só o "flourish" de animação é backgroundizado por cliente). Ações sem rolagem (flavor actions) não acionam o modal.
+
+---
+
+## Fase 9 — Correções e Regressões
+
+> Depende do backend Fase 9. Levantamento do grupo em 2026-08-28: vários itens reportados como "não funciona" já têm rota de backend + tela de frontend prontas no código — tratar como investigação de bug, não redesenho.
+
+- **Como jogador, quero ver a próxima sessão agendada no dashboard da campanha.**
+  - [ ] Reproduzir com o backend corrigido (Fase 9 do backend): confirmar que o card "próxima sessão" (`app/campaigns/[campaignId]/page.tsx`) volta a aparecer
+  - [ ] Se o fix de backend exigir `scheduled_date` obrigatório na criação, ajustar o formulário rápido de sessão (`app/campaigns/[campaignId]/sessions/page.tsx`) para pedir a data
+  - [ ] Teste: card mostra a sessão agendada após o fix
+
+- **Como mestre, quero criar conteúdo homebrew em todas as categorias do catálogo.**
+  - [ ] Reproduzir o bug relatado com o usuário, em cada categoria (`custom-entry-form.tsx`) — capturar mensagem de erro exata mostrada na tela
+  - [ ] Corrigir a causa raiz encontrada no frontend (validação de formulário, envio de payload incorreto) coordenando com o fix de backend da Fase 9
+  - [ ] Se a mensagem genérica de erro ("backend ainda não aceita criação de homebrew nesta categoria") estiver mascarando o erro real, trocar por uma mensagem que reflita o `detail` retornado pela API
+  - [ ] Teste: criação em cada uma das 9 categorias funciona ponta a ponta
+
+- **Como mestre, quero selecionar o alvo de um ataque/magia em combate.**
+  - [ ] Reproduzir com o usuário: `action-picker.tsx` num encontro com participantes mistos (personagens + monstros) vs. só monstros
+  - [ ] Corrigir a causa raiz encontrada (pode depender do fix de "adicionar personagem ao combate" da Fase 13)
+  - [ ] Teste: dropdown de alvo lista participantes corretamente em ambos os cenários
+
+- **Como mestre, quero editar o nome da minha campanha.**
+  - [ ] Confirmar com o usuário se o link para `app/campaigns/[campaignId]/settings/page.tsx` está descobrível na navegação atual — a tela e o `PATCH /campaigns/{id}` já existem e funcionam
+  - [ ] Se for um problema de descoberta (não de funcionalidade), adicionar uma entrada visível de "Configurações" no menu/nav da campanha
+  - [ ] Teste: link de Configurações está visível e leva ao formulário de edição de nome
+
+---
+
+## Fase 10 — Ficha do Personagem: Edição, Identidade e Navegação
+
+> Depende do backend Fase 10.
+
+- **Como jogador, quero editar as informações do meu personagem depois de criado (nome, alinhamento, antecedente, atributos-base).**
+  - [ ] `lib/api/characters.ts`: `updateCharacterInfo` (novo, distinto de `updateCharacterHp`), estender `hooks/use-character.ts`
+  - [ ] Formulário de edição na ficha (`character-sheet.tsx`), reaproveitando o padrão visual do editor inline de HP; campos de ability score exigem confirmação (aviso de efeitos em cascata em CA/PV/perícias)
+  - [ ] Teste: edição de nome/alinhamento/antecedente atualiza a ficha; edição de ability score mostra o aviso de confirmação antes de enviar
+
+- **Como jogador, quero colocar uma imagem no meu personagem, exibida "redonda" na ficha e (depois) no mapa.**
+  - [ ] `lib/api/characters.ts`: `uploadCharacterPortrait` (multipart, mesmo padrão de upload de Handouts)
+  - [ ] Componente de avatar circular (`border-radius: 50%`) no cabeçalho da ficha, reaproveitado depois nos tokens do mapa (Fase 15)
+  - [ ] Teste: upload atualiza o avatar exibido; personagem sem imagem mostra um placeholder (iniciais ou ícone)
+
+- **Como jogador, quero marcar minhas proficiências com base nas capacidades da minha raça e classe(s), não livremente.**
+  - [ ] `lib/api/characters.ts`/`hooks/use-character.ts`: consumir o novo endpoint de escolha restrita de proficiência
+  - [ ] UI na ficha: lista o conjunto de escolha válido (ex. "escolha 2 de: ...") derivado da raça/classe do personagem, em vez de um campo livre
+  - [ ] Teste: só as opções do conjunto válido aparecem selecionáveis; proficiências fixas de raça/classe aparecem já marcadas, não editáveis
+
+- **Como jogador, quero que a navegação da ficha mostre as sessões do personagem agrupadas num dropdown (com overflow) e que a navegação geral do app fique num menu hambúrguer no topo.**
+  - [ ] `lib/api/characters.ts`: `getCharacterSessions` (novo endpoint do backend Fase 10)
+  - [ ] Reorganizar o header da página de ficha (`app/campaigns/[campaignId]/characters/[characterId]/page.tsx`): dropdown de sessões do personagem (com overflow pros que não couberem) + ícone de menu hambúrguer agrupando a navegação geral do app (hoje em `campaign-sidebar.tsx`/`header.tsx`)
+  - [ ] Teste: dropdown lista as sessões do personagem; hambúrguer abre/fecha a navegação geral sem cobrir o conteúdo da ficha
+
+- **Como jogador, quero reordenar as sessões na minha ficha para organização pessoal.**
+  - [ ] `lib/api/characters.ts`: `reorderCharacterSessions` (drag-and-drop ou botões subir/descer)
+  - [ ] UI de reordenação dentro do dropdown de sessões da história anterior
+  - [ ] Teste: reordenar atualiza a ordem exibida sem afetar a lista de sessões vista por outro personagem/jogador
+
+---
+
+## Fase 11 — Catálogo Homebrew: Profundidade e Estrutura
+
+> Depende do backend Fase 11.
+
+- **Como mestre, quero customizar todos os atributos possíveis de uma raça homebrew.**
+  - [ ] `custom-entry-form.tsx`: expor os campos hoje ausentes na categoria `races` (`speed`, `size`, `darkvision_range`) e os novos endpoints de anexo (bônus de atributo, traços, sub-raças, idiomas, proficiências)
+  - [ ] Teste: formulário de raça homebrew salva todos os atributos customizados; leitura de volta reflete o que foi salvo
+
+- **Como mestre, quero poder excluir uma raça/classe/magia/... homebrew que eu criei.**
+  - [ ] `lib/api/catalog.ts`: `deleteCustomEntry` (as 9 categorias)
+  - [ ] Botão "excluir" na tela de detalhe do catálogo (`catalog-entry-detail.tsx`), visível só pro DM e só em entradas homebrew (`is_custom=true`) da própria campanha — nunca em conteúdo SRD
+  - [ ] Modal de confirmação antes de excluir (ação destrutiva)
+  - [ ] Teste: botão só aparece pra DM em homebrew; exclusão remove a entrada da lista; entrada SRD nunca mostra o botão
+
+- **Como mestre, quero que os campos do formulário de homebrew tenham unidades declaradas e usem seleção estruturada quando o conjunto de opções é limitado, em vez de texto livre.**
+  - [ ] `custom-entry-form.tsx`: trocar campos como `spell.school` (hoje `type: "text"` apesar do backend exigir um `MagicSchool.index` válido) e `equipment.item_type` por `<select>` com as opções reais do vocabulário fixo do catálogo
+  - [ ] Adicionar labels de unidade nos campos que precisam (ex. "alcance (metros)", "duração (rodadas/minutos)", "peso (kg)")
+  - [ ] Teste: seleção de escola de magia via `<select>` envia o `index` correto; tentativa de submissão sem selecionar um campo obrigatório mostra erro antes do POST
+
+- **Como jogador/mestre, quero ver os detalhes técnicos de qualquer item do catálogo exibidos adequadamente, não como JSON cru.**
+  - [ ] Criar componentes de detalhe dedicados por categoria (`race-detail.tsx`, `class-detail.tsx`, `spell-detail.tsx`, `item-detail.tsx`, `magic-item-detail.tsx`, `background-detail.tsx`, `feat-detail.tsx`, `rule-detail.tsx`), seguindo o padrão já estabelecido por `monster-stat-block.tsx` (grids `dl`, unidades nos labels, seções agrupadas)
+  - [ ] `catalog-entry-detail.tsx`: rotear para o componente certo por categoria, mantendo o fallback genérico só para casos não cobertos
+  - [ ] Teste: cada categoria renderiza sua visão estruturada; nenhuma categoria cai mais no dump de JSON cru por padrão
+
+---
+
+## Fase 12 — Recursos de Classe e Interatividade Mágica
+
+> Depende do backend Fase 12.
+
+- **Como jogador, quero que recursos de classe que geram ações (ex. Turn Undead) disparem a ação correspondente, não só decrementem um contador.**
+  - [ ] `class-resources.tsx`: ao usar um recurso que aciona efeito mecânico, abrir o fluxo de seleção de alvo/resolução (reaproveitando `action-picker.tsx`) em vez de só decrementar o contador
+  - [ ] Teste: uso do recurso com efeito de ação abre a seleção de alvo; uso de um recurso sem efeito de ação continua funcionando como hoje (só decrementa)
+
+- **Como jogador, quero que magias com alvo apliquem o efeito automaticamente ao alvo em combate (cura, dano com resistência).**
+  - [ ] Confirmar que `action-picker.tsx` (kind `cast_spell_effect`) já cobre cura/buff corretamente após o fix de backend da Fase 12; ajustar UI se o backend passar a exigir/retornar algo novo pra esses casos
+  - [ ] Teste: conjurar uma magia de cura em combate aplica o HP ao alvo selecionado e reflete no `participant-card.tsx` correspondente
+
+- **Como jogador, quero ver um contador de duração de magia, respeitando rodadas em combate e tempo real fora de combate, destacando quando está prestes a expirar.**
+  - [ ] Componente de contador de duração (reaproveitando o indicador de concentração já existente, Fase 7) — modo rodadas (decrementa a cada `turn_advanced` recebido via WS) e modo tempo real (contagem regressiva client-side a partir de `expires_at`)
+  - [ ] Destaque visual (cor/animação) nos últimos segundos/rodadas antes de expirar
+  - [ ] Teste: contador em modo rodadas decrementa corretamente a cada turno; contador em modo tempo real expira no momento certo
+
+---
+
+## Fase 13 — Fluxo de Sessões: Fundamentos Faltantes
+
+> Depende do backend Fase 13.
+
+- **Como mestre, quero concluir uma sessão.**
+  - [ ] `lib/api/sessions.ts`: `completeSession`
+  - [ ] Botão "Concluir sessão" em `app/campaigns/[campaignId]/sessions/[sessionId]/page.tsx`, visível pro DM quando `status === "in_progress"`
+  - [ ] Teste: botão conclui a sessão e atualiza o status exibido
+
+- **Como mestre, quero editar o nome de uma sessão.**
+  - [ ] `lib/api/sessions.ts`: `updateSession`
+  - [ ] Trocar o título estático da página de detalhe por um campo editável (visível só pro DM)
+  - [ ] Teste: edição de nome persiste e reflete na lista de sessões
+
+- **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.**
+  - [ ] `components/combat/character-picker.tsx` (novo, ao lado de `monster-picker.tsx`): busca personagens da campanha (`useCharacters(campaignId)`), autocompleta HP/AC a partir da ficha
+  - [ ] `app/campaigns/[campaignId]/combat/[encounterId]/page.tsx`: alternância entre "adicionar monstro" e "adicionar personagem" ao criar participante
+  - [ ] Teste: adicionar personagem via `character-picker` cria o participante com `character_id` preenchido corretamente
+
+- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
+  - [ ] `npc-card.tsx`: toggle de revelação (DM-only), badge visual de "oculto"/"revelado"
+  - [ ] Visão do jogador em `world/npcs/page.tsx`: lista só NPCs revelados
+  - [ ] Teste: jogador não vê NPC oculto na lista; DM vê e revela normalmente
+
+---
+
+## Fase 14 — Loot e Inventário Integrado
+
+> Depende do backend Fase 14.
+
+- **Como jogador, quero que ao reivindicar um item de loot ele entre no meu inventário de personagem de verdade.**
+  - [ ] `loot-table.tsx`: após claim bem-sucedido, invalidar/atualizar a query de equipamento do personagem (`useCharacter`) pra refletir o novo item na ficha
+  - [ ] Teste: claim de loot atualiza a seção de Equipamento da ficha do personagem que reivindicou
+
+- **Como mestre, quero atribuir um item de loot a qualquer jogador diretamente.**
+  - [ ] `loot-table.tsx`: menu "atribuir a..." por item de loot, visível só pro DM, listando os personagens da campanha
+  - [ ] Teste: DM atribui loot a um personagem que não é o seu; ação não aparece pra jogador comum
+
+---
+
+## Fase 15 — Redesign de Sessões: Mapas Dinâmicos e Tokens
+
+> Depende do backend Fase 15. Maior fase do backlog — construir em cima da base estabilizada pelas Fases 9-14. Modelo validado com o grupo: mapa = imagem enviada pelo mestre + grid de 1,5m sobreposto (snap); movimento limitado por deslocamento em combate (por turno), livre fora de combate, mestre sempre pode mover qualquer token; sincronização em tempo real via WebSocket.
+
+- **Como mestre, quero subir uma imagem de mapa para uma sessão/encontro, com grid de 1,5m sobreposto.**
+  - [ ] `lib/api/maps.ts`, `hooks/use-map.ts`
+  - [ ] `components/maps/map-upload.tsx` (DM-only) — upload de imagem, ajuste manual do tamanho de célula do grid sobre a imagem enviada
+  - [ ] Teste: upload cria o mapa e exibe o grid sobreposto corretamente
+
+- **Como jogador/mestre, quero ver e posicionar tokens de personagem/NPC/monstro no mapa.**
+  - [ ] `components/maps/map-canvas.tsx`: canvas com pan/zoom, renderiza a imagem de fundo + grid + tokens (reaproveitando o avatar circular da Fase 10 para tokens de personagem)
+  - [ ] Drag-and-drop de token com snap à célula de grid mais próxima
+  - [ ] Teste: arrastar um token pra uma nova célula chama a API de atualização de posição com as coordenadas corretas (snapadas)
+
+- **Como jogador, quero que meu token respeite o deslocamento do meu personagem em combate, e se mova livremente fora de combate; o mestre pode mover qualquer token.**
+  - [ ] `map-canvas.tsx`: destacar visualmente o alcance de movimento restante do personagem no turno atual (células alcançáveis dentro do `speed`) quando em combate
+  - [ ] Bloquear/mostrar erro ao tentar mover além do alcance no próprio turno; sem bloqueio fora de combate
+  - [ ] Teste: tentar mover além do alcance em combate mostra erro e não persiste a posição; movimento dentro do alcance funciona; DM sempre pode mover qualquer token
+
+- **Como grupo, quero ver a posição dos tokens atualizando em tempo real para todos os presentes na sessão.**
+  - [ ] `lib/ws/map-socket.ts` (ou estender `combat-socket.ts`): processa `token_moved`/`token_added`/`token_removed`, reconectando e resincronizando via `state_sync` estendido
+  - [ ] Teste: `map-provider`/reducer processa os eventos de token corretamente, mesmo padrão de teste já usado pro `combat-provider`
+
+- **Como mestre/jogador, quero selecionar 1 ou mais alvos diretamente no mapa ao declarar um ataque ou conjurar uma magia.**
+  - [ ] Estender `action-picker.tsx` para permitir clique direto em um ou mais tokens do mapa como forma de selecionar alvo(s), em vez de só dropdown — clique simples pra alvo único, clique múltiplo (ou desenho de área) pra ações em área
+  - [ ] Teste: seleção por clique no mapa produz a mesma lista de `target_participant_id`s que o dropdown produziria; ação de área seleciona todos os tokens dentro do raio
+
+Notas gerais da fase: cada história deve integrar de verdade contra o endpoint correspondente do backend Fase 15 assim que ele existir — não deixar mocks acumulando entre histórias, mesmo padrão disciplinado já usado nas Fases 0-8.
