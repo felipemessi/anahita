@@ -23,10 +23,6 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog.domain import AbilityScore
 from app.catalog.models import (
-    ClassDefinition,
-    EquipmentCategory,
-    Item,
-    ItemProperty,
     Monster,
     MonsterAction,
     MonsterActionDamage,
@@ -36,20 +32,13 @@ from app.catalog.models import (
     MonsterReaction,
     MonsterReactionDamage,
     Proficiency,
-    ProficiencyClass,
     SkillDefinition,
-    Spell,
-    SpellDamage,
-    WeaponDetail,
 )
 from app.characters.domain import SKILL_ABILITY, Skill
 from app.characters.models import (
     Character,
     CharacterAbilityScore,
-    CharacterClass,
-    CharacterEquipment,
     CharacterSkill,
-    CharacterSpell,
 )
 from app.combat.domain import (
     ActionType,
@@ -81,6 +70,9 @@ from app.combat.schemas import (
     WSTriggerReactionPayload,
     WSUseLegendaryActionPayload,
 )
+from app.queries.character_stats import character_proficiency_bonus
+from app.queries.spell_attack import resolve_character_spell_attack
+from app.queries.weapon_attack import resolve_character_weapon_attack
 from app.sessions.models import Session
 from app.world.models import NPC
 from engine.abilities import calculate_modifier, calculate_skill_bonus
@@ -152,23 +144,6 @@ def encounter_to_read(encounter: Encounter) -> EncounterRead:
         current_turn_order=encounter.current_turn_order,
         created_at=encounter.created_at,
         participants=[participant_to_read(p) for p in encounter.participants],
-    )
-
-
-def _weapon_name_tokens(index: str) -> frozenset[str]:
-    """Hyphen-split `index` into naively-singularized tokens, order-independent.
-
-    Used to match a specific-weapon `Proficiency.index` (e.g.
-    `"hand-crossbows"`) against an `Item.index` that names the same
-    weapon in a different word order (e.g. `"crossbow-hand"`) — see
-    `CombatService._is_weapon_proficient`. Naive `-s` stripping is
-    reliable in this domain (weapon names), not a general English
-    depluralizer.
-    """
-    return frozenset(
-        token[:-1] if token.endswith("s") else token
-        for token in index.split("-")
-        if token
     )
 
 
@@ -834,8 +809,15 @@ class CombatService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="weapon_equipment_id is required to attack with a weapon",
                 )
-            return await self._resolve_character_weapon_attack(
+            profile = await resolve_character_weapon_attack(
                 attacker.character_id, data.weapon_equipment_id, db
+            )
+            sign = "+" if profile.damage_bonus >= 0 else ""
+            return (
+                profile.attack_bonus,
+                f"{profile.damage_dice}{sign}{profile.damage_bonus}",
+                profile.damage_type,
+                profile.weapon_name,
             )
         if (
             data.action_type == ActionType.attack_spell
@@ -846,8 +828,14 @@ class CombatService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="spell_entry_id is required to attack with a spell",
                 )
-            return await self._resolve_character_spell_attack(
+            spell_profile = await resolve_character_spell_attack(
                 attacker.character_id, data.spell_entry_id, data.cast_at_level, db
+            )
+            return (
+                spell_profile.attack_bonus,
+                spell_profile.damage_dice,
+                spell_profile.damage_type,
+                spell_profile.spell_name,
             )
         if attacker.monster_id is not None:
             if data.monster_action_id is None:
@@ -872,221 +860,6 @@ class CombatService:
             data.manual_damage_expression,
             None,
             attacker.name,
-        )
-
-    async def _resolve_character_weapon_attack(
-        self, character_id: uuid.UUID, equipment_id: uuid.UUID, db: AsyncSession
-    ) -> tuple[int, str, str, str]:
-        """Resolve a Character's equipped weapon into attack bonus + damage.
-
-        Ability used: DEX for ranged or finesse weapons, STR otherwise — for
-        finesse specifically the PHB lets the player pick either; this
-        always picks DEX (the common choice in play), a documented
-        simplification. Proficiency (Fase 8 audit) is resolved by
-        `_is_weapon_proficient` — simple/martial weapon category, or a
-        specific-weapon grant (e.g. Rogue's Longswords) — and only adds
-        the proficiency bonus when the character actually has it.
-        """
-        result = await db.execute(
-            select(CharacterEquipment).where(
-                CharacterEquipment.id == equipment_id,
-                CharacterEquipment.character_id == character_id,
-            )
-        )
-        equipment = result.scalar_one_or_none()
-        if equipment is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Equipment entry not found on the attacker's character",
-            )
-        item_result = await db.execute(
-            select(Item)
-            .where(Item.id == equipment.item_id)
-            .options(
-                selectinload(Item.weapon_detail).selectinload(WeaponDetail.damage_type),
-                selectinload(Item.properties).selectinload(
-                    ItemProperty.weapon_property
-                ),
-            )
-        )
-        item = item_result.scalar_one_or_none()
-        if item is None or item.weapon_detail is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Selected equipment is not a weapon",
-            )
-
-        has_finesse = any(p.weapon_property.index == "finesse" for p in item.properties)
-        ability = (
-            AbilityScore.dex
-            if item.weapon_detail.weapon_range == "Ranged" or has_finesse
-            else AbilityScore.str
-        )
-        ability_mod = await self._character_ability_modifier(character_id, ability, db)
-        proficiency_bonus = 0
-        if await self._is_weapon_proficient(character_id, item, db):
-            proficiency_bonus = await self._character_proficiency_bonus(
-                character_id, db
-            )
-        attack_bonus = ability_mod + proficiency_bonus
-        sign = "+" if ability_mod >= 0 else ""
-        damage_expression = f"{item.weapon_detail.damage_dice}{sign}{ability_mod}"
-        return (
-            attack_bonus,
-            damage_expression,
-            item.weapon_detail.damage_type.index or "",
-            item.index or "weapon",
-        )
-
-    async def _is_weapon_proficient(
-        self, character_id: uuid.UUID, item: Item, db: AsyncSession
-    ) -> bool:
-        """Whether any of the character's classes grants proficiency with `item`.
-
-        Two ways a class grants it (Fase 8 audit): the broad
-        `simple-weapons`/`martial-weapons` category (matched against
-        `WeaponDetail.weapon_category`), or a specific named weapon (e.g.
-        Rogue's "Longswords") — those SRD entries have no structured
-        equipment-category reference, so they're matched by comparing
-        singularized, hyphen-token sets against `item.index` (e.g.
-        `"hand-crossbows"` -> `{"hand", "crossbow"}` matches item index
-        `"crossbow-hand"` -> `{"crossbow", "hand"}`).
-        """
-        classes_result = await db.execute(
-            select(CharacterClass.class_definition_id).where(
-                CharacterClass.character_id == character_id
-            )
-        )
-        class_ids = list(classes_result.scalars().all())
-        if not class_ids:
-            return False
-
-        result = await db.execute(
-            select(
-                Proficiency.proficiency_type, Proficiency.index, EquipmentCategory.index
-            )
-            .join(ProficiencyClass, ProficiencyClass.proficiency_id == Proficiency.id)
-            .outerjoin(
-                EquipmentCategory,
-                EquipmentCategory.id == Proficiency.equipment_category_id,
-            )
-            .where(ProficiencyClass.class_definition_id.in_(class_ids))
-        )
-        weapon_category = (
-            item.weapon_detail.weapon_category
-            if item.weapon_detail is not None
-            else None
-        )
-        item_tokens = _weapon_name_tokens(item.index or "")
-        for proficiency_type, prof_index, equipment_category_index in result.all():
-            if (
-                proficiency_type == "weapon"
-                and weapon_category is not None
-                and equipment_category_index == f"{weapon_category.value}-weapons"
-            ):
-                return True
-            if (
-                proficiency_type == "other"
-                and item_tokens
-                and _weapon_name_tokens(prof_index or "") == item_tokens
-            ):
-                return True
-        return False
-
-    async def _resolve_character_spell_attack(
-        self,
-        character_id: uuid.UUID,
-        spell_entry_id: uuid.UUID,
-        cast_at_level: int | None,
-        db: AsyncSession,
-    ) -> tuple[int, str | None, str | None, str]:
-        """Resolve a Character's known spell into attack bonus + damage.
-
-        Attack bonus: the casting class's spellcasting-ability modifier +
-        proficiency bonus, matched by `CharacterSpell.source_class` against
-        the character's classes (same lookup `CharacterService` uses).
-        Damage: looked up from catalog `SpellDamage` at `cast_at_level`
-        (slot-scaled) or the character's class level (cantrip/character-
-        level-scaled); `None` if the spell has no damage entry at all (e.g.
-        a pure debuff/utility spell) — the caller must then supply a manual
-        damage expression to log an effect without rolling one here.
-        """
-        entry_result = await db.execute(
-            select(CharacterSpell).where(
-                CharacterSpell.id == spell_entry_id,
-                CharacterSpell.character_id == character_id,
-            )
-        )
-        entry = entry_result.scalar_one_or_none()
-        if entry is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Spell entry not found on the attacker's character",
-            )
-        spell_result = await db.execute(
-            select(Spell)
-            .where(Spell.id == entry.spell_id)
-            .options(selectinload(Spell.damages).selectinload(SpellDamage.damage_type))
-        )
-        spell = spell_result.scalar_one_or_none()
-        if spell is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Spell not found"
-            )
-
-        character_result = await db.execute(
-            select(Character)
-            .where(Character.id == character_id)
-            .options(selectinload(Character.classes))
-        )
-        character = character_result.scalar_one()
-        ability_mod = 0
-        caster_level = character.level
-        if entry.source_class is not None:
-            class_result = await db.execute(
-                select(ClassDefinition).where(
-                    ClassDefinition.index == entry.source_class
-                )
-            )
-            class_def = class_result.scalar_one_or_none()
-            class_entry = next(
-                (
-                    c
-                    for c in character.classes
-                    if class_def is not None and c.class_definition_id == class_def.id
-                ),
-                None,
-            )
-            if class_def is not None and class_entry is not None:
-                caster_level = class_entry.level
-                if class_def.spellcasting_ability is not None:
-                    ability_mod = await self._character_ability_modifier(
-                        character_id, AbilityScore(class_def.spellcasting_ability), db
-                    )
-        proficiency_bonus = await self._character_proficiency_bonus(character_id, db)
-        attack_bonus = ability_mod + proficiency_bonus
-
-        target_level = cast_at_level or spell.level
-        damage_row = next(
-            (
-                d
-                for d in spell.damages
-                if (d.scaling_type == "slot_level" and d.scaling_key == target_level)
-                or (
-                    d.scaling_type == "character_level"
-                    and d.scaling_key
-                    == max((k for k in (1, 5, 11, 17) if k <= caster_level), default=1)
-                )
-            ),
-            None,
-        )
-        if damage_row is None:
-            return attack_bonus, None, None, spell.index or "spell"
-        return (
-            attack_bonus,
-            damage_row.dice_expression,
-            damage_row.damage_type.index or "",
-            spell.index or "spell",
         )
 
     async def _resolve_monster_attack(
@@ -1312,27 +1085,6 @@ class CombatService:
         await db.commit()
         return outcome
 
-    async def _character_ability_modifier(
-        self, character_id: uuid.UUID, ability: AbilityScore, db: AsyncSession
-    ) -> int:
-        result = await db.execute(
-            select(CharacterAbilityScore).where(
-                CharacterAbilityScore.character_id == character_id,
-                CharacterAbilityScore.ability == ability,
-            )
-        )
-        score = result.scalar_one_or_none()
-        if score is None:
-            return 0
-        return calculate_modifier(score.base_score + score.asi_bonus + score.misc_bonus)
-
-    async def _character_proficiency_bonus(
-        self, character_id: uuid.UUID, db: AsyncSession
-    ) -> int:
-        result = await db.execute(select(Character).where(Character.id == character_id))
-        character = result.scalar_one_or_none()
-        return character.proficiency_bonus if character is not None else 0
-
     async def _resolve_contest(
         self,
         encounter: Encounter,
@@ -1456,7 +1208,7 @@ class CombatService:
             )
         )
         scores_by_ability = {s.ability: s for s in scores_result.scalars().all()}
-        proficiency_bonus = await self._character_proficiency_bonus(character_id, db)
+        proficiency_bonus = await character_proficiency_bonus(character_id, db)
 
         bonuses = []
         for skill_row in char_skills:

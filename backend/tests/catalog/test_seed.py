@@ -1,7 +1,7 @@
 """Tests for the catalog seed function."""
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
@@ -26,11 +26,13 @@ from app.catalog.models import (
     RuleSection,
     SkillDefinition,
     Spell,
+    SpellDamage,
     WeaponProperty,
 )
 from app.catalog.seeds.seed import (
     backfill_feature_parent_ids,
     backfill_spell_action_target_types,
+    backfill_spell_damages,
     seed_catalog,
 )
 
@@ -188,6 +190,78 @@ async def test_backfill_spell_action_target_types_is_idempotent_and_preserves_id
             select(Spell.id, Spell.action_type).where(Spell.index == "fireball")
         )
     ).one()
+    assert after == before
+
+
+async def test_backfill_spell_damages_restores_rows_missing_on_an_old_seed(
+    db: AsyncSession,
+) -> None:
+    """A spell seeded before its `damages` rows existed gets them backfilled.
+
+    Simulates the exact gap reported live: `_seed_spells` only inserts
+    `SpellDamage` rows when first creating a `Spell` row, so a database
+    seeded before Sacred Flame's damage entries existed in the JSON data
+    has zero `SpellDamage` rows for it forever — `action_type` alone
+    (backfilled separately) isn't enough to roll its damage.
+    """
+    await seed_catalog(db)
+    sacred_flame = (
+        await db.execute(select(Spell).where(Spell.index == "sacred-flame"))
+    ).scalar_one()
+    assert sacred_flame.action_type == "saving_throw"
+
+    await db.execute(delete(SpellDamage).where(SpellDamage.spell_id == sacred_flame.id))
+    await db.commit()
+    remaining = (
+        await db.execute(
+            select(func.count())
+            .select_from(SpellDamage)
+            .where(SpellDamage.spell_id == sacred_flame.id)
+        )
+    ).scalar_one()
+    assert remaining == 0
+
+    await backfill_spell_damages(db)
+    await db.commit()
+
+    damages = (
+        (
+            await db.execute(
+                select(SpellDamage).where(SpellDamage.spell_id == sacred_flame.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(damages) == 4
+    assert any(d.dice_expression == "1d8" for d in damages)
+
+
+async def test_backfill_spell_damages_is_idempotent(db: AsyncSession) -> None:
+    """Running the backfill again doesn't duplicate rows for a spell that has them."""
+    await seed_catalog(db)
+    fireball = (
+        await db.execute(select(Spell).where(Spell.index == "fireball"))
+    ).scalar_one()
+    before = (
+        await db.execute(
+            select(func.count())
+            .select_from(SpellDamage)
+            .where(SpellDamage.spell_id == fireball.id)
+        )
+    ).scalar_one()
+    assert before > 0
+
+    await backfill_spell_damages(db)
+    await db.commit()
+
+    after = (
+        await db.execute(
+            select(func.count())
+            .select_from(SpellDamage)
+            .where(SpellDamage.spell_id == fireball.id)
+        )
+    ).scalar_one()
     assert after == before
 
 

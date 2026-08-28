@@ -185,6 +185,7 @@ async def seed_catalog(session: AsyncSession) -> None:
     await _seed_rules(session)
     await backfill_feature_parent_ids(session)
     await backfill_spell_action_target_types(session)
+    await backfill_spell_damages(session)
     await backfill_armor_categories(session)
     await backfill_weapon_categories(session)
     await session.commit()
@@ -268,6 +269,49 @@ async def backfill_spell_action_target_types(session: AsyncSession) -> None:
                 ),
             )
         )
+
+
+async def backfill_spell_damages(session: AsyncSession) -> None:
+    """Insert `SpellDamage` rows for already-seeded spells that have none.
+
+    `_seed_spells` inserts these correctly for a fresh install, but only as
+    part of creating the `Spell` row itself — it bails out entirely (via
+    its own "already seeded" guard) once any `Spell` row exists, so a
+    database seeded before a spell's `damages` entries existed in the JSON
+    data (or before `SpellDamage` seeding existed at all) is stuck with
+    zero damage rows for that spell forever, even across repeated
+    `seed_catalog` runs. This is why Sacred Flame/Fireball/etc. could
+    resolve `action_type` correctly (backfilled above) yet have no damage
+    to roll. Matches by the owning `Spell.index`; only inserts for a spell
+    with zero existing `SpellDamage` rows, so it never duplicates rows for
+    a spell that already has them — safe to run repeatedly, including as
+    part of `seed_catalog` on an already-seeded database. Homebrew spells
+    (`index IS NULL`) are never touched.
+    """
+    id_by_index = await _index_map(session, Spell)
+    damage_types_by_index = await _index_map(session, DamageType)
+
+    has_damages_result = await session.execute(select(SpellDamage.spell_id).distinct())
+    spell_ids_with_damages = set(has_damages_result.scalars().all())
+
+    for entry in _load("spells"):
+        spell_id = id_by_index.get(entry["index"])
+        damages = entry.get("damages", [])
+        if spell_id is None or not damages or spell_id in spell_ids_with_damages:
+            continue
+        for damage in damages:
+            damage_type_id = damage_types_by_index.get(damage["damage_type_index"])
+            if damage_type_id is not None:
+                session.add(
+                    SpellDamage(
+                        id=uuid.uuid4(),
+                        spell_id=spell_id,
+                        damage_type_id=damage_type_id,
+                        scaling_type=damage["scaling_type"],
+                        scaling_key=damage["scaling_key"],
+                        dice_expression=damage["dice_expression"],
+                    )
+                )
 
 
 async def backfill_armor_categories(session: AsyncSession) -> None:

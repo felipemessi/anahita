@@ -5,7 +5,13 @@ vi.mock("@/lib/api/client", () => ({
   apiFetch: (...args: unknown[]) => apiFetch(...args),
 }));
 
-import { addCharacterEquipment, addCharacterFeature, addCharacterSpell } from "./characters";
+import {
+  addCharacterEquipment,
+  addCharacterFeature,
+  addCharacterSpell,
+  getSpellAttackProfile,
+  getWeaponAttackProfile,
+} from "./characters";
 
 describe("characters API", () => {
   it("addCharacterSpell posts to /characters/{id}/spells", async () => {
@@ -28,6 +34,36 @@ describe("characters API", () => {
       method: "POST",
       body: JSON.stringify({ item_id: "item-1" }),
     });
+  });
+
+  it("getWeaponAttackProfile gets /characters/{id}/equipment/{id}/attack-profile", async () => {
+    apiFetch.mockResolvedValueOnce({ attack_bonus: 4 });
+
+    await getWeaponAttackProfile("char-1", "entry-1");
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/characters/char-1/equipment/entry-1/attack-profile",
+    );
+  });
+
+  it("getSpellAttackProfile gets /characters/{id}/spells/{id}/attack-profile", async () => {
+    apiFetch.mockResolvedValueOnce({ action_type: "attack_roll" });
+
+    await getSpellAttackProfile("char-1", "entry-1");
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/characters/char-1/spells/entry-1/attack-profile",
+    );
+  });
+
+  it("getSpellAttackProfile appends cast_at_level when given", async () => {
+    apiFetch.mockResolvedValueOnce({ action_type: "saving_throw" });
+
+    await getSpellAttackProfile("char-1", "entry-1", 3);
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/characters/char-1/spells/entry-1/attack-profile?cast_at_level=3",
+    );
   });
 
   it("addCharacterFeature posts to /characters/{id}/features", async () => {

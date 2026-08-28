@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { formatModifier, rollCheck, rollD20 } from "./dice";
+import { formatModifier, rollCheck, rollD20, rollDiceExpression } from "./dice";
 
 describe("rollD20", () => {
   afterEach(() => {
@@ -39,6 +39,26 @@ describe("rollCheck", () => {
     vi.spyOn(Math, "random").mockReturnValue(0); // die = 1
     const result = rollCheck("Sabedoria", -2);
     expect(result.total).toBe(-1);
+  });
+});
+
+describe("rollDiceExpression", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("rolls a single die for a bare NdM with N omitted", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.9999); // 1d8 -> 8
+    expect(rollDiceExpression("1d8")).toBe(8);
+  });
+
+  it("sums every die for a multi-die expression", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0); // each d6 -> 1
+    expect(rollDiceExpression("2d6")).toBe(2);
+  });
+
+  it("returns 0 for an expression it can't parse", () => {
+    expect(rollDiceExpression("not-a-dice-expression")).toBe(0);
   });
 });
 

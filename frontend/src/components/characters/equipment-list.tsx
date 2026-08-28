@@ -2,11 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 
+import { useRoll, useRollDamage } from "@/components/characters/roll-log";
 import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
 import {
   useAddCharacterEquipment,
   useRemoveCharacterEquipment,
   useUpdateCharacterEquipment,
+  useWeaponAttackProfile,
 } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
 import type { CharacterEquipment } from "@/types/character";
@@ -108,6 +110,14 @@ export function EquipmentList({
                       className="w-12 rounded border border-input bg-background px-1 py-0.5"
                     />
                   </label>
+                  {entry.equipped ? (
+                    <WeaponAttackButton
+                      characterId={characterId}
+                      equipmentId={entry.id}
+                      itemId={entry.item_id}
+                      onError={setError}
+                    />
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => handleToggle(entry, "equipped")}
@@ -181,6 +191,72 @@ export function EquipmentList({
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * "Atacar" / "Dano" for an equipped weapon, straight from the sheet (no
+ * combat encounter needed) — resolved by `GET .../attack-profile`, same
+ * ability/proficiency math the combat tracker uses. Two separate buttons,
+ * each rolled by hand: damage is never rolled automatically after the
+ * attack, since whether it even lands is for the table to call. Renders
+ * nothing for a non-weapon item.
+ */
+function WeaponAttackButton({
+  characterId,
+  equipmentId,
+  itemId,
+  onError,
+}: {
+  characterId: string;
+  equipmentId: string;
+  itemId: string;
+  onError: (message: string | null) => void;
+}) {
+  const { data: item } = useCatalogEntry("equipment", itemId);
+  const attackProfile = useWeaponAttackProfile(characterId);
+  const roll = useRoll();
+  const rollDamage = useRollDamage();
+
+  if (!item?.weapon_detail) return null;
+
+  async function handleRoll(kind: "attack" | "damage") {
+    onError(null);
+    try {
+      const profile = await attackProfile.mutateAsync(equipmentId);
+      if (kind === "attack") {
+        roll(`${profile.weapon_name} (ataque)`, profile.attack_bonus);
+      } else {
+        rollDamage(
+          `${profile.weapon_name} (dano)`,
+          profile.damage_dice,
+          profile.damage_bonus,
+        );
+      }
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : "Não foi possível atacar.");
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => handleRoll("attack")}
+        disabled={attackProfile.isPending}
+        className="text-primary hover:underline disabled:opacity-40"
+      >
+        atacar
+      </button>
+      <button
+        type="button"
+        onClick={() => handleRoll("damage")}
+        disabled={attackProfile.isPending}
+        className="text-primary hover:underline disabled:opacity-40"
+      >
+        dano
+      </button>
+    </>
   );
 }
 

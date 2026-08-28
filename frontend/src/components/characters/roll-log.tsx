@@ -3,7 +3,12 @@
 import { createContext, useCallback, useContext, useState } from "react";
 
 import { DiceRollModal, type DiceRollRequest } from "@/components/characters/dice-roll-modal";
-import { formatModifier, rollCheck, type DiceRollResult } from "@/lib/utils/dice";
+import {
+  formatModifier,
+  rollCheck,
+  rollDiceExpression,
+  type DiceRollResult,
+} from "@/lib/utils/dice";
 
 const MAX_ENTRIES = 5;
 
@@ -16,6 +21,13 @@ interface RollLogContextValue {
   roll: (label: string, modifier: number) => void;
   /** A roll already resolved server-side (death saves, hit dice) — still gets the animation. */
   showServerRoll: (request: DiceRollRequest) => void;
+  /**
+   * A damage roll: sums `diceExpression` (e.g. `"1d8"`) and adds `bonus` —
+   * the weapon/spell "Dano" button, always triggered by hand, on its own,
+   * never chained after an attack/save roll (the player decides whether
+   * the attack actually hit before rolling damage).
+   */
+  rollDamage: (label: string, diceExpression: string, bonus: number) => void;
   entries: RollLogEntry[];
 }
 
@@ -34,39 +46,62 @@ const RollLogContext = createContext<RollLogContextValue | null>(null);
  */
 export function RollLogProvider({ children }: { children: React.ReactNode }) {
   const [entries, setEntries] = useState<RollLogEntry[]>([]);
-  const [pending, setPending] = useState<DiceRollRequest | null>(null);
+  // A queue rather than a single slot, so two rolls fired in quick
+  // succession never fight over the same modal — the next one starts once
+  // the current animation finishes.
+  const [queue, setQueue] = useState<DiceRollRequest[]>([]);
+  const pending = queue[0] ?? null;
 
-  const roll = useCallback((label: string, modifier: number) => {
-    const result = rollCheck(label, modifier);
-    setPending({ label, rollResult: result.die, modifier, total: result.total });
+  const enqueue = useCallback((requests: DiceRollRequest[]) => {
+    setQueue((current) => [...current, ...requests]);
   }, []);
 
-  const showServerRoll = useCallback((request: DiceRollRequest) => {
-    setPending(request);
-  }, []);
+  const roll = useCallback(
+    (label: string, modifier: number) => {
+      const result = rollCheck(label, modifier);
+      enqueue([{ label, rollResult: result.die, modifier, total: result.total }]);
+    },
+    [enqueue],
+  );
+
+  const showServerRoll = useCallback(
+    (request: DiceRollRequest) => {
+      enqueue([request]);
+    },
+    [enqueue],
+  );
+
+  const rollDamage = useCallback(
+    (label: string, diceExpression: string, bonus: number) => {
+      const damageRoll = rollDiceExpression(diceExpression);
+      enqueue([{ label, rollResult: damageRoll, modifier: bonus, total: damageRoll + bonus }]);
+    },
+    [enqueue],
+  );
 
   const handleAnimationComplete = useCallback(() => {
-    setPending((current) => {
-      if (current) {
+    setQueue((current) => {
+      const [done, ...rest] = current;
+      if (done) {
         setEntries((prev) =>
           [
             {
               id: crypto.randomUUID(),
-              label: current.label,
-              die: current.rollResult,
-              modifier: current.modifier,
-              total: current.total,
+              label: done.label,
+              die: done.rollResult,
+              modifier: done.modifier,
+              total: done.total,
             },
             ...prev,
           ].slice(0, MAX_ENTRIES),
         );
       }
-      return null;
+      return rest;
     });
   }, []);
 
   return (
-    <RollLogContext.Provider value={{ roll, showServerRoll, entries }}>
+    <RollLogContext.Provider value={{ roll, showServerRoll, rollDamage, entries }}>
       {children}
       <DiceRollModal request={pending} onComplete={handleAnimationComplete} />
     </RollLogContext.Provider>
@@ -93,6 +128,19 @@ export function useRoll(): (label: string, modifier: number) => void {
  */
 export function useShowServerRoll(): (request: DiceRollRequest) => void {
   return useRollLogContext().showServerRoll;
+}
+
+/**
+ * Returns a `rollDamage(label, diceExpression, bonus)` function for a
+ * damage roll (e.g. `rollDamage("Longsword (dano)", "1d8", 2)`) — always
+ * fired by hand, on its own, never automatically after an attack/save.
+ */
+export function useRollDamage(): (
+  label: string,
+  diceExpression: string,
+  bonus: number,
+) => void {
+  return useRollLogContext().rollDamage;
 }
 
 /** Renders the recent-rolls log; place inside `RollLogProvider`, wherever it should appear. */

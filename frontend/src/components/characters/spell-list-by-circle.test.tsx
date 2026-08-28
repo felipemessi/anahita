@@ -12,11 +12,20 @@ const useAddCharacterSpell = vi.fn();
 const useUpdateCharacterSpell = vi.fn();
 const useRemoveCharacterSpell = vi.fn();
 const useCastCharacterSpell = vi.fn();
+const useSpellAttackProfile = vi.fn();
 vi.mock("@/hooks/use-character", () => ({
   useAddCharacterSpell: () => useAddCharacterSpell(),
   useUpdateCharacterSpell: () => useUpdateCharacterSpell(),
   useRemoveCharacterSpell: () => useRemoveCharacterSpell(),
   useCastCharacterSpell: () => useCastCharacterSpell(),
+  useSpellAttackProfile: (...args: unknown[]) => useSpellAttackProfile(...args),
+}));
+
+const useRoll = vi.fn();
+const useRollDamage = vi.fn();
+vi.mock("@/components/characters/roll-log", () => ({
+  useRoll: () => useRoll(),
+  useRollDamage: () => useRollDamage(),
 }));
 
 import { ApiError } from "@/lib/api/client";
@@ -55,6 +64,9 @@ describe("SpellListByCircle", () => {
   const updateSpellMutate = vi.fn();
   const removeSpellMutate = vi.fn();
   const castSpellMutate = vi.fn();
+  // Populated per-test to control what `SpellRollControls` sees for a
+  // given spell's catalog entry (`action_type`/`damages`) — see `useCatalogEntry` mock below.
+  let catalogSpellDetailsById: Record<string, { action_type: string; damages: unknown[] }> = {};
 
   beforeEach(() => {
     addSpellMutate.mockReset();
@@ -82,6 +94,10 @@ describe("SpellListByCircle", () => {
       mutateAsync: castSpellMutate,
       isPending: false,
     });
+    useSpellAttackProfile.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useRoll.mockReturnValue(vi.fn());
+    useRollDamage.mockReturnValue(vi.fn());
+    catalogSpellDetailsById = {};
     useCatalogEntry.mockImplementation((category: string, id: string) => {
       if (category === "classes" && id === "wizard-id") {
         return {
@@ -107,6 +123,9 @@ describe("SpellListByCircle", () => {
             subclasses: [],
           },
         };
+      }
+      if (category === "spells" && catalogSpellDetailsById[id]) {
+        return { data: catalogSpellDetailsById[id], isLoading: false };
       }
       return { data: undefined, isLoading: false };
     });
@@ -402,5 +421,103 @@ describe("SpellListByCircle", () => {
       spellEntryId: "entry-magic-missile",
       data: { cast_at_level: 2 },
     });
+  });
+
+  it("shows 'atacar' and 'dano' for an attack_roll cantrip, each rolled independently", async () => {
+    catalogSpellDetailsById["spell-fire-bolt"] = {
+      action_type: "attack_roll",
+      damages: [{ id: "d1" }],
+    };
+    const attackProfileMutate = vi.fn().mockResolvedValue({
+      spell_name: "fire-bolt",
+      action_type: "attack_roll",
+      attack_bonus: 5,
+      save_dc: null,
+      save_ability: null,
+      damage_dice: "1d10",
+      damage_type: "fire",
+    });
+    useSpellAttackProfile.mockReturnValue({ mutateAsync: attackProfileMutate, isPending: false });
+    const roll = vi.fn();
+    const rollDamage = vi.fn();
+    useRoll.mockReturnValue(roll);
+    useRollDamage.mockReturnValue(rollDamage);
+
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[cantripEntry]}
+        classes={characterClasses}
+        spellSlots={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "atacar" }));
+    expect(attackProfileMutate).toHaveBeenCalledWith({
+      spellEntryId: "entry-cantrip",
+      castAtLevel: 0,
+    });
+    await waitFor(() => expect(roll).toHaveBeenCalledWith("Fire Bolt (ataque)", 5));
+    expect(rollDamage).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "dano" }));
+    await waitFor(() =>
+      expect(rollDamage).toHaveBeenCalledWith("Fire Bolt (dano)", "1d10", 0),
+    );
+  });
+
+  it("shows 'ver CD' (not 'atacar') for a saving_throw spell, revealing the DC on click", async () => {
+    catalogSpellDetailsById["spell-magic-missile"] = {
+      action_type: "saving_throw",
+      damages: [{ id: "d1" }],
+    };
+    const attackProfileMutate = vi.fn().mockResolvedValue({
+      spell_name: "magic-missile",
+      action_type: "saving_throw",
+      attack_bonus: 0,
+      save_dc: 13,
+      save_ability: "dex",
+      damage_dice: "2d4",
+      damage_type: "force",
+    });
+    useSpellAttackProfile.mockReturnValue({ mutateAsync: attackProfileMutate, isPending: false });
+
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[leveledEntry]}
+        classes={characterClasses}
+        spellSlots={[{ spell_level: 1, used: 0, max: 1 }]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "atacar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ver CD" }));
+
+    expect(attackProfileMutate).toHaveBeenCalledWith({
+      spellEntryId: "entry-magic-missile",
+      castAtLevel: 1,
+    });
+    expect(await screen.findByRole("button", { name: "CD 13 (Destreza)" })).toBeInTheDocument();
+  });
+
+  it("shows no roll controls for a spell with no attack, save, or damage", () => {
+    catalogSpellDetailsById["spell-fire-bolt"] = { action_type: "cast_only", damages: [] };
+
+    render(
+      <SpellListByCircle
+        characterId="char-1"
+        campaignId="camp-1"
+        spells={[cantripEntry]}
+        classes={characterClasses}
+        spellSlots={[]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "atacar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ver CD" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "dano" })).not.toBeInTheDocument();
   });
 });

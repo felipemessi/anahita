@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.catalog.domain import AbilityScore
+from app.catalog.domain import AbilityScore, SpellActionType
 from app.characters.domain import AbilityGenerationMethod, FeatureSourceType, Skill
 
 
@@ -265,6 +265,47 @@ class CharacterEquipmentUpdate(BaseModel):
     equipped: bool | None = None
     attunement: bool | None = None
     quantity: int | None = Field(default=None, ge=1)
+
+
+class WeaponAttackProfileRead(BaseModel):
+    """An equipped weapon resolved into what's needed to roll attack, then damage.
+
+    Rolled client-side (like ability checks/saves — purely cosmetic, nothing
+    persisted) so this only carries the bonuses; the sheet rolls
+    `1d20 + attack_bonus`, then on a hit rolls `damage_dice + damage_bonus`.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    weapon_name: str
+    ability: AbilityScore
+    attack_bonus: int
+    damage_dice: str
+    damage_bonus: int
+    damage_type: str
+    proficient: bool
+
+
+class SpellAttackProfileRead(BaseModel):
+    """A known spell resolved into what's needed to roll it, then its damage.
+
+    `attack_bonus` only matters — and the sheet only offers an "Atacar"
+    button — when `action_type` is `attack_roll`. `save_dc`/`save_ability`
+    are set for a `saving_throw` spell instead — the target rolls that
+    save, so there's nothing here for the caster to roll but damage.
+    `damage_dice` is `None` when the spell (at the resolved level) has no
+    damage to roll at all; spell damage never adds an ability modifier.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    spell_name: str
+    action_type: SpellActionType | None
+    attack_bonus: int
+    save_dc: int | None
+    save_ability: AbilityScore | None
+    damage_dice: str | None
+    damage_type: str | None
 
 
 class CharacterCurrencyRequest(BaseModel):

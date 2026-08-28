@@ -11,6 +11,8 @@ import {
   createCharacter,
   getCharacter,
   getResourceOptions,
+  getSpellAttackProfile,
+  getWeaponAttackProfile,
   listCharacters,
   levelUpCharacter,
   removeCharacterEquipment,
@@ -298,6 +300,35 @@ export function useRemoveCharacterEquipment(characterId: string) {
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],
       });
     },
+  });
+}
+
+/**
+ * Resolve an equipped weapon into an attack bonus + damage roll profile.
+ * A mutation (not a cached query) since it's triggered by the "Atacar" or
+ * "Dano" click itself, right before rolling — see `EquipmentList`.
+ */
+export function useWeaponAttackProfile(characterId: string) {
+  return useMutation({
+    mutationFn: (equipmentId: string) =>
+      getWeaponAttackProfile(characterId, equipmentId),
+  });
+}
+
+/**
+ * Resolve a known spell into its attack/save + damage roll profile, at
+ * whatever level it's cast — same idea as `useWeaponAttackProfile`, see
+ * `SpellListByCircle`.
+ */
+export function useSpellAttackProfile(characterId: string) {
+  return useMutation({
+    mutationFn: ({
+      spellEntryId,
+      castAtLevel,
+    }: {
+      spellEntryId: string;
+      castAtLevel?: number;
+    }) => getSpellAttackProfile(characterId, spellEntryId, castAtLevel),
   });
 }
 

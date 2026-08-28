@@ -52,6 +52,7 @@ from app.combat.schemas import (
 )
 from app.combat.service import CombatService
 from app.database import Base
+from app.queries.weapon_attack import resolve_character_weapon_attack
 from app.sessions.domain import SessionStatus
 from app.sessions.models import Session
 
@@ -384,19 +385,11 @@ async def test_weapon_attack_without_proficiency_omits_proficiency_bonus(
     )
     equipment_id = character.equipment[0].id
 
-    combat_service = CombatService()
-    (
-        attack_bonus,
-        _damage_expression,
-        _damage_type,
-        _source,
-    ) = await combat_service._resolve_character_weapon_attack(
-        character.id, equipment_id, db
-    )
+    profile = await resolve_character_weapon_attack(character.id, equipment_id, db)
 
     # STR 16 -> +3 mod, no proficiency bonus (Wizard isn't proficient with
     # martial weapons like the Longsword).
-    assert attack_bonus == 3
+    assert profile.attack_bonus == 3
 
 
 async def test_declare_action_wrong_owner_rejected(
