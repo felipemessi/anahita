@@ -412,3 +412,7 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Refinamentos de Ficha completa): busca no catálogo de talentos da
   campanha ao adicionar uma característica avulsa à ficha, em vez de
   digitar o nome livremente.
+- Fase 10 do backend, história 2: upload de uma imagem de retrato para o
+  personagem, exibida na ficha; enviar uma nova imagem substitui a
+  anterior, e o jogador pode removê-la e voltar ao estado sem imagem.
+  Só o dono da ficha pode alterá-la.

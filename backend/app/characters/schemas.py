@@ -415,6 +415,10 @@ class CharacterRead(BaseModel):
     death_save_failures: int
     is_dead: bool
     concentrating_spell_id: uuid.UUID | None
+    # Resolved from `Character.portrait_key` via `StorageService.get_url`,
+    # same convention as `HandoutRead.url` (Fase 10). `None` when the
+    # character has no portrait set.
+    portrait_url: str | None
     # `10 + bonus` of the corresponding skill — same computed-field pattern
     # as `CharacterSkillRead.bonus` (Fase 7).
     passive_perception: int

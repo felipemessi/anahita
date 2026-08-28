@@ -84,6 +84,10 @@ class Character(Base):
     generation_method: Mapped[AbilityGenerationMethod | None] = mapped_column(
         SAEnum(AbilityGenerationMethod, name="abilitygenerationmethod")
     )
+    # Abstract reference resolved to a URL by `StorageService`, same pattern
+    # as `Handout.storage_key` (Fase 10) — the raw portrait image is never
+    # stored in the database. `None` when the character has no portrait set.
+    portrait_key: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -34,6 +34,8 @@ from app.characters.schemas import (
 from app.characters.service import CharacterService
 from app.core.dependencies import get_current_user
 from app.database import get_db
+from app.storage import get_storage_service
+from app.storage.base import StorageService
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
@@ -41,9 +43,11 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-def get_character_service() -> CharacterService:
-    """Return a CharacterService instance."""
-    return CharacterService()
+def get_character_service(
+    storage: Annotated[StorageService, Depends(get_storage_service)],
+) -> CharacterService:
+    """Return a CharacterService wired to the configured StorageService."""
+    return CharacterService(storage)
 
 
 @router.get("", response_model=list[CharacterRead | CharacterSummaryRead])
@@ -159,6 +163,37 @@ async def update_character(
 ) -> CharacterRead:
     """Update a character's combat-facing fields (HP/AC/inspiration). Owner only."""
     return await service.update_character(character_id, user.id, body, db)
+
+
+@router.post("/{character_id}/portrait", response_model=CharacterRead)
+async def upload_portrait(
+    character_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+    file: UploadFile,
+) -> CharacterRead:
+    """Set (or replace) a character's portrait image. Owner only."""
+    file_bytes = await file.read()
+    return await service.upload_portrait(
+        character_id,
+        user.id,
+        db,
+        file_bytes=file_bytes,
+        file_name=file.filename,
+        content_type=file.content_type,
+    )
+
+
+@router.delete("/{character_id}/portrait", response_model=CharacterRead)
+async def remove_portrait(
+    character_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRead:
+    """Remove a character's portrait, reverting to the imageless state. Owner only."""
+    return await service.remove_portrait(character_id, user.id, db)
 
 
 @router.post("/{character_id}/spells", response_model=CharacterRead)
