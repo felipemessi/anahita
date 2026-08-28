@@ -79,8 +79,10 @@ from app.characters.schemas import (
     SpellAttackProfileRead,
     WeaponAttackProfileRead,
 )
+from app.queries.character_sessions import get_sessions_for_character
 from app.queries.spell_attack import resolve_character_spell_attack
 from app.queries.weapon_attack import resolve_character_weapon_attack
+from app.sessions.schemas import SessionRead
 from app.storage import get_storage_service
 from app.storage.base import StorageService
 from engine import dice
@@ -313,6 +315,58 @@ class CharacterService:
         max_slots = await self._max_spell_slots(character, db)
         max_resources = await self._max_resources(character, db)
         return self._to_read(character, spell_catalog, max_slots, max_resources)
+
+    async def get_character_sessions(
+        self, character_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> list[SessionRead]:
+        """List the sessions a character has actually appeared in.
+
+        Derived from combat participation (`EncounterParticipant.character_id`
+        -> `Encounter.session_id`), not an explicit list — see
+        `app.queries.character_sessions` for the reasoning. Viewable by the
+        same audience as `get_character`. `dm_notes` is populated only when
+        the requester DMs the campaign, matching `SessionService.list_sessions`.
+        """
+        result = await db.execute(select(Character).where(Character.id == character_id))
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_viewer(character, requester_id, db)
+
+        member_result = await db.execute(
+            select(CampaignMember).where(
+                CampaignMember.id == character.campaign_member_id
+            )
+        )
+        owning_member = member_result.scalar_one_or_none()
+        is_dm = False
+        if owning_member is not None:
+            dm_result = await db.execute(
+                select(CampaignMember).where(
+                    CampaignMember.campaign_id == owning_member.campaign_id,
+                    CampaignMember.user_id == requester_id,
+                    CampaignMember.role == CampaignRole.dm,
+                )
+            )
+            is_dm = dm_result.scalar_one_or_none() is not None
+
+        sessions = await get_sessions_for_character(character_id, db)
+        return [
+            SessionRead(
+                id=s.id,
+                campaign_id=s.campaign_id,
+                session_number=s.session_number,
+                title=s.title,
+                scheduled_date=s.scheduled_date,
+                status=s.status,
+                dm_notes=s.dm_notes if is_dm else None,
+                summary=s.summary,
+                created_at=s.created_at,
+            )
+            for s in sessions
+        ]
 
     async def add_class(
         self,
