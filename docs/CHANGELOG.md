@@ -78,6 +78,10 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   "Tipo" (equipamento) e "Escola" (magias) agora são seletores com as
   opções válidas, em vez de texto livre, e a mensagem de erro exibida
   reflete o motivo real retornado pela API em vez de um texto genérico.
+- (Fase 9) Link para "Configurações" da campanha (editar nome, descrição e
+  cenário) estava pouco visível na navegação, misturado sem destaque a
+  outros 10 itens de conteúdo — agora aparece como uma ação exclusiva do
+  mestre, separada visualmente das demais seções na barra lateral.
 
 ### Changed
 - Padrão `__pycache__` no `.gitignore` ampliado para também casar arquivos,

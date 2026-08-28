@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Fragment } from "react";
 
 import type { CampaignRole } from "@/types/campaign";
 
@@ -12,6 +13,8 @@ interface NavItem {
   implemented: boolean;
   /** DM-only sections (e.g. Diário) are hidden outright for players — never shown disabled. */
   dmOnly?: boolean;
+  /** Renders a divider above this item, setting it apart as an admin action (e.g. Configurações). */
+  separatorBefore?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -71,6 +74,8 @@ const NAV_ITEMS: NavItem[] = [
     label: "Configurações",
     href: (id) => `/campaigns/${id}/settings`,
     implemented: true,
+    dmOnly: true,
+    separatorBefore: true,
   },
 ];
 
@@ -92,31 +97,42 @@ export function CampaignSidebar({
       {items.map((item) => {
         const href = item.href(campaignId);
         const active = pathname === href || pathname.startsWith(`${href}/`);
+        const separator = item.separatorBefore ? (
+          <div
+            key={`${item.label}-separator`}
+            role="separator"
+            className="my-1 border-t border-border"
+          />
+        ) : null;
 
         if (!item.implemented) {
           return (
-            <span
-              key={item.label}
-              title="Em breve"
-              className="cursor-not-allowed rounded-md px-3 py-2 text-sm text-muted-foreground/50"
-            >
-              {item.label}
-            </span>
+            <Fragment key={item.label}>
+              {separator}
+              <span
+                title="Em breve"
+                className="cursor-not-allowed rounded-md px-3 py-2 text-sm text-muted-foreground/50"
+              >
+                {item.label}
+              </span>
+            </Fragment>
           );
         }
 
         return (
-          <Link
-            key={item.label}
-            href={href}
-            className={`rounded-md px-3 py-2 text-sm transition-colors ${
-              active
-                ? "bg-secondary font-medium text-secondary-foreground"
-                : "text-muted-foreground hover:bg-secondary/50"
-            }`}
-          >
-            {item.label}
-          </Link>
+          <Fragment key={item.label}>
+            {separator}
+            <Link
+              href={href}
+              className={`rounded-md px-3 py-2 text-sm transition-colors ${
+                active
+                  ? "bg-secondary font-medium text-secondary-foreground"
+                  : "text-muted-foreground hover:bg-secondary/50"
+              }`}
+            >
+              {item.label}
+            </Link>
+          </Fragment>
         );
       })}
     </nav>
