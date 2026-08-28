@@ -13,7 +13,7 @@ from app.campaigns.models import Campaign, CampaignMember
 from app.catalog.domain import AbilityScore
 from app.catalog.models import Feat, Feature, Race, Spell, SpellClass
 from app.characters.domain import AbilityGenerationMethod, Skill
-from app.characters.models import CharacterSkill
+from app.characters.models import CharacterAbilityScore, CharacterSkill
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterClassCreate,
@@ -2768,3 +2768,212 @@ async def test_list_characters_dm_sees_full_sheets(
 
     characters = await service.list_characters_for_campaign(campaign.id, dm_user.id, db)
     assert hasattr(characters[0], "hit_point_max")
+
+
+async def test_update_character_identity_fields(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Name, alignment, and background can be edited independently."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    character = await service.update_character(
+        character_id,
+        owner.id,
+        CharacterUpdate(
+            name="Aldric the Bold",
+            alignment="Lawful Good",
+            background="Soldier",
+        ),
+        db,
+    )
+
+    assert character.name == "Aldric the Bold"
+    assert character.alignment == "Lawful Good"
+    assert character.background == "Soldier"
+
+
+async def test_update_character_ability_score_recalculates_modifier(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Editing an ability score recalculates its derived modifier on read."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    character = await service.update_character(
+        character_id,
+        owner.id,
+        CharacterUpdate(
+            ability_scores=[
+                CharacterAbilityScoreCreate(ability=AbilityScore.str, base_score=18)
+            ]
+        ),
+        db,
+    )
+
+    str_score = next(s for s in character.ability_scores if s.ability == AbilityScore.str)
+    assert str_score.base_score == 18
+    assert str_score.modifier == 4
+
+
+async def test_update_character_ability_score_recalculates_ac_from_dex(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Raising DEX recalculates `armor_class` for an unarmored character."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    before = await service.get_character(character_id, owner.id, db)
+
+    character = await service.update_character(
+        character_id,
+        owner.id,
+        CharacterUpdate(
+            ability_scores=[
+                CharacterAbilityScoreCreate(ability=AbilityScore.dex, base_score=18)
+            ]
+        ),
+        db,
+    )
+
+    # Standard array DEX 14 (+2) -> 18 (+4): AC should rise by 2.
+    assert character.armor_class == before.armor_class + 2
+
+
+async def test_update_character_ability_score_recalculates_max_hp_from_con(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Raising CON's modifier retroactively increases hit_point_max by level."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    service = CharacterService()
+    # `character.level` (not the class entry's own level) drives the
+    # per-level delta below, so set it explicitly via `CharacterCreate.level`
+    # rather than `_create_character`'s `level=` kwarg (which only sets the
+    # class entry's level, leaving `character.level` at its default of 1).
+    created = await service.create_character(
+        owner.id,
+        CharacterCreate(
+            campaign_member_id=member.id,
+            name="Aldric",
+            race_id=uuid.UUID(human_race_id),
+            level=3,
+            ability_scores=_ability_scores(),
+            classes=[
+                CharacterClassCreate(
+                    class_definition_id=uuid.UUID(fighter_class_id), level=3
+                )
+            ],
+        ),
+        db,
+    )
+    character_id = created.id
+    before = await service.get_character(character_id, owner.id, db)
+
+    character = await service.update_character(
+        character_id,
+        owner.id,
+        CharacterUpdate(
+            ability_scores=[
+                # Standard array CON 13 (+1) -> 16 (+3): +2 modifier * level 3.
+                CharacterAbilityScoreCreate(ability=AbilityScore.con, base_score=16)
+            ]
+        ),
+        db,
+    )
+
+    assert character.hit_point_max == before.hit_point_max + 6
+    assert character.hit_point_current == before.hit_point_current + 6
+
+
+async def test_update_character_ability_score_unknown_ability_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """An ability the character has no row for is rejected, not silently applied.
+
+    (Every character always has all six ability rows from creation, so this
+    exercises the defensive check rather than a realistic runtime state.)
+    """
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.get_character(character_id, owner.id, db)
+    con_row = next(s for s in character.ability_scores if s.ability == AbilityScore.con)
+    await db.execute(
+        CharacterAbilityScore.__table__.delete().where(
+            CharacterAbilityScore.id == con_row.id
+        )
+    )
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_character(
+            character_id,
+            owner.id,
+            CharacterUpdate(
+                ability_scores=[
+                    CharacterAbilityScoreCreate(ability=AbilityScore.con, base_score=16)
+                ]
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_update_character_duplicate_ability_entry_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """Two entries for the same ability in one request are rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_character(
+            character_id,
+            owner.id,
+            CharacterUpdate(
+                ability_scores=[
+                    CharacterAbilityScoreCreate(ability=AbilityScore.str, base_score=16),
+                    CharacterAbilityScoreCreate(ability=AbilityScore.str, base_score=17),
+                ]
+            ),
+            db,
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_update_character_wrong_owner_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A different player cannot edit someone else's character."""
+    owner = await _make_user(db, email="owner@example.com")
+    outsider = await _make_user(db, email="outsider@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_character(
+            character_id, outsider.id, CharacterUpdate(name="Hijacked"), db
+        )
+    assert exc.value.status_code == 403

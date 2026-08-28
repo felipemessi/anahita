@@ -278,11 +278,15 @@
 
 > Objetivo: fechar o gap real de edição pós-criação da ficha e dar suporte de dados para a reorganização de navegação pedida pelo grupo.
 
-- **Como jogador, quero editar as informações do meu personagem depois de criado (nome, alinhamento, antecedente, atributos-base — não só HP/AC/inspiração).**
-  - [ ] Expandir `CharacterUpdate` (`app/characters/schemas.py`) para aceitar `name`, `alignment_id`, `background`, e (com validação/aviso de efeitos em cascata) `ability_scores` — todos opcionais, mesmo padrão dos campos já existentes
-  - [ ] `service.py`: ao editar `ability_scores`, recalcular campos derivados (modificadores, CA se depender de DEX, PV máximo se depender de CON) — reaproveitar a mesma lógica de recálculo já usada na criação
-  - [ ] Decidir e documentar a política pra edição de raça/classe pós-criação (bloquear, ou permitir com recálculo completo de CA/PV/perícias) — se bloquear, deixar explícito no schema/erro
-  - [ ] Testes: edição de nome/alinhamento/antecedente simples; edição de ability score recalcula modificadores e campos derivados; dono errado é rejeitado (403)
+- **Como jogador, quero editar as informações do meu personagem depois de criado (nome, alinhamento, antecedente, atributos-base — não só HP/AC/inspiração).** ✅ (2026-08-28)
+  - [x] Expandir `CharacterUpdate` (`app/characters/schemas.py`) para aceitar `name`, `alignment_id`, `background`, e (com validação/aviso de efeitos em cascata) `ability_scores` — todos opcionais, mesmo padrão dos campos já existentes
+  - [x] `service.py`: ao editar `ability_scores`, recalcular campos derivados (modificadores, CA se depender de DEX, PV máximo se depender de CON) — reaproveitar a mesma lógica de recálculo já usada na criação
+  - [x] Decidir e documentar a política pra edição de raça/classe pós-criação (bloquear, ou permitir com recálculo completo de CA/PV/perícias) — se bloquear, deixar explícito no schema/erro
+  - [x] Testes: edição de nome/alinhamento/antecedente simples; edição de ability score recalcula modificadores e campos derivados; dono errado é rejeitado (403)
+  - Notas: o modelo `Character.alignment` já é um campo de texto livre (`str | None`), não uma referência a catálogo (`Alignment` não existe como entidade) — `CharacterUpdate` ganhou `alignment: str | None`, não `alignment_id` como o texto original da história sugeria; mesma convenção já usada por `CharacterCreate.alignment`.
+  - Notas: **raça/classe seguem bloqueadas para edição pós-criação** — decisão consciente, não omissão. `CharacterUpdate` deliberadamente não expõe `race_id`/`subrace_id`/classes; ambas cascateiam para features, proficiências e (classe) spell slots, superfície bem maior que o recálculo simples desta história. Não há endpoint/campo que aceite a mudança, então tentar editá-los é a mesma coisa que hoje: ignorado silenciosamente pelo schema (campo inexistente), sem 422 dedicado — comportamento documentado no docstring de `CharacterUpdate`/`update_character`.
+  - Notas: `ability_scores` no update é uma lista **parcial** (ao contrário de `CharacterCreate.ability_scores`, que exige as 6) — só os atributos informados são sobrescritos; duplicar o mesmo atributo na mesma requisição é 422, e informar um atributo que o personagem não tem (não deveria acontecer, todo personagem nasce com as 6 linhas) também é 422.
+  - Notas: reaproveitei `_recalculate_armor_class` (já usado por `update_equipment`) em vez de reimplementar a lógica de CA — chamado incondicionalmente após qualquer edição de `ability_scores` (barato, e correto mesmo quando DEX não foi um dos atributos alterados). PV máximo só é recalculado quando o *modificador* de CON muda (não o score bruto) — ajuste é `delta_modifier * character.level`, a regra do PHB pra uma mudança retroativa de CON valer para todos os níveis já obtidos, independentemente de como o HP de cada nível foi originalmente rolado.
 
 - **Como jogador, quero colocar uma imagem no meu personagem, para ser exibida "redonda" na ficha e (depois) no mapa de sessão.**
   - [ ] `Character` ganha campo de imagem (`portrait_key`, seguindo o padrão de `storage_key` já usado por `Handout` — reaproveitar `StorageService`)

@@ -356,17 +356,34 @@ class CharacterFeatureChoiceRead(BaseModel):
 
 
 class CharacterUpdate(BaseModel):
-    """Request body to update a character's combat-facing fields.
+    """Request body to update a character's combat-facing and identity fields.
 
     Every field is optional — only the ones supplied are changed. Used by
-    the inline HP editor on the character sheet (and future inline
-    editors for AC/temp HP/inspiration).
+    the inline HP editor on the character sheet, and (Fase 10) the
+    post-creation edit form for name/alignment/background/ability scores.
+
+    `race_id`/`subrace_id`/classes are deliberately absent — editing race
+    or class after creation is not supported by this endpoint (see
+    `CharacterService.update_character` docstring for why).
+
+    `ability_scores` reuses `CharacterAbilityScoreCreate` — supply only the
+    abilities being changed (a partial list is fine, unlike
+    `CharacterCreate.ability_scores` which requires all six). Editing an
+    ability recalculates every field derived from it: modifiers (always
+    computed on read), `armor_class` (if it depends on DEX, via the same
+    equipped-armor-aware recalculation `update_equipment` uses), and
+    `hit_point_max`/`hit_point_current` (if CON's modifier changes, by
+    `delta * character.level` — the PHB rule for a retroactive CON change).
     """
 
     hit_point_current: int | None = Field(default=None, ge=0)
     temporary_hit_points: int | None = Field(default=None, ge=0)
     armor_class: int | None = Field(default=None, ge=0)
     inspiration: bool | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    alignment: str | None = None
+    background: str | None = None
+    ability_scores: list[CharacterAbilityScoreCreate] | None = None
 
 
 class CharacterSummaryRead(BaseModel):

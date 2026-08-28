@@ -412,3 +412,10 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   Refinamentos de Ficha completa): busca no catálogo de talentos da
   campanha ao adicionar uma característica avulsa à ficha, em vez de
   digitar o nome livremente.
+- Fase 10 do backend, primeira história: edição pós-criação da ficha do
+  personagem (nome, alinhamento, antecedente e atributos-base), com
+  recálculo automático dos campos derivados afetados — modificadores,
+  classe de armadura (quando depende de Destreza) e pontos de vida
+  máximos (quando o modificador de Constituição muda, retroativo a todos
+  os níveis já obtidos). Raça e classe continuam bloqueadas para edição
+  pós-criação nesta história.
