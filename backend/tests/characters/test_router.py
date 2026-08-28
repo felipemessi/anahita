@@ -402,6 +402,61 @@ async def test_update_character_forbidden_for_other_player(client: AsyncClient) 
     assert resp.status_code == 403
 
 
+async def test_update_character_identity_and_ability_score_over_http(
+    client: AsyncClient,
+) -> None:
+    """A player can edit name/alignment/background and an ability score."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/characters/{character_id}",
+        json={
+            "name": "Aldric the Bold",
+            "alignment": "Lawful Good",
+            "background": "Soldier",
+            "ability_scores": [{"ability": "str", "base_score": 18}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["name"] == "Aldric the Bold"
+    assert body["alignment"] == "Lawful Good"
+    assert body["background"] == "Soldier"
+    str_score = next(s for s in body["ability_scores"] if s["ability"] == "str")
+    assert str_score["base_score"] == 18
+    assert str_score["modifier"] == 4
+
+
 async def test_add_spell_over_http(client: AsyncClient) -> None:
     """A player can add a known spell to their own character."""
     token = await _register_and_login(client)

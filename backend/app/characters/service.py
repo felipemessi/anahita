@@ -869,9 +869,16 @@ class CharacterService:
         data: CharacterUpdate,
         db: AsyncSession,
     ) -> CharacterRead:
-        """Update a character's combat-facing fields (HP/AC/inspiration).
+        """Update a character's combat-facing and identity fields.
 
         Only the character's own player may do this — mirrors `add_class`.
+
+        Race and class are never editable here — a conscious Fase 10 scope
+        decision, not an omission. Both cascade into features,
+        proficiencies, and (for class) spell slots, which is a much bigger
+        rules-engine surface than this story's simple-field/ability-score
+        edit; changing them post-creation stays unsupported (422) until a
+        dedicated story reworks a character's build with a full recompute.
         """
         result = await db.execute(
             select(Character)
@@ -886,6 +893,16 @@ class CharacterService:
         await self._require_own_membership(
             character.campaign_member_id, requester_id, db
         )
+
+        if data.name is not None:
+            character.name = data.name
+        if data.alignment is not None:
+            character.alignment = data.alignment
+        if data.background is not None:
+            character.background = data.background
+
+        if data.ability_scores is not None:
+            await self._apply_ability_score_edits(character, data.ability_scores, db)
 
         if data.hit_point_current is not None:
             if data.hit_point_current > character.hit_point_max:
@@ -905,6 +922,58 @@ class CharacterService:
 
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def _apply_ability_score_edits(
+        self,
+        character: Character,
+        updates: list[CharacterAbilityScoreCreate],
+        db: AsyncSession,
+    ) -> None:
+        """Apply a partial ability-score edit and recalculate derived fields.
+
+        `updates` need not cover all six abilities — each entry replaces
+        that ability's `base_score`/`asi_bonus`/`misc_bonus` wholesale.
+        Recalculates `armor_class` unconditionally afterward (cheap, and
+        correct whether or not DEX was among the abilities touched — same
+        recompute `update_equipment` uses); recalculates `hit_point_max`/
+        `hit_point_current` only if CON's modifier actually changed, by
+        `delta * character.level` — the PHB rule for a retroactive CON
+        change applying to every level already taken, regardless of how
+        each level's HP was originally rolled.
+        """
+        seen: set[AbilityScore] = set()
+        for update in updates:
+            if update.ability in seen:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Duplicate ability score entry for {update.ability}",
+                )
+            seen.add(update.ability)
+
+        con_mod_before = self._ability_modifier(character, "con")
+
+        scores_by_ability = {s.ability: s for s in character.ability_scores}
+        for update in updates:
+            score = scores_by_ability.get(update.ability)
+            if score is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Character has no {update.ability} score",
+                )
+            score.base_score = update.base_score
+            score.asi_bonus = update.asi_bonus
+            score.misc_bonus = update.misc_bonus
+
+        con_mod_after = self._ability_modifier(character, "con")
+        if con_mod_after != con_mod_before:
+            delta = (con_mod_after - con_mod_before) * character.level
+            character.hit_point_max = max(1, character.hit_point_max + delta)
+            old_hp = character.hit_point_current
+            new_hp = max(0, min(character.hit_point_max, old_hp + delta))
+            character.hit_point_current = new_hp
+            self._register_hp_change(character, old_hp, new_hp)
+
+        await self._recalculate_armor_class(character, db)
 
     async def upload_portrait(
         self,
