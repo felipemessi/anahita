@@ -459,11 +459,12 @@
   - [x] Teste: card mostra a sessão agendada após o fix
   - Notas: sem mudança de código necessária no dashboard/tipos — o fix de backend (Fase 9) já não exige `scheduled_date`, e o frontend já tratava `scheduled_date: string | null` corretamente em todo o caminho (`types/session.ts`, `types/campaign.ts`, `SessionCard`, `campaigns/[campaignId]/page.tsx`). O formulário rápido de sessão (`sessions/page.tsx`) continua enviando só `{ title }`, o que já bate com `SessionCreate` no backend (`scheduled_date` opcional, default `None`). Único ajuste: adicionado teste em `page.test.tsx` cobrindo explicitamente uma `next_session` sem `scheduled_date`, confirmando que o card aparece (sem linha de data) em vez de cair no placeholder "Nenhuma sessão futura agendada".
 
-- **Como mestre, quero criar conteúdo homebrew em todas as categorias do catálogo.**
-  - [ ] Reproduzir o bug relatado com o usuário, em cada categoria (`custom-entry-form.tsx`) — capturar mensagem de erro exata mostrada na tela
-  - [ ] Corrigir a causa raiz encontrada no frontend (validação de formulário, envio de payload incorreto) coordenando com o fix de backend da Fase 9
-  - [ ] Se a mensagem genérica de erro ("backend ainda não aceita criação de homebrew nesta categoria") estiver mascarando o erro real, trocar por uma mensagem que reflita o `detail` retornado pela API
-  - [ ] Teste: criação em cada uma das 9 categorias funciona ponta a ponta
+- **Como mestre, quero criar conteúdo homebrew em todas as categorias do catálogo. ✅ (2026-08-28)**
+  - [x] Reproduzir o bug relatado com o usuário, em cada categoria (`custom-entry-form.tsx`) — capturar mensagem de erro exata mostrada na tela
+  - [x] Corrigir a causa raiz encontrada no frontend (validação de formulário, envio de payload incorreto) coordenando com o fix de backend da Fase 9
+  - [x] Se a mensagem genérica de erro ("backend ainda não aceita criação de homebrew nesta categoria") estiver mascarando o erro real, trocar por uma mensagem que reflita o `detail` retornado pela API
+  - [x] Teste: criação em cada uma das 9 categorias funciona ponta a ponta
+  - Notas: a causa raiz real (backend) já tinha sido corrigida — `MonsterCreate.size` era `str` livre e agora é o enum `CreatureSize`, rejeitando valor inválido com 422 em vez de 500. No frontend, `custom-entry-form.tsx` deixava o mestre digitar qualquer texto nos campos `size` (monsters), `item_type` (equipment) e `school` (spells) via `<input type="text">`, o que produzia justamente valores inválidos para esses enums — trocados por `<select>` com as opções corretas (`CreatureSize`, `ItemType`, `SpellSchool` de `types/catalog.ts`). `lib/api/catalog.ts` tinha um comentário desatualizado dizendo que `POST /catalog/{category}` não existia (já existe e funciona para as 9 categorias) — removido, sem impacto funcional (não havia lógica condicional baseada nele). A mensagem de erro genérica ("backend ainda não aceita...") foi trocada por uma que usa o `detail` real da resposta da API, incluindo a extração das mensagens por campo de um 422 do FastAPI (`detail` como lista de `{msg}`), com fallback pra mensagem genérica em erros não-`ApiError`.
 
 - **Como mestre, quero selecionar o alvo de um ataque/magia em combate.**
   - [ ] Reproduzir com o usuário: `action-picker.tsx` num encontro com participantes mistos (personagens + monstros) vs. só monstros

@@ -24,9 +24,8 @@ import type {
 } from "@/types/catalog";
 
 /**
- * Read-only SRD catalog client (backend/app/catalog/router.py). There is no
- * homebrew-creation endpoint yet — see `custom-entry-form.tsx` and the
- * backlog note on "Como DM, quero criar conteúdo homebrew".
+ * Read-only + homebrew-creation SRD catalog client
+ * (backend/app/catalog/router.py) — see `custom-entry-form.tsx`.
  *
  * The 9 categories with a dedicated screen (PRD §6.1a). Each maps to its
  * backend path — `equipment` is the only one that doesn't match 1:1
@@ -123,11 +122,7 @@ export function getAbilityScores(): Promise<AbilityScoreDefinition[]> {
  * Create a homebrew entry in a catalog category, always scoped to a
  * campaign (`is_custom=true` + `campaign_id`, never global — PRD §6.1a).
  *
- * NOTE: `backend/app/catalog/router.py` is read-only today — there is no
- * `POST /catalog/{category}` endpoint yet. This calls the REST shape the
- * backend is expected to expose once that story is picked up there; until
- * then it will fail with a 404/405, which `custom-entry-form.tsx` surfaces
- * as an error instead of pretending to succeed.
+ * `POST /catalog/{category}` exists for all 9 categories (backend Fase 1/9).
  */
 export function createCustomEntry<C extends CatalogCategory>(
   category: C,
