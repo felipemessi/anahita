@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.domain import (
     ArmorCategory,
+    CreatureSize,
     ItemType,
     SpellActionType,
     SpellDamageScalingType,
@@ -825,12 +826,17 @@ class MonsterCreate(BaseModel):
     Fields beyond the v1 custom-entry form get sensible defaults
     (`hit_dice="1d8"`, ability scores 10) — full stat-block authoring is a
     future iteration.
+
+    `size` is typed `CreatureSize` (not free `str`) because `Monster.size`
+    is a native DB enum column (unlike `Race.size`, which is free text) — an
+    unconstrained string here would pass validation, get written, and only
+    blow up as an unhandled 500 when the row was read back.
     """
 
     campaign_id: uuid.UUID
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
-    size: str
+    size: CreatureSize
     creature_type: str = Field(min_length=1, max_length=100)
     alignment: str = "unaligned"
     hit_points: int = Field(ge=1)

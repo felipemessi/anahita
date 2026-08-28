@@ -301,6 +301,34 @@ async def test_rule_homebrew_visible_only_in_own_campaign(client: AsyncClient) -
     assert "Campaign A House Rule" in own_names
 
 
+async def test_create_monster_rejects_invalid_size(client: AsyncClient) -> None:
+    """An unknown `size` value is rejected with a clean 422, not a 500.
+
+    Regression test: `MonsterCreate.size` used to be a bare `str`, while
+    `Monster.size` is a native DB enum (`CreatureSize`). A value outside the
+    enum (e.g. a size the DM mistyped, or a translated label like "Grande")
+    passed Pydantic validation, got written to the row, and only blew up
+    with an unhandled `LookupError` -> 500 when the row was read back to
+    build the response — see Fase 9 backlog story on homebrew creation.
+    """
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    resp = await client.post(
+        "/catalog/monsters",
+        json={
+            "campaign_id": campaign_id,
+            "name": "Swamp Horror",
+            "size": "Grande",
+            "creature_type": "monstrosity",
+            "hit_points": 45,
+            "challenge_rating": 3,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 422
+
+
 async def test_create_magic_item_requires_dm(client: AsyncClient) -> None:
     """A non-DM member is rejected with 403 when creating homebrew magic items."""
     dm_token = await _register_and_login(client, "dm@example.com")

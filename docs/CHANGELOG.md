@@ -62,6 +62,11 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   do SQLAlchemy.
 - Chave secreta JWT padrão abaixo do mínimo recomendado, disparando
   `InsecureKeyLengthWarning` do PyJWT.
+- Criação de monstro homebrew (`POST /catalog/monsters`) com um `size`
+  fora do vocabulário SRD (ex. um valor digitado errado) derrubava o
+  servidor com erro 500 em vez de rejeitar com 422 — o campo agora é
+  validado contra a lista de tamanhos válidos antes de tocar o banco
+  (Fase 9).
 
 ### Changed
 - Padrão `__pycache__` no `.gitignore` ampliado para também casar arquivos,
