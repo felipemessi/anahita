@@ -128,6 +128,24 @@ describe("ActionPicker", () => {
     });
   });
 
+  it("lists every other participant as a target option — characters and monsters alike (Fase 9 investigation: the dropdown itself works fine; an all-monster encounter reads empty only because there's no way yet to add characters to combat, see Fase 13)", () => {
+    const secondFighter = { ...fighter, id: "p-3", name: "Rowan", character_id: "char-2" };
+    render(
+      <ActionPicker
+        campaignId="camp-1"
+        participant={fighter}
+        otherParticipants={[goblin, secondFighter]}
+      />,
+    );
+
+    const targetSelect = screen.getByLabelText("Alvo");
+    const optionLabels = Array.from(targetSelect.querySelectorAll("option")).map(
+      (o) => o.textContent,
+    );
+
+    expect(optionLabels).toEqual(["Selecione…", "Goblin", "Rowan"]);
+  });
+
   it("declaring a weapon attack sends the equipped weapon and chosen target", () => {
     render(
       <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
