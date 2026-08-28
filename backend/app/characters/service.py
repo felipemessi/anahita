@@ -16,7 +16,6 @@ from app.catalog.models import (
     ArmorDetail,
     ClassDefinition,
     ClassLevel,
-    ClassLevelResource,
     Feature,
     Item,
     Spell,
@@ -50,8 +49,8 @@ from app.characters.schemas import (
     CharacterAbilityScoreRead,
     CharacterClassCreate,
     CharacterClassRead,
-    CharacterCreate,
     CharacterConcentrationRequest,
+    CharacterCreate,
     CharacterCurrencyRequest,
     CharacterDeathSaveRequest,
     CharacterDeathSaveResponse,
@@ -77,14 +76,18 @@ from app.characters.schemas import (
     CharacterSpellUpdate,
     CharacterSummaryRead,
     CharacterUpdate,
+    SpellAttackProfileRead,
+    WeaponAttackProfileRead,
 )
+from app.queries.spell_attack import resolve_character_spell_attack
+from app.queries.weapon_attack import resolve_character_weapon_attack
+from engine import dice
 from engine.abilities import (
     calculate_modifier,
     calculate_proficiency_bonus,
     calculate_saving_throw_bonus,
     calculate_skill_bonus,
 )
-from engine import dice
 from engine.armor_class import calculate_ac
 from engine.hit_points import calculate_max_hp
 from engine.spellcasting import (
@@ -1534,6 +1537,46 @@ class CharacterService:
             await self._recalculate_armor_class(character, db)
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def get_weapon_attack_profile(
+        self,
+        character_id: uuid.UUID,
+        equipment_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+    ) -> WeaponAttackProfileRead:
+        """Resolve an equipped weapon into an attack roll + damage roll profile.
+
+        Owner only. Shares its resolution (ability, proficiency, damage
+        dice) with the combat tracker's `attack_weapon` action — see
+        `app.queries.weapon_attack` — but works outside of any encounter,
+        for attacking straight from the character sheet.
+        """
+        await self._load_character_owned_by(character_id, requester_id, db)
+        profile = await resolve_character_weapon_attack(character_id, equipment_id, db)
+        return WeaponAttackProfileRead.model_validate(profile)
+
+    async def get_spell_attack_profile(
+        self,
+        character_id: uuid.UUID,
+        spell_entry_id: uuid.UUID,
+        cast_at_level: int | None,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+    ) -> SpellAttackProfileRead:
+        """Resolve a known spell into its attack/save + damage roll profile.
+
+        Owner only. Shares its resolution with the combat tracker's
+        `attack_spell` action — see `app.queries.spell_attack` — but works
+        outside of any encounter, straight from the character sheet.
+        `cast_at_level` matches whatever level the "conjurar" control has
+        selected, so an upcast spell's damage resolves at the right slot.
+        """
+        await self._load_character_owned_by(character_id, requester_id, db)
+        profile = await resolve_character_spell_attack(
+            character_id, spell_entry_id, cast_at_level, db
+        )
+        return SpellAttackProfileRead.model_validate(profile)
 
     async def _recalculate_armor_class(
         self, character: Character, db: AsyncSession

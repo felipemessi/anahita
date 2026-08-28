@@ -28,6 +28,8 @@ from app.characters.schemas import (
     CharacterSpellUpdate,
     CharacterSummaryRead,
     CharacterUpdate,
+    SpellAttackProfileRead,
+    WeaponAttackProfileRead,
 )
 from app.characters.service import CharacterService
 from app.core.dependencies import get_current_user
@@ -212,6 +214,24 @@ async def cast_spell(
     return await service.cast_spell(character_id, spell_id, user.id, body, db)
 
 
+@router.get(
+    "/{character_id}/spells/{spell_id}/attack-profile",
+    response_model=SpellAttackProfileRead,
+)
+async def get_spell_attack_profile(
+    character_id: uuid.UUID,
+    spell_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+    cast_at_level: int | None = None,
+) -> SpellAttackProfileRead:
+    """Resolve a known spell into its attack/save + damage roll profile. Owner only."""
+    return await service.get_spell_attack_profile(
+        character_id, spell_id, cast_at_level, user.id, db
+    )
+
+
 @router.post("/{character_id}/rest", response_model=CharacterRestResponse)
 async def rest(
     character_id: uuid.UUID,
@@ -283,6 +303,23 @@ async def remove_equipment(
 ) -> CharacterRead:
     """Remove an item from a character's inventory. Owner only."""
     return await service.remove_equipment(character_id, equipment_id, user.id, db)
+
+
+@router.get(
+    "/{character_id}/equipment/{equipment_id}/attack-profile",
+    response_model=WeaponAttackProfileRead,
+)
+async def get_weapon_attack_profile(
+    character_id: uuid.UUID,
+    equipment_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> WeaponAttackProfileRead:
+    """Resolve an equipped weapon into an attack bonus + damage roll. Owner only."""
+    return await service.get_weapon_attack_profile(
+        character_id, equipment_id, user.id, db
+    )
 
 
 @router.post("/{character_id}/currency", response_model=CharacterRead)

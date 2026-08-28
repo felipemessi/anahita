@@ -3,7 +3,7 @@
  * Keep in sync manually — no codegen yet (PRD frontend backlog Fase 0).
  */
 
-import type { AbilityScore } from "@/types/catalog";
+import type { AbilityScore, SpellActionType } from "@/types/catalog";
 
 export type Skill =
   | "acrobatics"
@@ -162,6 +162,38 @@ export interface CharacterEquipment {
   equipped: boolean;
   quantity: number;
   attunement: boolean;
+}
+
+/**
+ * An equipped weapon resolved into what's needed to roll attack, then
+ * damage — rolled client-side, like ability checks/saves.
+ */
+export interface WeaponAttackProfile {
+  weapon_name: string;
+  ability: AbilityScore;
+  attack_bonus: number;
+  damage_dice: string;
+  damage_bonus: number;
+  damage_type: string;
+  proficient: boolean;
+}
+
+/**
+ * A known spell resolved into what's needed to roll its attack/save, then
+ * damage — same idea as `WeaponAttackProfile`. `attack_bonus` only matters
+ * when `action_type` is `"attack_roll"`; `save_dc`/`save_ability` are set
+ * for a `"saving_throw"` spell instead (the target rolls that save, not
+ * the caster). `damage_dice` is `null` when the spell has no damage to
+ * roll at the resolved level.
+ */
+export interface SpellAttackProfile {
+  spell_name: string;
+  action_type: SpellActionType | null;
+  attack_bonus: number;
+  save_dc: number | null;
+  save_ability: AbilityScore | null;
+  damage_dice: string | null;
+  damage_type: string | null;
 }
 
 /** Record a currency gain (positive `delta`) or spend (negative). */

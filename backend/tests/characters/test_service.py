@@ -2287,6 +2287,172 @@ async def test_update_equipment_wrong_owner_rejected(
     assert exc.value.status_code == 403
 
 
+async def test_weapon_attack_profile_for_equipped_proficient_weapon(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, longsword_item_id: str
+) -> None:
+    """An equipped weapon the character is proficient with rolls attack + damage."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(longsword_item_id), equipped=True),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    profile = await service.get_weapon_attack_profile(
+        character_id, entry_id, owner.id, db
+    )
+
+    # STR 15 -> +2 mod; Fighter is proficient with martial weapons
+    # (Longsword) -> level 1 proficiency bonus +2.
+    assert profile.attack_bonus == 4
+    assert profile.damage_bonus == 2
+    assert profile.proficient is True
+    assert profile.damage_dice
+    assert profile.damage_type
+
+
+async def test_weapon_attack_profile_requires_weapon_to_be_equipped(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, longsword_item_id: str
+) -> None:
+    """Attacking with a weapon that isn't equipped is rejected."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(longsword_item_id), equipped=False),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.get_weapon_attack_profile(character_id, entry_id, owner.id, db)
+    assert exc.value.status_code == 422
+
+
+async def test_weapon_attack_profile_wrong_owner_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str, longsword_item_id: str
+) -> None:
+    """A different player cannot roll another character's weapon attack."""
+    owner = await _make_user(db, email="owner@example.com")
+    outsider = await _make_user(db, email="outsider@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, fighter_class_id
+    )
+    service = CharacterService()
+    character = await service.add_equipment(
+        character_id,
+        owner.id,
+        CharacterEquipmentCreate(item_id=uuid.UUID(longsword_item_id), equipped=True),
+        db,
+    )
+    entry_id = character.equipment[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.get_weapon_attack_profile(character_id, entry_id, outsider.id, db)
+    assert exc.value.status_code == 403
+
+
+async def test_spell_attack_profile_for_attack_roll_cantrip(
+    db: AsyncSession, human_race_id: str, wizard_class_id: str
+) -> None:
+    """An `attack_roll` spell resolves an attack bonus + its catalog damage."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, wizard_class_id
+    )
+    service = CharacterService()
+    fire_bolt_id = await spell_id_by_index(db, "fire-bolt")
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(fire_bolt_id), source_class="wizard"),
+        db,
+    )
+    spell_entry_id = character.spells[0].id
+
+    profile = await service.get_spell_attack_profile(
+        character_id, spell_entry_id, None, owner.id, db
+    )
+
+    # INT 12 -> +1 mod; Wizard level 1 proficiency bonus +2.
+    assert profile.action_type == "attack_roll"
+    assert profile.attack_bonus == 3
+    assert profile.damage_type == "fire"
+    assert profile.damage_dice
+    assert profile.save_dc is None
+    assert profile.save_ability is None
+
+
+async def test_spell_attack_profile_for_saving_throw_spell(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """A `saving_throw` spell resolves a DC + save ability, no attack roll to make."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    service = CharacterService()
+    fireball_id = await spell_id_by_index(db, "fireball")
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(fireball_id), source_class="sorcerer"),
+        db,
+    )
+    spell_entry_id = character.spells[0].id
+
+    profile = await service.get_spell_attack_profile(
+        character_id, spell_entry_id, None, owner.id, db
+    )
+
+    assert profile.action_type == "saving_throw"
+    assert profile.save_dc is not None
+    assert profile.save_ability == AbilityScore.dex
+    assert profile.damage_dice
+
+
+async def test_spell_attack_profile_wrong_owner_rejected(
+    db: AsyncSession, human_race_id: str, wizard_class_id: str
+) -> None:
+    """A different player cannot roll another character's spell attack."""
+    owner = await _make_user(db, email="owner@example.com")
+    outsider = await _make_user(db, email="outsider@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, wizard_class_id
+    )
+    service = CharacterService()
+    fire_bolt_id = await spell_id_by_index(db, "fire-bolt")
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(fire_bolt_id), source_class="wizard"),
+        db,
+    )
+    spell_entry_id = character.spells[0].id
+
+    with pytest.raises(HTTPException) as exc:
+        await service.get_spell_attack_profile(
+            character_id, spell_entry_id, None, outsider.id, db
+        )
+    assert exc.value.status_code == 403
+
+
 async def test_equip_light_armor_recalculates_ac_with_full_dex(
     db: AsyncSession,
     human_race_id: str,

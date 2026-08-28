@@ -19,6 +19,8 @@ import type {
   CharacterSpellCreate,
   CharacterSpellUpdate,
   CharacterSummary,
+  SpellAttackProfile,
+  WeaponAttackProfile,
 } from "@/types/character";
 
 /** Calls the characters endpoints exposed by backend/app/characters/router.py. */
@@ -115,6 +117,18 @@ export function castCharacterSpell(
       method: "POST",
       body: JSON.stringify(data),
     },
+  );
+}
+
+/** Resolve a known spell into its attack/save + damage roll profile. */
+export function getSpellAttackProfile(
+  characterId: string,
+  spellEntryId: string,
+  castAtLevel?: number,
+): Promise<SpellAttackProfile> {
+  const query = castAtLevel != null ? `?cast_at_level=${castAtLevel}` : "";
+  return apiFetch<SpellAttackProfile>(
+    `/characters/${characterId}/spells/${spellEntryId}/attack-profile${query}`,
   );
 }
 
@@ -220,6 +234,16 @@ export function removeCharacterEquipment(
   return apiFetch<Character>(`/characters/${characterId}/equipment/${equipmentId}`, {
     method: "DELETE",
   });
+}
+
+/** Resolve an equipped weapon into an attack bonus + damage roll profile. */
+export function getWeaponAttackProfile(
+  characterId: string,
+  equipmentId: string,
+): Promise<WeaponAttackProfile> {
+  return apiFetch<WeaponAttackProfile>(
+    `/characters/${characterId}/equipment/${equipmentId}/attack-profile`,
+  );
 }
 
 /** Record a currency gain (positive delta) or spend (negative). */

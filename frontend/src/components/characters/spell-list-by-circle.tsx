@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { ABILITY_LABELS } from "@/components/characters/creation-wizard/wizard-state";
+import { useRoll, useRollDamage } from "@/components/characters/roll-log";
 import { circleLabel, SpellSearch } from "@/components/characters/spell-search";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useCatalogEntry, useCatalogList } from "@/hooks/use-catalog";
@@ -9,6 +11,7 @@ import {
   useAddCharacterSpell,
   useCastCharacterSpell,
   useRemoveCharacterSpell,
+  useSpellAttackProfile,
   useUpdateCharacterSpell,
 } from "@/hooks/use-character";
 import { ApiError } from "@/lib/api/client";
@@ -240,6 +243,14 @@ export function SpellListByCircle({
                       isPending={castSpell.isPending}
                     />
                   ) : null}
+                  <SpellRollControls
+                    characterId={characterId}
+                    spell={spell}
+                    spellName={nameFor(spell.spell_id)}
+                    castAtLevel={
+                      level > 0 ? (castLevelBySpell[spell.id] ?? defaultCastLevel(spell)) : 0
+                    }
+                  />
                   {expandedId === spell.id ? <SpellDetail spellId={spell.spell_id} /> : null}
                 </li>
               ))}
@@ -357,6 +368,99 @@ function CastControls({
           conjurar como ritual
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * "Atacar" / "CD" / "Dano" for a known spell, straight from the sheet —
+ * mirrors `WeaponAttackButton` (equipment-list.tsx): each roll/reveal is
+ * fired by hand, resolved by `GET .../attack-profile` at `castAtLevel` so
+ * an upcast spell's damage matches whatever level "conjurar" is set to.
+ * Which buttons show comes from the catalog spell alone (`action_type`,
+ * whether it has any damage rows) — no fetch needed just to decide that.
+ */
+function SpellRollControls({
+  characterId,
+  spell,
+  spellName,
+  castAtLevel,
+}: {
+  characterId: string;
+  spell: CharacterSpell;
+  spellName: string;
+  castAtLevel: number;
+}) {
+  const { data: catalogSpell } = useCatalogEntry("spells", spell.spell_id);
+  const attackProfile = useSpellAttackProfile(characterId);
+  const roll = useRoll();
+  const rollDamage = useRollDamage();
+  const [error, setError] = useState<string | null>(null);
+  const [revealedDc, setRevealedDc] = useState<string | null>(null);
+
+  if (!catalogSpell) return null;
+  const showAttack = catalogSpell.action_type === "attack_roll";
+  const showSaveDc = catalogSpell.action_type === "saving_throw";
+  const showDamage = catalogSpell.damages.length > 0;
+  if (!showAttack && !showSaveDc && !showDamage) return null;
+
+  async function handleRoll(kind: "attack" | "save" | "damage") {
+    setError(null);
+    try {
+      const profile = await attackProfile.mutateAsync({
+        spellEntryId: spell.id,
+        castAtLevel,
+      });
+      if (kind === "attack") {
+        roll(`${spellName} (ataque)`, profile.attack_bonus);
+      } else if (kind === "save") {
+        const ability = profile.save_ability ? ABILITY_LABELS[profile.save_ability] : null;
+        setRevealedDc(
+          profile.save_dc != null
+            ? `CD ${profile.save_dc}${ability ? ` (${ability})` : ""}`
+            : "CD indisponível",
+        );
+      } else if (profile.damage_dice) {
+        rollDamage(`${spellName} (dano)`, profile.damage_dice, 0);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Não foi possível rolar.");
+    }
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+      {showAttack ? (
+        <button
+          type="button"
+          onClick={() => handleRoll("attack")}
+          disabled={attackProfile.isPending}
+          className="rounded border border-border px-2 py-0.5 hover:bg-secondary disabled:opacity-40"
+        >
+          atacar
+        </button>
+      ) : null}
+      {showSaveDc ? (
+        <button
+          type="button"
+          onClick={() => handleRoll("save")}
+          disabled={attackProfile.isPending}
+          className="rounded border border-border px-2 py-0.5 hover:bg-secondary disabled:opacity-40"
+        >
+          {revealedDc ?? "ver CD"}
+        </button>
+      ) : null}
+      {showDamage ? (
+        <button
+          type="button"
+          onClick={() => handleRoll("damage")}
+          disabled={attackProfile.isPending}
+          className="rounded border border-border px-2 py-0.5 hover:bg-secondary disabled:opacity-40"
+        >
+          dano
+        </button>
+      ) : null}
+      {error ? <span className="text-destructive">{error}</span> : null}
     </div>
   );
 }

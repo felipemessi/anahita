@@ -496,6 +496,115 @@ async def test_add_equipment_over_http(client: AsyncClient) -> None:
     assert equipment[0]["equipped"] is True
 
 
+async def test_get_weapon_attack_profile_over_http(client: AsyncClient) -> None:
+    """A player can resolve their equipped weapon into an attack profile."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    fighter_resp = await client.get("/catalog/classes", params={"search": "Fighter"})
+    fighter_class_id = fighter_resp.json()[0]["id"]
+    items_resp = await client.get("/catalog/items", params={"search": "Longsword"})
+    longsword_id = items_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": fighter_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    equip_resp = await client.post(
+        f"/characters/{character_id}/equipment",
+        json={"item_id": longsword_id, "equipped": True, "quantity": 1},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    equipment_id = equip_resp.json()["equipment"][0]["id"]
+
+    resp = await client.get(
+        f"/characters/{character_id}/equipment/{equipment_id}/attack-profile",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # STR 15 -> +2 mod; Fighter is proficient with martial weapons
+    # (Longsword) -> level 1 proficiency bonus +2.
+    assert body["attack_bonus"] == 4
+    assert body["damage_bonus"] == 2
+    assert body["proficient"] is True
+
+
+async def test_get_spell_attack_profile_over_http(client: AsyncClient) -> None:
+    """A player can resolve a known spell into an attack/save + damage profile."""
+    token = await _register_and_login(client)
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Waterdeep"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    membership_resp = await client.get(
+        f"/campaigns/{campaign_id}/members/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    campaign_member_id = membership_resp.json()["id"]
+
+    races_resp = await client.get("/catalog/races", params={"search": "Human"})
+    human_race_id = races_resp.json()[0]["id"]
+    wizard_resp = await client.get("/catalog/classes", params={"search": "Wizard"})
+    wizard_class_id = wizard_resp.json()[0]["id"]
+    spell_resp = await client.get("/catalog/spells", params={"search": "Fireball"})
+    fireball_id = spell_resp.json()[0]["id"]
+
+    create_resp = await client.post(
+        "/characters",
+        json={
+            "campaign_member_id": campaign_member_id,
+            "name": "Aldric",
+            "race_id": human_race_id,
+            "ability_scores": _STANDARD_ARRAY,
+            "classes": [{"class_definition_id": wizard_class_id}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    character_id = create_resp.json()["id"]
+
+    add_resp = await client.post(
+        f"/characters/{character_id}/spells",
+        json={"spell_id": fireball_id, "source_class": "wizard"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    spell_entry_id = add_resp.json()["spells"][0]["id"]
+
+    resp = await client.get(
+        f"/characters/{character_id}/spells/{spell_entry_id}/attack-profile",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action_type"] == "saving_throw"
+    assert body["save_dc"] is not None
+    assert body["save_ability"] == "dex"
+    assert body["damage_dice"]
+
+
 async def test_add_feature_over_http(client: AsyncClient) -> None:
     """A player can record a class feature on their own character."""
     token = await _register_and_login(client)

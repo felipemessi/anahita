@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { RollLogPanel, RollLogProvider, useRoll } from "./roll-log";
+import { RollLogPanel, RollLogProvider, useRoll, useRollDamage } from "./roll-log";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -66,4 +66,83 @@ it("keeps RollLogPanel positioned after content placed before it, mirroring a fo
   const panel = screen.getByLabelText("Rolagens recentes");
   // DOCUMENT_POSITION_FOLLOWING (4) means `panel` comes after `content` in the tree.
   expect(content.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+function DamageTrigger() {
+  const rollDamage = useRollDamage();
+  return (
+    <button type="button" onClick={() => rollDamage("Longsword (dano)", "1d8", 2)}>
+      Dano
+    </button>
+  );
+}
+
+it("rolls damage on its own, independent of any attack roll", () => {
+  vi.spyOn(Math, "random").mockReturnValue(0.5); // 1d8 -> 5
+  render(
+    <RollLogProvider>
+      <DamageTrigger />
+      <RollLogPanel />
+    </RollLogProvider>,
+  );
+
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Dano" }));
+
+  expect(screen.getByRole("dialog", { name: "Rolando Longsword (dano)" })).toBeInTheDocument();
+
+  act(() => {
+    vi.advanceTimersByTime(6500);
+  });
+
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Rolagens recentes")).toHaveTextContent("5 +2 = 7");
+});
+
+it("queues an attack roll and a damage roll fired back to back without clobbering each other", () => {
+  vi.spyOn(Math, "random").mockReturnValue(0.5); // d20 -> 11, d8 -> 5
+
+  function BothTriggers() {
+    const roll = useRoll();
+    const rollDamage = useRollDamage();
+    return (
+      <>
+        <button type="button" onClick={() => roll("Longsword (ataque)", 4)}>
+          Atacar
+        </button>
+        <button type="button" onClick={() => rollDamage("Longsword (dano)", "1d8", 2)}>
+          Dano
+        </button>
+      </>
+    );
+  }
+
+  render(
+    <RollLogProvider>
+      <BothTriggers />
+      <RollLogPanel />
+    </RollLogProvider>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Atacar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Dano" }));
+
+  // Only the attack roll (fired first) is animating; damage is queued.
+  expect(screen.getByRole("dialog", { name: "Rolando Longsword (ataque)" })).toBeInTheDocument();
+
+  act(() => {
+    vi.advanceTimersByTime(6500);
+  });
+
+  expect(screen.getByRole("dialog", { name: "Rolando Longsword (dano)" })).toBeInTheDocument();
+
+  act(() => {
+    vi.advanceTimersByTime(6500);
+  });
+
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  const log = screen.getByLabelText("Rolagens recentes");
+  expect(log).toHaveTextContent("11 +4 = 15");
+  expect(log).toHaveTextContent("5 +2 = 7");
 });
