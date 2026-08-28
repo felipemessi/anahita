@@ -72,6 +72,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   aparece normalmente (atrás de qualquer sessão já datada). Também
   corrigido um caso em que uma sessão marcada para "hoje" podia não
   aparecer dependendo do fuso horário de quem a criou.
+- (Fase 9) Criação de monstro homebrew no formulário do catálogo podia
+  falhar com um erro genérico ao digitar um "Tamanho" inválido (ex. um
+  valor fora do vocabulário SRD) — os campos de "Tamanho" (monstros),
+  "Tipo" (equipamento) e "Escola" (magias) agora são seletores com as
+  opções válidas, em vez de texto livre, e a mensagem de erro exibida
+  reflete o motivo real retornado pela API em vez de um texto genérico.
 
 ### Changed
 - Padrão `__pycache__` no `.gitignore` ampliado para também casar arquivos,
