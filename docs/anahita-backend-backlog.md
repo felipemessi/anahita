@@ -300,11 +300,12 @@
   - [ ] `POST /characters/{id}/proficiencies` (ou equivalente): aceita só proficiências dentro do conjunto de escolha válido pra raça/classe do personagem (422 se fora do conjunto)
   - [ ] Testes: escolha dentro do conjunto válido é aceita, escolha fora do conjunto é rejeitada (422), proficiências fixas de raça/classe são aplicadas automaticamente sem exigir escolha
 
-- **Como jogador, quero que a ficha do personagem exponha as sessões associadas a ele, para dar suporte à navegação reorganizada pedida no frontend.**
-  - [ ] Modelar a associação `Character` ↔ `Session` (hoje inexistente — `Character` não tem relação alguma com `Session`) — decidir se é "sessões em que o personagem participou" (derivado de presença em combate/notas) ou uma lista explícita
-  - [ ] `GET /characters/{id}/sessions` retornando as sessões associadas, na ordem padrão (por `session_number`)
-  - [ ] Testes: personagem sem sessões associadas retorna lista vazia; associação reflete corretamente participação real
+- **Como jogador, quero que a ficha do personagem exponha as sessões associadas a ele, para dar suporte à navegação reorganizada pedida no frontend.** ✅ (2026-08-28)
+  - [x] Modelar a associação `Character` ↔ `Session` (hoje inexistente — `Character` não tem relação alguma com `Session`) — decidir se é "sessões em que o personagem participou" (derivado de presença em combate/notas) ou uma lista explícita
+  - [x] `GET /characters/{id}/sessions` retornando as sessões associadas, na ordem padrão (por `session_number`)
+  - [x] Testes: personagem sem sessões associadas retorna lista vazia; associação reflete corretamente participação real
   - Notas: pré-requisito da história de navegação/reorganização do frontend (Fase 10 do `docs/anahita-frontend-backlog.md`) — não pular o desenho dessa associação achando que é só UI.
+  - Notas: seguida a recomendação do backlog — associação **derivada** de participação real em combate (`EncounterParticipant.character_id` → `Encounter.session_id` → `Session`), sem tabela/coluna nova nem migração. Query cross-domain pura em `app/queries/character_sessions.py::get_sessions_for_character` (join + `distinct()` + `order_by(session_number)`), chamada por `CharacterService.get_character_sessions` que aplica o mesmo guard de visibilidade de `get_character` (dono da ficha ou DM da campanha, 403 pros demais) e replica o padrão de `SessionService.list_sessions` pra `dm_notes` (só populado pro DM, `None` pros outros, sem persistir a máscara). Endpoint `GET /characters/{id}/sessions` retornando `list[SessionRead]`. Uma sessão só aparece uma vez mesmo com mais de um encontro do personagem nela (dedupe via `distinct()`). Personagem sem participação em nenhum combate retorna lista vazia, não erro.
 
 - **Como jogador, quero reordenar a exibição das sessões na minha ficha para organização pessoal (sem afetar a ordem oficial de `session_number`).**
   - [ ] Campo de ordenação pessoal por personagem (não uma coluna compartilhada em `Session`) — ex. tabela de junção `character_id`/`session_id`/`sort_order`

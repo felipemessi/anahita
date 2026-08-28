@@ -34,6 +34,7 @@ from app.characters.schemas import (
 from app.characters.service import CharacterService
 from app.core.dependencies import get_current_user
 from app.database import get_db
+from app.sessions.schemas import SessionRead
 from app.storage import get_storage_service
 from app.storage.base import StorageService
 
@@ -84,6 +85,22 @@ async def get_character(
 ) -> CharacterRead:
     """Fetch a character sheet with calculated modifiers and skill bonuses."""
     return await service.get_character(character_id, user.id, db)
+
+
+@router.get("/{character_id}/sessions", response_model=list[SessionRead])
+async def get_character_sessions(
+    character_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> list[SessionRead]:
+    """List the sessions a character has actually appeared in (combat).
+
+    Derived from combat participation, not an explicit list — see
+    `app.queries.character_sessions`. Viewable by the character's own
+    player and the campaign's DM.
+    """
+    return await service.get_character_sessions(character_id, user.id, db)
 
 
 @router.post("/{character_id}/classes", response_model=CharacterRead)

@@ -9,6 +9,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Endpoint `GET /characters/{id}/sessions` (Fase 10), listando as sessões em
+  que um personagem participou de fato — derivado de participação em
+  combate (`EncounterParticipant` → `Encounter` → `Session`), sem tabela ou
+  lista explícita a manter em dia, ordenado por `session_number`. Mesmo
+  guard de visibilidade de `GET /characters/{id}` (dono da ficha ou DM da
+  campanha).
 - Endpoint `GET /auth/me`, retornando o perfil (email, username) do usuário
   autenticado — lacuna identificada pelo frontend, já que o token de acesso
   só carrega o id do usuário.
