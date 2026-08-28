@@ -132,6 +132,22 @@ describe("CampaignDashboardPage", () => {
     expect(screen.getByText(/A Torre Caída/)).toBeInTheDocument();
   });
 
+  it("renders the next session even when it has no scheduled date", () => {
+    useMyMembership.mockReturnValue({ data: dmMember });
+    useCampaignDashboard.mockReturnValue({
+      data: {
+        ...dashboard,
+        next_session: { ...nextSession, scheduled_date: null },
+      },
+      isLoading: false,
+    });
+
+    render(<CampaignDashboardPage />);
+
+    expect(screen.getByText(/A Torre Caída/)).toBeInTheDocument();
+    expect(screen.queryByText("2026-09-01")).not.toBeInTheDocument();
+  });
+
   it("shows a placeholder when there is no upcoming session", () => {
     useMyMembership.mockReturnValue({ data: dmMember });
     useCampaignDashboard.mockReturnValue({

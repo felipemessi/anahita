@@ -453,10 +453,11 @@
 
 > Depende do backend Fase 9. Levantamento do grupo em 2026-08-28: vários itens reportados como "não funciona" já têm rota de backend + tela de frontend prontas no código — tratar como investigação de bug, não redesenho.
 
-- **Como jogador, quero ver a próxima sessão agendada no dashboard da campanha.**
-  - [ ] Reproduzir com o backend corrigido (Fase 9 do backend): confirmar que o card "próxima sessão" (`app/campaigns/[campaignId]/page.tsx`) volta a aparecer
-  - [ ] Se o fix de backend exigir `scheduled_date` obrigatório na criação, ajustar o formulário rápido de sessão (`app/campaigns/[campaignId]/sessions/page.tsx`) para pedir a data
-  - [ ] Teste: card mostra a sessão agendada após o fix
+- **Como jogador, quero ver a próxima sessão agendada no dashboard da campanha.** ✅ (2026-08-28)
+  - [x] Reproduzir com o backend corrigido (Fase 9 do backend): confirmar que o card "próxima sessão" (`app/campaigns/[campaignId]/page.tsx`) volta a aparecer
+  - [x] Se o fix de backend exigir `scheduled_date` obrigatório na criação, ajustar o formulário rápido de sessão (`app/campaigns/[campaignId]/sessions/page.tsx`) para pedir a data
+  - [x] Teste: card mostra a sessão agendada após o fix
+  - Notas: sem mudança de código necessária no dashboard/tipos — o fix de backend (Fase 9) já não exige `scheduled_date`, e o frontend já tratava `scheduled_date: string | null` corretamente em todo o caminho (`types/session.ts`, `types/campaign.ts`, `SessionCard`, `campaigns/[campaignId]/page.tsx`). O formulário rápido de sessão (`sessions/page.tsx`) continua enviando só `{ title }`, o que já bate com `SessionCreate` no backend (`scheduled_date` opcional, default `None`). Único ajuste: adicionado teste em `page.test.tsx` cobrindo explicitamente uma `next_session` sem `scheduled_date`, confirmando que o card aparece (sem linha de data) em vez de cair no placeholder "Nenhuma sessão futura agendada".
 
 - **Como mestre, quero criar conteúdo homebrew em todas as categorias do catálogo.**
   - [ ] Reproduzir o bug relatado com o usuário, em cada categoria (`custom-entry-form.tsx`) — capturar mensagem de erro exata mostrada na tela
