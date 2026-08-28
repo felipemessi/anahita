@@ -262,12 +262,13 @@
   - [ ] Testes de regressão cobrindo o caso específico corrigido
   - Notas: não redesenhar as rotas sem antes confirmar que o bug é real — o backend já passou por uma leva de testes destas 9 rotas na Fase 1 (`tests/catalog/test_router_homebrew.py`).
 
-- **Como mestre, quero selecionar o alvo de um ataque/magia em combate.**
-  - [ ] Reproduzir: declarar uma ação com alvo (`declare_action`) num encontro só com monstros vs. um encontro com participantes mistos
-  - [ ] Investigar se a lista de alvos fica vazia quando o encontro só tem monstros (relacionado à Fase 13 história 3 — jogadores não conseguem ser adicionados ao combate hoje) ou se é um bug isolado de `declare_action`/`_resolve_attack`
-  - [ ] Corrigir a causa raiz; se for só consequência do gap de participantes (Fase 13), documentar a dependência e não duplicar o fix
-  - [ ] Teste de regressão cobrindo o caso reproduzido
+- [x] **Como mestre, quero selecionar o alvo de um ataque/magia em combate.** ✅ (2026-08-28)
+  - [x] Reproduzir: declarar uma ação com alvo (`declare_action`) num encontro só com monstros vs. um encontro com participantes mistos
+  - [x] Investigar se a lista de alvos fica vazia quando o encontro só tem monstros (relacionado à Fase 13 história 3 — jogadores não conseguem ser adicionados ao combate hoje) ou se é um bug isolado de `declare_action`/`_resolve_attack`
+  - [x] Corrigir a causa raiz; se for só consequência do gap de participantes (Fase 13), documentar a dependência e não duplicar o fix
+  - [x] Teste de regressão cobrindo o caso reproduzido
   - Notas: `declare_action`→`_resolve_attack` (`app/combat/service.py`) já resolve `target_participant_id` corretamente em teste unitário — o bug relatado pode ser só sintoma de encontro sem alvos válidos.
+  - Notas: **Não há bug de backend.** Reproduzido diretamente via `CombatService`: criei um encontro só-com-monstros (dois monstros, sem PC) e chamei `declare_action` de um monstro contra o outro — `_resolve_attack`/`_resolve_and_apply_attack` resolvem `target_id`, rolam ataque/dano e aplicam HP normalmente (novo teste `test_declare_action_resolves_target_in_monster_only_encounter` em `backend/tests/combat/test_declare_action.py`, ao lado do já existente `test_declare_monster_attack_uses_stat_block` que cobre um monstro atacando um PC num encontro misto). O `add_participant`/`validate_participant_kind` do backend (`app/combat/service.py`/`domain.py`) já aceita `character_id` sem restrição. A causa raiz real do "alvo vazio" é 100% frontend: `frontend/src/app/campaigns/[campaignId]/combat/[encounterId]/page.tsx` só renderiza `MonsterPicker` para adicionar participantes — não existe um "CharacterPicker" equivalente para adicionar PCs ao encontro pela UI. Isso é exatamente a Fase 13 história 3 ("jogadores não conseguem ser adicionados ao combate hoje"); quando o mestre só consegue adicionar um monstro (ou monstros) ao encontro, a lista de alvos (`otherParticipants`, calculada em `page.tsx`/passada a `ActionPicker`/`LegendaryActionPicker`) fica pequena ou vazia simplesmente porque não há mais ninguém no encontro para mirar — não é um bug de resolução de alvo. Dependência explícita: o fix de UI (adicionar PCs ao combate) pertence à Fase 13 história 3 e não foi feito aqui, para não duplicar aquele trabalho. Sem mudança de comportamento no backend — só teste de regressão comprovando o caminho já correto; sem entrada de changelog (nenhum fix de comportamento para o usuário).
 
 ---
 

@@ -210,6 +210,82 @@ async def fixture_with_fighter(db: AsyncSession) -> _Fixture:
     )
 
 
+class _MonsterOnlyFixture:
+    """A campaign/session/encounter with only catalog monsters — no PC."""
+
+    def __init__(self, session_id: uuid.UUID, dm_id: uuid.UUID) -> None:
+        self.session_id = session_id
+        self.dm_id = dm_id
+
+
+@pytest.fixture
+async def fixture_monster_only_encounter(db: AsyncSession) -> _MonsterOnlyFixture:
+    """Set up an encounter with two catalog monsters and no PC/NPC (Fase 9 história 3).
+
+    Reproduces the reported bug scenario — "an encounter with only monsters"
+    — to verify `declare_action`/`_resolve_attack` resolve targets correctly
+    even when every participant is a monster.
+    """
+    dm = User(email="dm2@example.com", username="dm2", hashed_password="x")
+    db.add(dm)
+    await db.flush()
+
+    campaign = Campaign(name="Wilderness", owner_id=dm.id)
+    db.add(campaign)
+    await db.flush()
+    dm_member = CampaignMember(
+        campaign_id=campaign.id, user_id=dm.id, role=CampaignRole.dm
+    )
+    db.add(dm_member)
+    await db.flush()
+
+    session = Session(
+        campaign_id=campaign.id,
+        session_number=1,
+        title="Session 1",
+        status=SessionStatus.planned,
+        created_at=datetime.now(UTC),
+    )
+    db.add(session)
+    await db.commit()
+
+    combat_service = CombatService()
+    encounter = await combat_service.create_encounter(
+        session.id, dm.id, EncounterCreate(name="Beast Brawl"), db
+    )
+
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    await combat_service.add_participant(
+        encounter.id,
+        dm.id,
+        EncounterParticipantCreate(
+            monster_id=goblin.id,
+            name="Goblin",
+            hit_point_max=7,
+            armor_class=15,
+            turn_order=0,
+        ),
+        db,
+    )
+    wolf_result = await db.execute(select(Monster).where(Monster.index == "wolf"))
+    wolf = wolf_result.scalar_one()
+    await combat_service.add_participant(
+        encounter.id,
+        dm.id,
+        EncounterParticipantCreate(
+            monster_id=wolf.id,
+            name="Wolf",
+            hit_point_max=11,
+            armor_class=13,
+            turn_order=1,
+        ),
+        db,
+    )
+
+    return _MonsterOnlyFixture(session_id=session.id, dm_id=dm.id)
+
+
 async def _get_encounter_id(db: AsyncSession, session_id: uuid.UUID) -> uuid.UUID:
     result = await db.execute(
         select(Encounter).where(Encounter.session_id == session_id)
@@ -1007,3 +1083,50 @@ async def test_declare_flavor_action_logs_without_rolling(
     log = await service.get_log(encounter_id, fx.dm_id, db)
     dash_entry = next(entry for entry in log if entry.action_type == "dash")
     assert dash_entry.rolled_by_system is True
+
+
+async def test_declare_action_resolves_target_in_monster_only_encounter(
+    db: AsyncSession, fixture_monster_only_encounter: _MonsterOnlyFixture
+) -> None:
+    """`declare_action` resolves a valid target even when every participant
+    in the encounter is a catalog monster (Fase 9 história 3 regression).
+
+    Reproduces the reported "target list is empty for monster-only
+    encounters" bug at the service layer: with two monsters in the
+    encounter, one monster can target the other and the attack resolves
+    normally — `declare_action`/`_resolve_attack` are not the root cause.
+    The actual gap is that the frontend has no way to add a player
+    character to an encounter (Fase 13 história 3); a monster-only
+    encounter with a single monster naturally has no other participant to
+    target, which is what that gap looks like from the DM's chair.
+    """
+    fx = fixture_monster_only_encounter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    service = CombatService()
+
+    goblin_result = await db.execute(select(Monster).where(Monster.index == "goblin"))
+    goblin = goblin_result.scalar_one()
+    action_result = await db.execute(
+        select(MonsterAction).where(
+            MonsterAction.monster_id == goblin.id, MonsterAction.name == "Scimitar"
+        )
+    )
+    scimitar = action_result.scalar_one()
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.dm_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Goblin"],
+            target_id=ids["Wolf"],
+            action_type="attack_weapon",
+            monster_action_id=scimitar.id,
+            manual_attack_roll=20,
+        ),
+        db,
+    )
+    assert result.target_id == ids["Wolf"]
+    assert result.hit is True
+    assert result.damage_rolled is not None
+    assert result.damage_type == "slashing"
