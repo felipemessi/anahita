@@ -91,6 +91,83 @@ async def test_next_session_ignores_completed_sessions_in_the_future(
     assert dashboard.next_session is None
 
 
+async def test_next_session_falls_back_to_undated_planned_session(
+    db: AsyncSession,
+) -> None:
+    """A quick-created session with no scheduled_date must not stay invisible forever."""
+    campaign = await _make_campaign(db)
+    db.add(
+        Session(
+            campaign_id=campaign.id,
+            session_number=1,
+            title="Quick-created, no date yet",
+            scheduled_date=None,
+            status=SessionStatus.planned,
+        )
+    )
+    await db.flush()
+
+    dashboard = await get_campaign_dashboard(campaign.id, is_dm=True, db=db)
+
+    assert dashboard.next_session is not None
+    assert dashboard.next_session.title == "Quick-created, no date yet"
+
+
+async def test_next_session_prefers_dated_session_over_undated(
+    db: AsyncSession,
+) -> None:
+    """A dated, upcoming session still wins over an undated one."""
+    campaign = await _make_campaign(db)
+    db.add_all(
+        [
+            Session(
+                campaign_id=campaign.id,
+                session_number=1,
+                title="No date yet",
+                scheduled_date=None,
+                status=SessionStatus.planned,
+            ),
+            Session(
+                campaign_id=campaign.id,
+                session_number=2,
+                title="Scheduled",
+                scheduled_date=_TODAY + timedelta(days=2),
+                status=SessionStatus.planned,
+            ),
+        ]
+    )
+    await db.flush()
+
+    dashboard = await get_campaign_dashboard(campaign.id, is_dm=True, db=db)
+
+    assert dashboard.next_session is not None
+    assert dashboard.next_session.title == "Scheduled"
+
+
+async def test_next_session_scheduled_for_today_appears_regardless_of_server_timezone(
+    db: AsyncSession,
+) -> None:
+    """A session scheduled for "today" must show up even if the server's UTC
+    calendar day has already rolled past the requester's local "today" (a
+    requester in a negative UTC offset, e.g. the Americas)."""
+    campaign = await _make_campaign(db)
+    db.add(
+        Session(
+            campaign_id=campaign.id,
+            session_number=1,
+            title="Tonight's session",
+            scheduled_date=_TODAY - timedelta(days=1),
+            status=SessionStatus.planned,
+        )
+    )
+    await db.flush()
+
+    dashboard = await get_campaign_dashboard(campaign.id, is_dm=True, db=db)
+
+    assert dashboard.next_session is not None
+    assert dashboard.next_session.title == "Tonight's session"
+
+
 async def test_pending_handouts_only_returned_for_dm(db: AsyncSession) -> None:
     """A player never sees pending (unrevealed) handouts, not even a count."""
     campaign = await _make_campaign(db)

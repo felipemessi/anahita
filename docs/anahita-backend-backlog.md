@@ -247,13 +247,14 @@
 
 > Objetivo: um levantamento do grupo em 2026-08-28 apontou vários itens como "não funciona" que o código já implementa (rota + service prontos). Antes de desenhar qualquer feature nova, reproduzir e corrigir a causa raiz de cada um. Levantado junto com as Fases 10-15 abaixo, a partir de feedback de uso real (ver `docs/anahita-frontend-backlog.md` para a contraparte de UI de cada item).
 
-- **Como jogador, quero ver a próxima sessão agendada no dashboard da campanha.**
-  - [ ] Reproduzir: criar uma sessão pelo formulário rápido de sessões e confirmar se ela aparece no card "próxima sessão" do dashboard
-  - [ ] Causa raiz suspeita: `get_campaign_dashboard()` (`app/queries/dashboard_queries.py`) filtra por `Session.scheduled_date.is_not(None)`, mas nada hoje força uma sessão a ter `scheduled_date` — sessões criadas sem data ficam invisíveis pra sempre no dashboard
-  - [ ] Decidir e implementar: exigir `scheduled_date` na criação (`SessionCreate`), ou fazer o dashboard cair pra `created_at`/status quando `scheduled_date` for nulo
-  - [ ] Revisar a comparação de data (`datetime.now(UTC).date()`) — checar se pode gerar off-by-one perto da meia-noite pra usuários fora de UTC; ajustar se confirmado
-  - [ ] Testes: sessão sem `scheduled_date` aparece (ou é corretamente tratada) no dashboard; sessão agendada para "hoje" aparece independente do fuso do servidor
+- **Como jogador, quero ver a próxima sessão agendada no dashboard da campanha.** ✅ (2026-08-28)
+  - [x] Reproduzir: criar uma sessão pelo formulário rápido de sessões e confirmar se ela aparece no card "próxima sessão" do dashboard
+  - [x] Causa raiz suspeita: `get_campaign_dashboard()` (`app/queries/dashboard_queries.py`) filtra por `Session.scheduled_date.is_not(None)`, mas nada hoje força uma sessão a ter `scheduled_date` — sessões criadas sem data ficam invisíveis pra sempre no dashboard
+  - [x] Decidir e implementar: exigir `scheduled_date` na criação (`SessionCreate`), ou fazer o dashboard cair pra `created_at`/status quando `scheduled_date` for nulo
+  - [x] Revisar a comparação de data (`datetime.now(UTC).date()`) — checar se pode gerar off-by-one perto da meia-noite pra usuários fora de UTC; ajustar se confirmado
+  - [x] Testes: sessão sem `scheduled_date` aparece (ou é corretamente tratada) no dashboard; sessão agendada para "hoje" aparece independente do fuso do servidor
   - Notas: story deve começar reproduzindo o problema (não presumir a causa como certa) antes de commitar a um fix.
+  - Notas: causa raiz confirmada reproduzindo o formulário rápido (`frontend/src/app/campaigns/[campaignId]/sessions/page.tsx`) — ele só envia `title`, então toda sessão quick-created fica sem `scheduled_date` e a query do dashboard (`Session.scheduled_date.is_not(None)`) a exclui pra sempre. Decisão: **não** tornar `scheduled_date` obrigatório em `SessionCreate` (quebraria o fluxo rápido existente, mais disruptivo); em vez disso `get_campaign_dashboard()` agora trata sessões sem `scheduled_date` como candidatas válidas a "próxima sessão" (via `OR scheduled_date IS NULL`), ordenando-as depois das sessões com data futura (`ORDER BY scheduled_date IS NULL, scheduled_date, session_number`). Também confirmado o off-by-one: comparar `scheduled_date` (data pura, sem fuso) contra `datetime.now(UTC).date()` esconde sessões marcadas para "hoje" por usuários em fuso negativo (ex. Américas) quando o UTC já virou o dia seguinte; corrigido recuando o cutoff em 1 dia (`today - timedelta(days=1)`) — mitigação pragmática já que não há fuso por usuário/campanha persistido hoje (registrar como possível melhoria futura).
 
 - **Como mestre, quero criar conteúdo homebrew em todas as categorias do catálogo (magia, equipamento, item mágico, monstro, antecedente, talento, regra). ✅ (2026-08-28)**
   - [x] Reproduzir com o usuário como DM: tentar `POST /catalog/{spells,items,magic-items,monsters,backgrounds,feats,rules}` pela UI de cada categoria e capturar o erro/comportamento exato

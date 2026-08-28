@@ -2,9 +2,9 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.handouts.models import Handout
@@ -36,16 +36,32 @@ async def get_campaign_dashboard(
     dashboard must not leak that one exists either — the list and count
     come back empty regardless of what actually exists.
     """
+    # The server's UTC "today" can be a calendar day behind a requester in a
+    # negative UTC offset (e.g. the Americas) relative to the plain calendar
+    # date they picked for `scheduled_date` (which carries no timezone of its
+    # own). Backdating the cutoff by one day absorbs that skew without
+    # requiring a per-user/campaign timezone (not tracked today) to do this
+    # precisely — see docs/anahita-backend-backlog.md Fase 9.
     today = datetime.now(UTC).date()
+    cutoff = today - timedelta(days=1)
     next_session_result = await db.execute(
         select(Session)
         .where(
             Session.campaign_id == campaign_id,
-            Session.scheduled_date.is_not(None),
-            Session.scheduled_date >= today,
+            # A session with no scheduled_date is still a legitimate "next
+            # session" candidate — it must not be invisible forever just
+            # because it was quick-created without a date.
+            or_(
+                Session.scheduled_date.is_(None),
+                Session.scheduled_date >= cutoff,
+            ),
             Session.status.in_([SessionStatus.planned, SessionStatus.in_progress]),
         )
-        .order_by(Session.scheduled_date, Session.session_number)
+        .order_by(
+            Session.scheduled_date.is_(None),
+            Session.scheduled_date,
+            Session.session_number,
+        )
         .limit(1)
     )
     next_session = next_session_result.scalar_one_or_none()
