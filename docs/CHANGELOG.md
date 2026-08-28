@@ -62,6 +62,11 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   do SQLAlchemy.
 - Chave secreta JWT padrão abaixo do mínimo recomendado, disparando
   `InsecureKeyLengthWarning` do PyJWT.
+- (Fase 9) Sessão criada pelo formulário rápido, sem data marcada, nunca
+  aparecia no card "próxima sessão" do dashboard da campanha — agora ela
+  aparece normalmente (atrás de qualquer sessão já datada). Também
+  corrigido um caso em que uma sessão marcada para "hoje" podia não
+  aparecer dependendo do fuso horário de quem a criou.
 
 ### Changed
 - Padrão `__pycache__` no `.gitignore` ampliado para também casar arquivos,
