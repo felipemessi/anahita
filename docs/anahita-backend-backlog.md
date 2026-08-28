@@ -284,11 +284,12 @@
   - [ ] Decidir e documentar a política pra edição de raça/classe pós-criação (bloquear, ou permitir com recálculo completo de CA/PV/perícias) — se bloquear, deixar explícito no schema/erro
   - [ ] Testes: edição de nome/alinhamento/antecedente simples; edição de ability score recalcula modificadores e campos derivados; dono errado é rejeitado (403)
 
-- **Como jogador, quero colocar uma imagem no meu personagem, para ser exibida "redonda" na ficha e (depois) no mapa de sessão.**
-  - [ ] `Character` ganha campo de imagem (`portrait_key`, seguindo o padrão de `storage_key` já usado por `Handout` — reaproveitar `StorageService`)
-  - [ ] Migração Alembic
-  - [ ] `POST /characters/{id}/portrait` (upload multipart, reaproveitando o padrão de upload de Handouts) — só o dono da ficha
-  - [ ] Testes: upload troca o portrait, remoção volta ao estado sem imagem, dono errado rejeitado (403)
+- **Como jogador, quero colocar uma imagem no meu personagem, para ser exibida "redonda" na ficha e (depois) no mapa de sessão.** ✅ (2026-08-28)
+  - [x] `Character` ganha campo de imagem (`portrait_key`, seguindo o padrão de `storage_key` já usado por `Handout` — reaproveitar `StorageService`)
+  - [x] Migração Alembic
+  - [x] `POST /characters/{id}/portrait` (upload multipart, reaproveitando o padrão de upload de Handouts) — só o dono da ficha
+  - [x] Testes: upload troca o portrait, remoção volta ao estado sem imagem, dono errado rejeitado (403)
+  - Notas: reaproveitado 1:1 o padrão de `HandoutService`/`StorageService` — `portrait_key` nullable em `Character` (migração `68f443f24e1a`), chave de storage `characters/{character_id}/portrait_{uuid}_{filename}`. `POST /characters/{id}/portrait` (multipart, campo `file`) e `DELETE /characters/{id}/portrait`, ambos restritos ao dono da ficha (`_require_own_membership`, mesmo guard já usado por `update_character`/`add_class`). Ao trocar/remover o portrait, o arquivo antigo é apagado do storage (sem órfãos). Sem validação de mimetype/tamanho — mesmo comportamento (deliberadamente permissivo) já adotado pelo upload de `Handout`; fica como gap conhecido compartilhado pelos dois, não reintroduzido aqui. `CharacterRead.portrait_url` resolvido via `StorageService.get_url`, mesmo padrão de `HandoutRead.url`; `CharacterService` passou a aceitar `StorageService` injetável no construtor, com fallback pro serviço configurado (`get_storage_service()`) pra não quebrar as dezenas de `CharacterService()` já instanciados sem storage em outros domínios/testes.
 
 - **Como jogador, quero marcar minhas proficiências com base nas capacidades da minha raça e classe(s), não livremente.**
   - [ ] Modelar quais proficiências uma raça/classe *oferece como escolha* (ex. "escolha 2 de: Atletismo, Intimidação...") vs. as que já vêm fixas — gap pré-existente já documentado nas notas da Fase 7 ("não existe endpoint para setar proficiência de perícia... gap pré-existente, fora do escopo desta história")

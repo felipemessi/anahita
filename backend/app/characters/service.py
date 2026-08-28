@@ -81,6 +81,8 @@ from app.characters.schemas import (
 )
 from app.queries.spell_attack import resolve_character_spell_attack
 from app.queries.weapon_attack import resolve_character_weapon_attack
+from app.storage import get_storage_service
+from app.storage.base import StorageService
 from engine import dice
 from engine.abilities import (
     calculate_modifier,
@@ -171,6 +173,15 @@ class _CatalogScopedEntity(Protocol):
 
 class CharacterService:
     """Orchestrates character creation, reads, and catalog-reference validation."""
+
+    def __init__(self, storage: StorageService | None = None) -> None:
+        """Store the StorageService used to resolve/persist portrait images.
+
+        Defaults to the configured `StorageService` when not given, so the
+        many pre-existing `CharacterService()` call sites (unrelated to
+        portraits) don't need to change.
+        """
+        self._storage = storage or get_storage_service()
 
     async def create_character(
         self, requester_id: uuid.UUID, data: CharacterCreate, db: AsyncSession
@@ -893,6 +904,53 @@ class CharacterService:
             character.inspiration = data.inspiration
 
         await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def upload_portrait(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+        *,
+        file_bytes: bytes,
+        file_name: str | None,
+        content_type: str | None,
+    ) -> CharacterRead:
+        """Set (or replace) a character's portrait image. Owner only.
+
+        Mirrors `HandoutService.create_handout`'s upload pattern. A previous
+        portrait, if any, is deleted from storage so replacing one doesn't
+        leak orphaned files.
+        """
+        character = await self._load_character_owned_by(character_id, requester_id, db)
+
+        old_key = character.portrait_key
+        key = f"characters/{character_id}/portrait_{uuid.uuid4()}_{file_name or 'file'}"
+        character.portrait_key = self._storage.upload(
+            key, file_bytes, content_type or "application/octet-stream"
+        )
+        await db.commit()
+        if old_key:
+            self._storage.delete(old_key)
+
+        return await self._reload_as_read(character.id, db)
+
+    async def remove_portrait(
+        self, character_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> CharacterRead:
+        """Remove a character's portrait, reverting to the imageless state.
+
+        Owner only. A no-op (still returns the character) if no portrait
+        is currently set.
+        """
+        character = await self._load_character_owned_by(character_id, requester_id, db)
+
+        old_key = character.portrait_key
+        character.portrait_key = None
+        await db.commit()
+        if old_key:
+            self._storage.delete(old_key)
+
         return await self._reload_as_read(character.id, db)
 
     async def add_spell(
@@ -2170,6 +2228,9 @@ class CharacterService:
             death_save_failures=character.death_save_failures,
             is_dead=character.is_dead,
             concentrating_spell_id=character.concentrating_spell_id,
+            portrait_url=self._storage.get_url(character.portrait_key)
+            if character.portrait_key
+            else None,
             passive_perception=passive_perception,
             passive_investigation=passive_investigation,
             passive_insight=passive_insight,
