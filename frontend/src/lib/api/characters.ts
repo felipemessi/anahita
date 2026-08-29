@@ -19,6 +19,7 @@ import type {
   CharacterSpellCreate,
   CharacterSpellUpdate,
   CharacterSummary,
+  CharacterUpdate,
   SpellAttackProfile,
   WeaponAttackProfile,
 } from "@/types/character";
@@ -69,6 +70,21 @@ export function updateCharacterHp(
   return apiFetch<Character>(`/characters/${characterId}`, {
     method: "PATCH",
     body: JSON.stringify({ hit_point_current: hitPointCurrent }),
+  });
+}
+
+/**
+ * Edit a character's name/alignment/background/ability scores post-creation
+ * (Fase 10) — distinct from `updateCharacterHp`. `ability_scores` is
+ * partial: send only the abilities being changed. Race/class are locked.
+ */
+export function updateCharacterInfo(
+  characterId: string,
+  data: CharacterUpdate,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
   });
 }
 

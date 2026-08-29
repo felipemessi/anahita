@@ -8,6 +8,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/components/catalog/catalog-filter-bar", () => ({ CatalogFilterBar: () => null }));
 vi.mock("@/components/characters/ability-scores", () => ({ AbilityScores: () => null }));
 vi.mock("@/components/characters/class-resources", () => ({ ClassResources: () => null }));
+vi.mock("@/components/characters/character-info-editor", () => ({
+  CharacterInfoEditor: () => null,
+}));
 vi.mock("@/components/characters/concentration-indicator", () => ({
   ConcentrationIndicator: () => null,
 }));

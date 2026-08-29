@@ -484,10 +484,11 @@
 
 > Depende do backend Fase 10.
 
-- **Como jogador, quero editar as informações do meu personagem depois de criado (nome, alinhamento, antecedente, atributos-base).**
-  - [ ] `lib/api/characters.ts`: `updateCharacterInfo` (novo, distinto de `updateCharacterHp`), estender `hooks/use-character.ts`
-  - [ ] Formulário de edição na ficha (`character-sheet.tsx`), reaproveitando o padrão visual do editor inline de HP; campos de ability score exigem confirmação (aviso de efeitos em cascata em CA/PV/perícias)
-  - [ ] Teste: edição de nome/alinhamento/antecedente atualiza a ficha; edição de ability score mostra o aviso de confirmação antes de enviar
+- **Como jogador, quero editar as informações do meu personagem depois de criado (nome, alinhamento, antecedente, atributos-base).** ✅ (2026-08-29)
+  - [x] `lib/api/characters.ts`: `updateCharacterInfo` (novo, distinto de `updateCharacterHp`), estender `hooks/use-character.ts`
+  - [x] Formulário de edição na ficha (`character-sheet.tsx`), reaproveitando o padrão visual do editor inline de HP; campos de ability score exigem confirmação (aviso de efeitos em cascata em CA/PV/perícias)
+  - [x] Teste: edição de nome/alinhamento/antecedente atualiza a ficha; edição de ability score mostra o aviso de confirmação antes de enviar
+  - Notas: novo componente `components/characters/character-info-editor.tsx` (colapsado atrás de um botão "Editar informações" no cabeçalho da ficha), com o mesmo padrão de draft state + `onBlur`/submit do editor de HP. Nome/alinhamento/antecedente enviam o PATCH direto ao submeter o form. Alterar qualquer atributo-base abre um `ConfirmDialog` (mesmo componente do fluxo de descanso) avisando que CA/PV máximo/perícias podem mudar; só ao confirmar o PATCH é disparado. O payload só inclui os campos realmente alterados (`ability_scores` é parcial — só as habilidades editadas). Raça/classe permanecem sem UI de edição (fora de escopo, backend não aceita).
 
 - **Como jogador, quero colocar uma imagem no meu personagem, exibida "redonda" na ficha e (depois) no mapa.**
   - [ ] `lib/api/characters.ts`: `uploadCharacterPortrait` (multipart, mesmo padrão de upload de Handouts)

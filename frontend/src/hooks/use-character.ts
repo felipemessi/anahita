@@ -24,6 +24,7 @@ import {
   updateCharacterCurrency,
   updateCharacterEquipment,
   updateCharacterHp,
+  updateCharacterInfo,
   updateCharacterSpell,
 } from "@/lib/api/characters";
 import type {
@@ -40,6 +41,7 @@ import type {
   CharacterSpellCastRequest,
   CharacterSpellCreate,
   CharacterSpellUpdate,
+  CharacterUpdate,
 } from "@/types/character";
 
 export const CHARACTERS_QUERY_KEY = ["characters"] as const;
@@ -407,6 +409,25 @@ export function useUpdateCharacterHp(characterId: string) {
       }
     },
     onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
+/**
+ * Edit a character's name/alignment/background/ability scores (Fase 10).
+ * Unlike `useUpdateCharacterHp` this isn't optimistic — an ability score
+ * edit can cascade into AC/max HP/skills recalculated server-side, so the
+ * sheet waits for the real response rather than guessing it.
+ */
+export function useUpdateCharacterInfo(characterId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = [...CHARACTERS_QUERY_KEY, characterId];
+
+  return useMutation({
+    mutationFn: (data: CharacterUpdate) => updateCharacterInfo(characterId, data),
+    onSuccess: (character) => {
+      queryClient.setQueryData(queryKey, character);
       void queryClient.invalidateQueries({ queryKey });
     },
   });
