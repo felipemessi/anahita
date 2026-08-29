@@ -46,6 +46,7 @@ class NPC(Base):
     stat_block_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("catalog_monsters.id")
     )
+    is_revealed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

@@ -67,9 +67,27 @@ async def create_npc(
 async def list_npcs(
     campaign_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
 ) -> list[NPCRead]:
-    """List a campaign's NPCs."""
+    """List a campaign's NPCs. Non-DM members only see revealed ones."""
     npcs = await service.list_npcs(campaign_id, user.id, db)
     return [NPCRead.model_validate(n) for n in npcs]
+
+
+@router.get("/npcs/{npc_id}", response_model=NPCRead)
+async def get_npc(
+    npc_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> NPCRead:
+    """Get an NPC's detail. Non-DM members can only see it if revealed."""
+    npc = await service.get_npc(npc_id, user.id, db)
+    return NPCRead.model_validate(npc)
+
+
+@router.post("/npcs/{npc_id}/reveal", response_model=NPCRead)
+async def reveal_npc(
+    npc_id: uuid.UUID, user: CurrentUser, db: DB, service: WorldSvc
+) -> NPCRead:
+    """Reveal an NPC to players. DM-only."""
+    npc = await service.reveal_npc(npc_id, user.id, db)
+    return NPCRead.model_validate(npc)
 
 
 @router.post(

@@ -384,12 +384,13 @@
   - [ ] Backend já aceita (`EncounterParticipantCreate.character_id`) — confirmar que a rota `POST /encounters/{id}/participants` funciona ponta a ponta com `character_id` preenchido (o gap real é de frontend, ver Fase 13 do backlog de frontend); se houver validação faltando (ex. mesmo personagem duplicado no encontro), adicionar
   - [ ] Testes: adicionar personagem funciona; personagem duplicado no mesmo encontro é rejeitado
 
-- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
-  - [ ] `NPC` ganha `is_revealed: bool` (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`
-  - [ ] Migração Alembic
-  - [ ] `GET /campaigns/{id}/npcs` (e detalhe) para jogador só retorna `is_revealed=true`; DM sempre vê tudo
-  - [ ] `POST /npcs/{id}/reveal` (ou `PATCH`), DM-only
-  - [ ] Testes: jogador não vê NPC oculto na lista nem no detalhe (404 ou filtro, a decidir); DM vê tudo; reveal muda a visibilidade corretamente
+- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.** ✅ (2026-08-29)
+  - [x] `NPC` ganha `is_revealed: bool` (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`
+  - [x] Migração Alembic
+  - [x] `GET /campaigns/{id}/npcs` (e detalhe) para jogador só retorna `is_revealed=true`; DM sempre vê tudo
+  - [x] `POST /npcs/{id}/reveal` (ou `PATCH`), DM-only
+  - [x] Testes: jogador não vê NPC oculto na lista nem no detalhe (404 ou filtro, a decidir); DM vê tudo; reveal muda a visibilidade corretamente
+  - Notas: reaproveitado 1:1 o padrão já usado por `Handout.is_revealed`/`HandoutService`. Decisão de visibilidade: **filtro na listagem** (`GET /campaigns/{id}/npcs` simplesmente omite NPCs não revelados para não-DM, sem erro) e **404 no detalhe direto** (`GET /npcs/{id}`, endpoint novo — não existia antes desta história) quando um não-DM tenta acessar um NPC oculto pelo id, mesmo que ele exista e pertença à campanha do requisitante — mesmo padrão exato de `HandoutService.get_handout`, para não vazar a existência do NPC oculto. `POST /npcs/{id}/reveal` é DM-only (`WorldService._require_dm`), idêntico ao fluxo de `reveal_handout`, mas sem broadcast via WebSocket (a história não pediu e não há paralelo de "encontro ativo" para NPCs). `NPCRead` ganhou o campo `is_revealed`. Um teste HTTP pré-existente (`test_dm_creates_npc_and_player_can_list_it`) esperava que o player visse o NPC recém-criado sem reveal — ajustado para revelar antes, já que esse é o novo comportamento correto.
 
 ---
 

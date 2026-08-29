@@ -162,6 +162,80 @@ async def test_player_cannot_create_npc(db: AsyncSession) -> None:
     assert exc.value.status_code == 403
 
 
+async def test_npc_is_hidden_by_default_and_revealed_by_dm(db: AsyncSession) -> None:
+    """A fresh NPC starts unrevealed; the DM can reveal it."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Volo", race="Human"), db
+    )
+    assert npc.is_revealed is False
+
+    revealed = await service.reveal_npc(npc.id, dm.id, db)
+    assert revealed.is_revealed is True
+
+
+async def test_player_only_sees_revealed_npcs_in_list(db: AsyncSession) -> None:
+    """DM sees every NPC; a player only sees the revealed ones."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Hidden NPC", race="Human"), db
+    )
+    revealed = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Public NPC", race="Human"), db
+    )
+    await service.reveal_npc(revealed.id, dm.id, db)
+
+    dm_view = await service.list_npcs(campaign.id, dm.id, db)
+    player_view = await service.list_npcs(campaign.id, player.id, db)
+
+    assert {n.name for n in dm_view} == {"Hidden NPC", "Public NPC"}
+    assert {n.name for n in player_view} == {"Public NPC"}
+
+
+async def test_player_cannot_get_unrevealed_npc(db: AsyncSession) -> None:
+    """GET on an unrevealed NPC 404s for a player, even by direct id."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Hidden NPC", race="Human"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.get_npc(npc.id, player.id, db)
+    assert exc.value.status_code == 404
+
+    dm_view = await service.get_npc(npc.id, dm.id, db)
+    assert dm_view.id == npc.id
+
+
+async def test_player_can_get_revealed_npc(db: AsyncSession) -> None:
+    """A player can GET an NPC's detail once the DM has revealed it."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Public NPC", race="Human"), db
+    )
+    await service.reveal_npc(npc.id, dm.id, db)
+
+    fetched = await service.get_npc(npc.id, player.id, db)
+    assert fetched.id == npc.id
+
+
+async def test_player_cannot_reveal_npc(db: AsyncSession) -> None:
+    """A non-DM member cannot reveal an NPC."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = WorldService()
+    npc = await service.create_npc(
+        campaign.id, dm.id, NPCCreate(name="Volo", race="Human"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.reveal_npc(npc.id, player.id, db)
+    assert exc.value.status_code == 403
+
+
 async def test_dm_can_create_location_and_faction(db: AsyncSession) -> None:
     """A DM can create a location and a faction; both are listed back."""
     campaign, dm, _player = await _make_campaign_with_dm_and_player(db)

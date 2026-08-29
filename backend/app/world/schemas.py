@@ -40,6 +40,7 @@ class NPCRead(BaseModel):
     personality: str | None
     is_alive: bool
     stat_block_id: uuid.UUID | None
+    is_revealed: bool
     created_at: datetime
 
 

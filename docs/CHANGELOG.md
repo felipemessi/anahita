@@ -9,6 +9,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Visibilidade de NPCs para o mestre (Fase 13): `NPC` ganha `is_revealed`
+  (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`.
+  `GET /campaigns/{id}/npcs` filtra NPCs não revelados para não-DM (sem
+  erro); novo endpoint `GET /npcs/{id}` retorna 404 para não-DM em NPC
+  oculto, mesmo padrão de `HandoutService.get_handout`. Novo endpoint
+  `POST /npcs/{id}/reveal`, DM-only.
 - Profundidade de raça homebrew (Fase 11): `RaceCreate` estendido com
   `age`/`alignment_desc`/`size_description`/`language_desc` e listas
   estruturadas `language_ids`/`proficiency_ids` (validadas contra o

@@ -76,12 +76,37 @@ class WorldService:
     async def list_npcs(
         self, campaign_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
     ) -> list[NPC]:
-        """List a campaign's NPCs; requester must be a member."""
-        await self._require_membership(campaign_id, requester_id, db)
-        result = await db.execute(
-            select(NPC).where(NPC.campaign_id == campaign_id).order_by(NPC.created_at)
-        )
+        """List a campaign's NPCs. Non-DM members only see revealed ones."""
+        member = await self._require_membership(campaign_id, requester_id, db)
+        query = select(NPC).where(NPC.campaign_id == campaign_id)
+        if member.role != CampaignRole.dm:
+            query = query.where(NPC.is_revealed.is_(True))
+        result = await db.execute(query.order_by(NPC.created_at))
         return list(result.scalars().all())
+
+    async def get_npc(
+        self, npc_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> NPC:
+        """Get a single NPC; non-DM members can only see it if revealed."""
+        npc = await self._require_npc(npc_id, db)
+        member = await self._require_membership(npc.campaign_id, requester_id, db)
+        if member.role != CampaignRole.dm and not npc.is_revealed:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="NPC not found"
+            )
+        return npc
+
+    async def reveal_npc(
+        self, npc_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> NPC:
+        """Reveal an NPC to players; only the campaign's DM may do this."""
+        npc = await self._require_npc(npc_id, db)
+        await self._require_dm(npc.campaign_id, requester_id, db)
+
+        npc.is_revealed = True
+        await db.commit()
+        await db.refresh(npc)
+        return npc
 
     async def create_location(
         self,
