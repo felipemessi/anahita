@@ -3,10 +3,12 @@
 import uuid
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
+from app.catalog.domain import CreatureSize
 from app.catalog.models import (
     AbilityScoreDefinition,
     Background,
@@ -22,8 +24,41 @@ from app.catalog.models import (
     Proficiency,
     Spell,
 )
-from app.catalog.schemas import MonsterActionDamageRead, MonsterDamageModifierRead
+from app.catalog.schemas import (
+    BackgroundCreate,
+    ClassDefinitionCreate,
+    FeatCreate,
+    ItemCreate,
+    MagicItemCreate,
+    MonsterActionDamageRead,
+    MonsterCreate,
+    MonsterDamageModifierRead,
+    RaceCreate,
+    RuleCreate,
+    SpellCreate,
+)
 from app.catalog.seeds.seed import seed_catalog
+from app.characters.models import Character, CharacterClass, CharacterEquipment, CharacterSpell
+from app.combat.models import EncounterParticipant
+from app.inventory.models import LootDrop, PartyInventory
+from app.world.models import NPC
+
+
+def _character(**overrides: object) -> Character:
+    """Build a minimal Character row for reference-check tests."""
+    defaults: dict[str, object] = {
+        "id": uuid.uuid4(),
+        "campaign_member_id": uuid.uuid4(),
+        "name": "Test Character",
+        "race_id": uuid.uuid4(),
+        "hit_point_max": 10,
+        "hit_point_current": 10,
+        "armor_class": 10,
+        "speed": 30,
+        "proficiency_bonus": 2,
+    }
+    defaults.update(overrides)
+    return Character(**defaults)
 
 
 @pytest.mark.asyncio
@@ -1006,3 +1041,313 @@ async def test_get_rule_not_found_returns_none(db: AsyncSession) -> None:
     """get_rule should return None for an unknown ID."""
     result = await service.get_rule(db, uuid.uuid4())
     assert result is None
+
+
+# --- Homebrew deletion (backlog Fase 11) -------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_race_removes_row(db: AsyncSession) -> None:
+    """delete_custom_race removes an unreferenced homebrew race."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_race(
+        db, RaceCreate(campaign_id=campaign_id, name="Duskling")
+    )
+    race = await service.get_race(db, created.id)
+    assert race is not None
+
+    await service.delete_custom_race(db, race)
+
+    assert await service.get_race(db, created.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_race_referenced_raises_409(db: AsyncSession) -> None:
+    """delete_custom_race raises 409 when a character still has this race."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_race(
+        db, RaceCreate(campaign_id=campaign_id, name="Duskling")
+    )
+    race = await service.get_race(db, created.id)
+    assert race is not None
+    db.add(_character(race_id=created.id))
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_race(db, race)
+    assert exc_info.value.status_code == 409
+
+    # Still there — the failed delete must not have removed the row.
+    assert await service.get_race(db, created.id) is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_class_referenced_raises_409(db: AsyncSession) -> None:
+    """delete_custom_class raises 409 when a character has levels in it."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_class(
+        db,
+        ClassDefinitionCreate(
+            campaign_id=campaign_id, name="Duelist", hit_die=8, primary_ability="dex"
+        ),
+    )
+    class_definition = await service.get_class(db, created.id)
+    assert class_definition is not None
+    character = _character()
+    db.add(character)
+    await db.flush()
+    db.add(
+        CharacterClass(
+            character_id=character.id, class_definition_id=created.id, level=1
+        )
+    )
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_class(db, class_definition)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_spell_referenced_by_known_spell(db: AsyncSession) -> None:
+    """delete_custom_spell raises 409 when a character knows/prepares it."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_spell(
+        db,
+        SpellCreate(
+            campaign_id=campaign_id, name="Homebrew Bolt", level=1, school="evocation"
+        ),
+    )
+    spell = await service.get_spell(db, created.id)
+    assert spell is not None
+    character = _character()
+    db.add(character)
+    await db.flush()
+    db.add(CharacterSpell(character_id=character.id, spell_id=created.id))
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_spell(db, spell)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_spell_referenced_by_concentration(
+    db: AsyncSession,
+) -> None:
+    """delete_custom_spell also raises 409 when a character concentrates on it."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_spell(
+        db,
+        SpellCreate(
+            campaign_id=campaign_id, name="Homebrew Hex", level=1, school="evocation"
+        ),
+    )
+    spell = await service.get_spell(db, created.id)
+    assert spell is not None
+    db.add(_character(concentrating_spell_id=created.id))
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_spell(db, spell)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_item_referenced_by_equipment(db: AsyncSession) -> None:
+    """delete_custom_item raises 409 when a character carries it."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_item(
+        db,
+        ItemCreate(campaign_id=campaign_id, name="Rusty Dagger", item_type="weapon"),
+    )
+    item = await service.get_item(db, created.id)
+    assert item is not None
+    character = _character()
+    db.add(character)
+    await db.flush()
+    db.add(CharacterEquipment(character_id=character.id, item_id=created.id))
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_item(db, item)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_item_referenced_by_party_inventory(
+    db: AsyncSession,
+) -> None:
+    """delete_custom_item also raises 409 when it's stocked in party inventory."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_item(
+        db,
+        ItemCreate(campaign_id=campaign_id, name="Rope, Silk", item_type="gear"),
+    )
+    item = await service.get_item(db, created.id)
+    assert item is not None
+    db.add(PartyInventory(campaign_id=campaign_id, item_id=created.id))
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_item(db, item)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_item_unreferenced_succeeds(db: AsyncSession) -> None:
+    """delete_custom_item removes the row when nothing references it."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_item(
+        db,
+        ItemCreate(campaign_id=campaign_id, name="Rusty Dagger", item_type="weapon"),
+    )
+    item = await service.get_item(db, created.id)
+    assert item is not None
+
+    await service.delete_custom_item(db, item)
+
+    assert await service.get_item(db, created.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_magic_item_referenced_by_loot_drop(
+    db: AsyncSession,
+) -> None:
+    """delete_custom_magic_item raises 409 when a loot drop references it."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_magic_item(
+        db, MagicItemCreate(campaign_id=campaign_id, name="Ring of Whispers")
+    )
+    magic_item = await service.get_magic_item(db, created.id)
+    assert magic_item is not None
+    db.add(LootDrop(encounter_id=uuid.uuid4(), magic_item_id=created.id, quantity=1))
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_magic_item(db, magic_item)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_monster_referenced_by_encounter(db: AsyncSession) -> None:
+    """delete_custom_monster raises 409 when an encounter participant uses it."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_monster(
+        db,
+        MonsterCreate(
+            campaign_id=campaign_id,
+            name="Swamp Horror",
+            size=CreatureSize.large,
+            creature_type="monstrosity",
+            hit_points=45,
+            challenge_rating=3,
+        ),
+    )
+    monster = await service.get_monster(db, created.id)
+    assert monster is not None
+    db.add(
+        EncounterParticipant(
+            encounter_id=uuid.uuid4(),
+            monster_id=created.id,
+            name="Swamp Horror",
+            hit_point_max=45,
+            hit_point_current=45,
+            armor_class=13,
+            turn_order=0,
+        )
+    )
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_monster(db, monster)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_monster_referenced_by_npc(db: AsyncSession) -> None:
+    """delete_custom_monster also raises 409 when an NPC's stat block uses it."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_monster(
+        db,
+        MonsterCreate(
+            campaign_id=campaign_id,
+            name="Swamp Horror",
+            size=CreatureSize.large,
+            creature_type="monstrosity",
+            hit_points=45,
+            challenge_rating=3,
+        ),
+    )
+    monster = await service.get_monster(db, created.id)
+    assert monster is not None
+    db.add(
+        NPC(
+            campaign_id=campaign_id,
+            name="Old Marsh",
+            race="monstrosity",
+            description="A creature of the swamp.",
+            stat_block_id=created.id,
+        )
+    )
+    await db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_custom_monster(db, monster)
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_background_has_no_reference_check(
+    db: AsyncSession,
+) -> None:
+    """delete_custom_background always succeeds — `Character.background` is free text."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_background(
+        db, BackgroundCreate(campaign_id=campaign_id, name="Shipwreck Survivor")
+    )
+    background = await service.get_background(db, created.id)
+    assert background is not None
+
+    await service.delete_custom_background(db, background)
+
+    assert await service.get_background(db, created.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_feat_has_no_reference_check(db: AsyncSession) -> None:
+    """delete_custom_feat always succeeds — nothing outside the catalog uses it."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_feat(
+        db, FeatCreate(campaign_id=campaign_id, name="Storm Born")
+    )
+    feat = await service.get_feat(db, created.id)
+    assert feat is not None
+
+    await service.delete_custom_feat(db, feat)
+
+    assert await service.get_feat(db, created.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_rule_has_no_reference_check(db: AsyncSession) -> None:
+    """delete_custom_rule always succeeds — nothing outside the catalog uses it."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_rule(
+        db,
+        RuleCreate(
+            campaign_id=campaign_id, name="House Rule: Flanking", desc="Advantage."
+        ),
+    )
+    rule = await service.get_rule(db, created.id)
+    assert rule is not None
+
+    await service.delete_custom_rule(db, rule)
+
+    assert await service.get_rule(db, created.id) is None

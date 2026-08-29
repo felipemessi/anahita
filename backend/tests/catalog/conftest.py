@@ -5,8 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.database import Base
 
-# Import catalog models so Base.metadata includes them
+# Import catalog models (and the domains that reference them, transitively
+# including *their* FK targets) so Base.metadata includes every table
+# exercised by the delete/reference tests.
+import app.auth.models  # noqa: F401
+import app.campaigns.models  # noqa: F401
 import app.catalog.models  # noqa: F401
+import app.characters.models  # noqa: F401
+import app.combat.models  # noqa: F401
+import app.inventory.models  # noqa: F401
+import app.sessions.models  # noqa: F401
+import app.world.models  # noqa: F401
 
 
 @pytest_asyncio.fixture
