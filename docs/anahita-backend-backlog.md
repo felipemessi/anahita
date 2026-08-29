@@ -29,7 +29,7 @@
 | 10   | Ficha do Personagem: Edição, Identidade e Navegação | Completo (edição de nome/alinhamento/antecedente/atributos com recálculo de CA/PV, upload/remoção de retrato, proficiências de perícia restritas ao conjunto de escolha de raça/classe, `GET /characters/{id}/sessions` derivado de participação real em combate, ordenação pessoal de sessões via `PATCH /characters/{id}/sessions/order`) | 2026-08-29 |
 | 11   | Catálogo Homebrew: Profundidade e Estrutura | Completo (raça homebrew com bônus de atributo/traços/sub-raças/idiomas e proficiências estruturados; exclusão de conteúdo homebrew nas 9 categorias, bloqueando SRD e referências existentes com 409) | 2026-08-29 |
 | 12   | Recursos de Classe e Interatividade Mágica | Pendente | 2026-08-28 |
-| 13   | Fluxo de Sessões: Fundamentos Faltantes | Pendente | 2026-08-28 |
+| 13   | Fluxo de Sessões: Fundamentos Faltantes | Completo (conclusão de sessão com transição de status validada, edição de título/data, personagem adicionado ao combate confirmado ponta a ponta com rejeição de duplicata, NPCs ocultos por padrão com reveal DM-only) | 2026-08-29 |
 | 14   | Loot e Inventário Integrado        | Pendente | 2026-08-28 |
 | 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
 
