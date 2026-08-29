@@ -9,6 +9,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Profundidade de raça homebrew (Fase 11): `RaceCreate` estendido com
+  `age`/`alignment_desc`/`size_description`/`language_desc` e listas
+  estruturadas `language_ids`/`proficiency_ids` (validadas contra o
+  catálogo, 422 se desconhecidas); nova junction `RaceLanguage` para
+  idiomas concedidos por raça, espelhando `ProficiencyRace`. Endpoints
+  `POST /catalog/races/{id}/ability-bonuses`, `/traits` e `/subraces`
+  (este último aceitando bônus/traços de sub-raça aninhados no mesmo
+  payload) — todos DM-only, restritos à raça homebrew da própria
+  campanha do requisitante.
 - Endpoint `GET /characters/{id}/sessions` (Fase 10), listando as sessões em
   que um personagem participou de fato — derivado de participação em
   combate (`EncounterParticipant` → `Encounter` → `Session`), sem tabela ou

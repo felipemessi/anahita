@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.catalog import service
+from app.catalog.models import Race
 from app.catalog.schemas import (
     AbilityScoreDefinitionRead,
     BackgroundCreate,
@@ -30,15 +31,21 @@ from app.catalog.schemas import (
     MonsterCreate,
     MonsterRead,
     MonsterSummary,
+    RaceAbilityBonusCreate,
+    RaceAbilityBonusRead,
     RaceCreate,
     RaceRead,
     RaceSummary,
+    RaceTraitCreate,
+    RaceTraitRead,
     RuleCreate,
     RuleRead,
     RuleSummary,
     SpellCreate,
     SpellRead,
     SpellSummary,
+    SubraceCreate,
+    SubraceRead,
 )
 from app.core.dependencies import get_current_user
 from app.database import get_db
@@ -67,21 +74,25 @@ async def _require_dm(campaign_id: uuid.UUID, user: User, db: AsyncSession) -> N
         )
 
 
-async def _require_dm_for_delete(
+async def _require_dm_for_homebrew_write(
     campaign_id: uuid.UUID | None, is_custom: bool, user: User, db: AsyncSession
 ) -> None:
-    """Authorize a homebrew delete request (Fase 11 policy).
+    """Authorize a homebrew delete or attach request (Fase 11 policy).
 
-    SRD content (`campaign_id is None`) can never be deleted through this
-    endpoint (403). Homebrew belonging to a campaign the requester isn't a
-    member of returns 404 instead of 403 — the requester never learns
-    whether homebrew content exists in a campaign they have no access to.
-    A member who isn't that campaign's DM gets 403, same as create.
+    Shared by every DELETE route and by the race attach routes (ability
+    bonuses, traits, subraces) — both need the exact same check: only the
+    DM of the campaign that owns the *homebrew* row may modify it.
+
+    SRD content (`campaign_id is None`) can never be deleted or attached-to
+    through these endpoints (403). Homebrew belonging to a campaign the
+    requester isn't a member of returns 404 instead of 403 — the requester
+    never learns whether homebrew content exists in a campaign they have no
+    access to. A member who isn't that campaign's DM gets 403, same as create.
     """
     if not is_custom or campaign_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="SRD content cannot be deleted",
+            detail="SRD content cannot be modified",
         )
     member = await get_membership_for_user(campaign_id, user.id, db)
     if member is None:
@@ -89,7 +100,7 @@ async def _require_dm_for_delete(
     if member.role != CampaignRole.dm:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the campaign's DM can delete homebrew content",
+            detail="Only the campaign's DM can modify homebrew content",
         )
 
 
@@ -137,8 +148,66 @@ async def delete_race(race_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     race = await service.get_race(db, race_id)
     if race is None:
         raise HTTPException(status_code=404, detail="Race not found")
-    await _require_dm_for_delete(race.campaign_id, race.is_custom, user, db)
+    await _require_dm_for_homebrew_write(race.campaign_id, race.is_custom, user, db)
     await service.delete_custom_race(db, race)
+
+
+async def _get_own_homebrew_race(
+    race_id: uuid.UUID, user: User, db: AsyncSession
+) -> Race:
+    """Fetch a race and authorize the requester to attach content to it.
+
+    Shared by the three "attach to homebrew race" routes below. Raises 404 if
+    the race doesn't exist, and reuses `_require_dm_for_homebrew_write`'s
+    policy (SRD races and other campaigns' homebrew are both rejected).
+    """
+    race = await service.get_race(db, race_id)
+    if race is None:
+        raise HTTPException(status_code=404, detail="Race not found")
+    await _require_dm_for_homebrew_write(race.campaign_id, race.is_custom, user, db)
+    return race
+
+
+@router.post(
+    "/races/{race_id}/ability-bonuses",
+    response_model=RaceAbilityBonusRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_race_ability_bonus(
+    race_id: uuid.UUID, body: RaceAbilityBonusCreate, user: CurrentUser, db: DB
+) -> RaceAbilityBonusRead:
+    """Attach an ability bonus to a homebrew race. DM only, own campaign."""
+    race = await _get_own_homebrew_race(race_id, user, db)
+    return await service.add_race_ability_bonus(db, race, body)
+
+
+@router.post(
+    "/races/{race_id}/traits",
+    response_model=RaceTraitRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_race_trait(
+    race_id: uuid.UUID, body: RaceTraitCreate, user: CurrentUser, db: DB
+) -> RaceTraitRead:
+    """Attach a trait to a homebrew race. DM only, own campaign."""
+    race = await _get_own_homebrew_race(race_id, user, db)
+    return await service.add_race_trait(db, race, body)
+
+
+@router.post(
+    "/races/{race_id}/subraces",
+    response_model=SubraceRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_race_subrace(
+    race_id: uuid.UUID, body: SubraceCreate, user: CurrentUser, db: DB
+) -> SubraceRead:
+    """Attach a subrace (with nested ability bonuses/traits) to a homebrew race.
+
+    DM only, own campaign.
+    """
+    race = await _get_own_homebrew_race(race_id, user, db)
+    return await service.add_race_subrace(db, race, body)
 
 
 @router.get("/classes", response_model=list[ClassSummary])
@@ -189,7 +258,7 @@ async def delete_class(class_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     class_definition = await service.get_class(db, class_id)
     if class_definition is None:
         raise HTTPException(status_code=404, detail="Class not found")
-    await _require_dm_for_delete(
+    await _require_dm_for_homebrew_write(
         class_definition.campaign_id, class_definition.is_custom, user, db
     )
     await service.delete_custom_class(db, class_definition)
@@ -264,7 +333,7 @@ async def delete_spell(spell_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     spell = await service.get_spell(db, spell_id)
     if spell is None:
         raise HTTPException(status_code=404, detail="Spell not found")
-    await _require_dm_for_delete(spell.campaign_id, spell.is_custom, user, db)
+    await _require_dm_for_homebrew_write(spell.campaign_id, spell.is_custom, user, db)
     await service.delete_custom_spell(db, spell)
 
 
@@ -314,7 +383,7 @@ async def delete_item(item_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     item = await service.get_item(db, item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    await _require_dm_for_delete(item.campaign_id, item.is_custom, user, db)
+    await _require_dm_for_homebrew_write(item.campaign_id, item.is_custom, user, db)
     await service.delete_custom_item(db, item)
 
 
@@ -370,7 +439,7 @@ async def delete_magic_item(
     magic_item = await service.get_magic_item(db, magic_item_id)
     if magic_item is None:
         raise HTTPException(status_code=404, detail="Magic item not found")
-    await _require_dm_for_delete(
+    await _require_dm_for_homebrew_write(
         magic_item.campaign_id, magic_item.is_custom, user, db
     )
     await service.delete_custom_magic_item(db, magic_item)
@@ -432,7 +501,7 @@ async def delete_background(
     background = await service.get_background(db, background_id)
     if background is None:
         raise HTTPException(status_code=404, detail="Background not found")
-    await _require_dm_for_delete(
+    await _require_dm_for_homebrew_write(
         background.campaign_id, background.is_custom, user, db
     )
     await service.delete_custom_background(db, background)
@@ -515,7 +584,7 @@ async def delete_feat(feat_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     feat = await service.get_feat(db, feat_id)
     if feat is None:
         raise HTTPException(status_code=404, detail="Feat not found")
-    await _require_dm_for_delete(feat.campaign_id, feat.is_custom, user, db)
+    await _require_dm_for_homebrew_write(feat.campaign_id, feat.is_custom, user, db)
     await service.delete_custom_feat(db, feat)
 
 
@@ -565,7 +634,9 @@ async def delete_monster(monster_id: uuid.UUID, user: CurrentUser, db: DB) -> No
     monster = await service.get_monster(db, monster_id)
     if monster is None:
         raise HTTPException(status_code=404, detail="Monster not found")
-    await _require_dm_for_delete(monster.campaign_id, monster.is_custom, user, db)
+    await _require_dm_for_homebrew_write(
+        monster.campaign_id, monster.is_custom, user, db
+    )
     await service.delete_custom_monster(db, monster)
 
 
@@ -617,5 +688,5 @@ async def delete_rule(rule_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     rule = await service.get_rule(db, rule_id)
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
-    await _require_dm_for_delete(rule.campaign_id, rule.is_custom, user, db)
+    await _require_dm_for_homebrew_write(rule.campaign_id, rule.is_custom, user, db)
     await service.delete_custom_rule(db, rule)
