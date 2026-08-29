@@ -17,6 +17,7 @@ vi.mock("@/hooks/use-combat", () => ({
 
 vi.mock("@/hooks/use-character", () => ({
   useCharacter: () => ({ data: undefined }),
+  useCharacters: () => ({ data: undefined }),
   useCastCharacterSpell: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
