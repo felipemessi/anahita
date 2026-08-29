@@ -29,7 +29,7 @@
 | 10   | Ficha do Personagem: Edição, Identidade e Navegação | Pendente | 2026-08-28 |
 | 11   | Catálogo Homebrew: Profundidade e Estrutura | Pendente | 2026-08-28 |
 | 12   | Recursos de Classe e Interatividade Mágica | Pendente | 2026-08-28 |
-| 13   | Fluxo de Sessões: Fundamentos Faltantes | Pendente | 2026-08-28 |
+| 13   | Fluxo de Sessões: Fundamentos Faltantes | Concluída (botão de concluir sessão e edição de título DM-only, character-picker pra adicionar PCs ao combate — fecha o gap de seleção de alvo da Fase 9 —, toggle de revelação de NPC com badge oculto/revelado) | 2026-08-29 |
 | 14   | Loot e Inventário Integrado             | Pendente | 2026-08-28 |
 | 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
 
