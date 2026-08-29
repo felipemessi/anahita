@@ -380,9 +380,10 @@
   - [ ] `SessionUpdate` (hoje inexistente) + `PATCH /sessions/{id}` — DM-only, campo `title` (e talvez `scheduled_date`, reaproveitando pro fix da Fase 9)
   - [ ] Testes: edição funciona; jogador não pode editar (403)
 
-- **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.**
-  - [ ] Backend já aceita (`EncounterParticipantCreate.character_id`) — confirmar que a rota `POST /encounters/{id}/participants` funciona ponta a ponta com `character_id` preenchido (o gap real é de frontend, ver Fase 13 do backlog de frontend); se houver validação faltando (ex. mesmo personagem duplicado no encontro), adicionar
-  - [ ] Testes: adicionar personagem funciona; personagem duplicado no mesmo encontro é rejeitado
+- **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.** ✅ (2026-08-29)
+  - [x] Backend já aceita (`EncounterParticipantCreate.character_id`) — confirmar que a rota `POST /encounters/{id}/participants` funciona ponta a ponta com `character_id` preenchido (o gap real é de frontend, ver Fase 13 do backlog de frontend); se houver validação faltando (ex. mesmo personagem duplicado no encontro), adicionar
+  - [x] Testes: adicionar personagem funciona; personagem duplicado no mesmo encontro é rejeitado
+  - Notas: **backend confirmado pronto para o frontend consumir.** `POST /encounters/{id}/participants` (`app/combat/router.py`→`CombatService.add_participant`) já aceitava `character_id` de ponta a ponta — confirmado com teste HTTP novo (`test_add_character_participant_over_http`, `backend/tests/combat/test_router.py`) que envia `character_id` pelo endpoint real e recebe o participante de volta com esse campo preenchido, e com teste de serviço (`test_add_participant_with_character_id`, `backend/tests/combat/test_service.py`) usando um personagem real da fixture `campaign_with_pc`. A lacuna real (já confirmada na Fase 9) é 100% de frontend: falta um `CharacterPicker` equivalente ao `MonsterPicker` em `frontend/src/app/campaigns/[campaignId]/combat/[encounterId]/page.tsx`. A validação faltante foi adicionada: `add_participant` agora rejeita (422) um `character_id` já presente como participante no mesmo encontro (`app/combat/service.py`), coberto por `test_add_participant_rejects_duplicate_character` (serviço) e `test_add_character_participant_rejects_duplicate_over_http` (HTTP). Isso desbloqueia a história equivalente da Fase 13 do backlog de frontend.
 
 - **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
   - [ ] `NPC` ganha `is_revealed: bool` (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`

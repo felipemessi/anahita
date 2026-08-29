@@ -269,7 +269,12 @@ class CombatService:
         data: EncounterParticipantCreate,
         db: AsyncSession,
     ) -> EncounterRead:
-        """Add a participant (PC, NPC, or manual entry) to an encounter. DM only."""
+        """Add a participant (PC, NPC, or manual entry) to an encounter. DM only.
+
+        Rejects (422) a `character_id` already present as a participant in
+        this encounter — a character can only fight in an encounter once
+        (matches `_add_missing_campaign_pcs`'s own dedup on `start_encounter`).
+        """
         encounter = await self._load_encounter_or_404(encounter_id, db)
         await self._require_dm_for_session(encounter.session_id, requester_id, db)
 
@@ -283,6 +288,14 @@ class CombatService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
             ) from exc
+
+        if data.character_id is not None and any(
+            p.character_id == data.character_id for p in encounter.participants
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This character is already a participant in this encounter",
+            )
 
         hit_point_current = (
             data.hit_point_current
