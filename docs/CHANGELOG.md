@@ -9,6 +9,14 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- `CharacterPicker` no combate (Fase 13, frontend): novo
+  `components/combat/character-picker.tsx`, ao lado do `MonsterPicker`
+  existente, listando os personagens da campanha via `useCharacters` e
+  autopreenchendo nome/PV máximo/CA a partir da ficha ao selecionar um. A
+  página de combate ganha uma alternância "Monstro/NPC" / "Personagem" no
+  painel de adicionar participante. Fecha a lacuna de seleção de alvo em
+  combate identificada na Fase 9 — um encontro agora pode ter
+  participantes-personagem, populando o dropdown de alvo do `ActionPicker`.
 - Visibilidade de NPCs para o mestre (Fase 13): `NPC` ganha `is_revealed`
   (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`.
   `GET /campaigns/{id}/npcs` filtra NPCs não revelados para não-DM (sem

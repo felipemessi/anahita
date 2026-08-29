@@ -9,6 +9,7 @@ import { useCombat } from "@/hooks/use-combat";
 import { RollLogPanel, RollLogProvider } from "@/components/characters/roll-log";
 import { ActionLog } from "@/components/combat/action-log";
 import { ActionPicker } from "@/components/combat/action-picker";
+import { CharacterPicker } from "@/components/combat/character-picker";
 import { ConditionBadges } from "@/components/combat/condition-badges";
 import { DamageDialog } from "@/components/combat/damage-dialog";
 import { InitiativePrompt } from "@/components/combat/initiative-prompt";
@@ -30,6 +31,9 @@ export default function CombatPage() {
   const isDm = membership?.role === "dm";
   const { encounter, isConnected, lastError, removeParticipant } = useCombat();
   const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [addParticipantKind, setAddParticipantKind] = useState<"monster" | "character">(
+    "monster",
+  );
 
   const currentTurnParticipant =
     encounter?.status === "active"
@@ -126,8 +130,36 @@ export default function CombatPage() {
                   {showAddParticipant ? "Fechar" : "Adicionar participante"}
                 </button>
                 {showAddParticipant ? (
-                  <div className="mt-2">
-                    <MonsterPicker campaignId={campaignId} />
+                  <div className="mt-2 space-y-2">
+                    <div className="flex gap-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setAddParticipantKind("monster")}
+                        className={`rounded-md px-2 py-1 ${
+                          addParticipantKind === "monster"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-secondary-foreground"
+                        }`}
+                      >
+                        Monstro/NPC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAddParticipantKind("character")}
+                        className={`rounded-md px-2 py-1 ${
+                          addParticipantKind === "character"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-secondary-foreground"
+                        }`}
+                      >
+                        Personagem
+                      </button>
+                    </div>
+                    {addParticipantKind === "monster" ? (
+                      <MonsterPicker campaignId={campaignId} />
+                    ) : (
+                      <CharacterPicker campaignId={campaignId} />
+                    )}
                   </div>
                 ) : null}
               </div>

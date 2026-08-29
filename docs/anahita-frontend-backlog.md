@@ -571,10 +571,11 @@
   - [ ] Trocar o título estático da página de detalhe por um campo editável (visível só pro DM)
   - [ ] Teste: edição de nome persiste e reflete na lista de sessões
 
-- **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.**
-  - [ ] `components/combat/character-picker.tsx` (novo, ao lado de `monster-picker.tsx`): busca personagens da campanha (`useCharacters(campaignId)`), autocompleta HP/AC a partir da ficha
-  - [ ] `app/campaigns/[campaignId]/combat/[encounterId]/page.tsx`: alternância entre "adicionar monstro" e "adicionar personagem" ao criar participante
-  - [ ] Teste: adicionar personagem via `character-picker` cria o participante com `character_id` preenchido corretamente
+- **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.** ✅ (2026-08-29)
+  - [x] `components/combat/character-picker.tsx` (novo, ao lado de `monster-picker.tsx`): busca personagens da campanha (`useCharacters(campaignId)`), autocompleta HP/AC a partir da ficha
+  - [x] `app/campaigns/[campaignId]/combat/[encounterId]/page.tsx`: alternância entre "adicionar monstro" e "adicionar personagem" ao criar participante
+  - [x] Teste: adicionar personagem via `character-picker` cria o participante com `character_id` preenchido corretamente
+  - Notas: `CharacterPicker` segue o mesmo padrão visual/de estado do `MonsterPicker`, mas mais simples — sem entrada manual, já que um participante-personagem sempre carrega `character_id` e a ficha é a fonte da verdade. `useCharacters(campaignId)` popula um `<select>` (em vez da busca por texto do monstro, já que a lista de personagens de uma campanha é tipicamente pequena); ao escolher um, um `useEffect` autopreenche nome/PV máximo/CA a partir do registro — usando o type guard `isFullCharacter` já existente em `types/character.ts`, já que `listCharacters` retorna `Character | CharacterSummary` e só o DM (que é quem vê este picker) recebe a ficha completa com esses campos. Iniciativa e ordem de turno continuam manuais, como no `MonsterPicker`. Submissão fica desabilitada até um personagem ser selecionado. Na página de combate, um par de botões-abas ("Monstro/NPC" / "Personagem") substitui a renderização fixa do `MonsterPicker` dentro do painel "Adicionar participante" já existente — sem mudar o fluxo de abrir/fechar o painel. Resolve a lacuna de seleção de alvo em combate identificada na Fase 9 (história "bug: alvo vazio no ActionPicker"): agora um encontro pode ter participantes-personagem, populando o dropdown de alvo do `ActionPicker`.
 
 - **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
   - [ ] `npc-card.tsx`: toggle de revelação (DM-only), badge visual de "oculto"/"revelado"
