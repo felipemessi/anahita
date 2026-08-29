@@ -53,6 +53,21 @@ class CharacterSkillRead(BaseModel):
     bonus: int
 
 
+class CharacterProficiencyChoiceRequest(BaseModel):
+    """Skill proficiencies the player is choosing for their character.
+
+    Only proficiencies within the character's race/class(es) valid
+    "choose N of [...]" set (`ProficiencyChoiceGroup`/
+    `ProficiencyChoiceOption`, Fase 10) are accepted — anything else is
+    rejected with a 422 by `CharacterService.set_proficiency_choices`.
+    Proficiencies the race/class grants *without* a choice are applied
+    automatically at character creation and never need to go through this
+    endpoint.
+    """
+
+    skills: list[Skill] = Field(min_length=1)
+
+
 class CharacterClassCreate(BaseModel):
     """One class level entry supplied when creating a character."""
 

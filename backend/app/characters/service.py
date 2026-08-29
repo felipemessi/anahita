@@ -4,7 +4,7 @@ import uuid
 from typing import Any, Literal, Protocol
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,10 +18,17 @@ from app.catalog.models import (
     ClassLevel,
     Feature,
     Item,
+    Proficiency,
+    ProficiencyChoiceGroup,
+    ProficiencyChoiceOption,
+    ProficiencyClass,
+    ProficiencyRace,
+    SkillDefinition,
     Spell,
 )
 from app.catalog.schemas import FeatureRead
 from app.characters.domain import (
+    CATALOG_INDEX_TO_SKILL,
     MULTICLASS_ABILITY_REQUIREMENTS,
     SKILL_ABILITY,
     CrossCampaignCatalogReferenceError,
@@ -63,6 +70,7 @@ from app.characters.schemas import (
     CharacterHitDiceRollResult,
     CharacterHitDiceSpend,
     CharacterLevelUpRequest,
+    CharacterProficiencyChoiceRequest,
     CharacterRead,
     CharacterResourceRead,
     CharacterRestRequest,
@@ -285,8 +293,23 @@ class CharacterService:
                     level=class_entry.level,
                 )
             )
+        # Skills the race/starting class(es) grant automatically, no choice
+        # involved (Fase 10) — `ProficiencyChoiceGroup`-gated skills are left
+        # `proficient=False` here; the player picks those afterwards via
+        # `set_proficiency_choices`.
+        fixed_skills = await self._fixed_skill_proficiencies(
+            db,
+            race_id=data.race_id,
+            class_definition_ids=[class_def.id for _entry, class_def in classes],
+        )
         for skill in Skill:
-            db.add(CharacterSkill(character_id=character.id, skill=skill))
+            db.add(
+                CharacterSkill(
+                    character_id=character.id,
+                    skill=skill,
+                    proficient=skill in fixed_skills,
+                )
+            )
 
         await db.commit()
         return await self._reload_as_read(character.id, db)
@@ -388,6 +411,161 @@ class CharacterService:
 
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def set_proficiency_choices(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterProficiencyChoiceRequest,
+        db: AsyncSession,
+    ) -> CharacterRead:
+        """Mark chosen skills proficient, restricted to the character's valid set.
+
+        Only the character's own player may do this. "Valid set" is the
+        union of every `ProficiencyChoiceGroup` tied to the character's race
+        or any of its classes — a skill outside every group is rejected
+        with a 422, and so is picking more skills from one group than that
+        group's `choose_count` allows. Skills the race/class grants for
+        free (no choice) are applied automatically at character creation
+        (see `create_character`/`_fixed_skill_proficiencies`) and don't need
+        to go through this endpoint — picking one here is harmless (it's
+        already `proficient=True`) but never required.
+        """
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+
+        if len(set(data.skills)) != len(data.skills):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Duplicate skill in selection",
+            )
+
+        groups = await self._skill_choice_groups(
+            db,
+            race_id=character.race_id,
+            class_definition_ids=[c.class_definition_id for c in character.classes],
+        )
+        valid_skills = {skill for _count, skills in groups.values() for skill in skills}
+        invalid = sorted(
+            skill.value for skill in data.skills if skill not in valid_skills
+        )
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "Skill(s) not offered as a proficiency choice by this "
+                    f"character's race/class: {', '.join(invalid)}"
+                ),
+            )
+
+        for choose_count, skills in groups.values():
+            picked = sum(1 for skill in data.skills if skill in skills)
+            if picked > choose_count:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"Chose {picked} skills from a group that only allows "
+                        f"{choose_count}"
+                    ),
+                )
+
+        skill_rows = {row.skill: row for row in character.skills}
+        for skill in data.skills:
+            skill_rows[skill].proficient = True
+
+        await db.commit()
+        return await self._reload_as_read(character.id, db)
+
+    async def _fixed_skill_proficiencies(
+        self,
+        db: AsyncSession,
+        *,
+        race_id: uuid.UUID,
+        class_definition_ids: list[uuid.UUID],
+    ) -> set[Skill]:
+        """Skills automatically granted (no choice) by this race/class(es)."""
+        result = await db.execute(
+            select(SkillDefinition.index)
+            .distinct()
+            .select_from(Proficiency)
+            .join(SkillDefinition, SkillDefinition.id == Proficiency.skill_id)
+            .outerjoin(
+                ProficiencyClass, ProficiencyClass.proficiency_id == Proficiency.id
+            )
+            .outerjoin(
+                ProficiencyRace, ProficiencyRace.proficiency_id == Proficiency.id
+            )
+            .where(
+                Proficiency.proficiency_type == "skill",
+                or_(
+                    ProficiencyClass.class_definition_id.in_(class_definition_ids),
+                    ProficiencyRace.race_id == race_id,
+                ),
+            )
+        )
+        return {
+            CATALOG_INDEX_TO_SKILL[index]
+            for index in result.scalars().all()
+            if index in CATALOG_INDEX_TO_SKILL
+        }
+
+    async def _skill_choice_groups(
+        self,
+        db: AsyncSession,
+        *,
+        race_id: uuid.UUID,
+        class_definition_ids: list[uuid.UUID],
+    ) -> dict[uuid.UUID, tuple[int, set[Skill]]]:
+        """Every skill "choose N of [...]" group offered by this race/class(es).
+
+        Keyed by `ProficiencyChoiceGroup.id` -> `(choose_count, options)`.
+        Only `proficiency_type == 'skill'` options are considered — no other
+        catalog proficiency type has a structured field on `Character` yet
+        (same documented gap as weapon/armor/tool proficiency, Fase 10).
+        """
+        result = await db.execute(
+            select(
+                ProficiencyChoiceGroup.id,
+                ProficiencyChoiceGroup.choose_count,
+                SkillDefinition.index,
+            )
+            .join(
+                ProficiencyChoiceOption,
+                ProficiencyChoiceOption.group_id == ProficiencyChoiceGroup.id,
+            )
+            .join(Proficiency, Proficiency.id == ProficiencyChoiceOption.proficiency_id)
+            .join(SkillDefinition, SkillDefinition.id == Proficiency.skill_id)
+            .where(
+                Proficiency.proficiency_type == "skill",
+                or_(
+                    ProficiencyChoiceGroup.race_id == race_id,
+                    ProficiencyChoiceGroup.class_definition_id.in_(
+                        class_definition_ids
+                    ),
+                ),
+            )
+        )
+        groups: dict[uuid.UUID, tuple[int, set[Skill]]] = {}
+        for group_id, choose_count, index in result.all():
+            skill = CATALOG_INDEX_TO_SKILL.get(index)
+            if skill is None:
+                continue
+            _existing_count, existing_skills = groups.setdefault(
+                group_id, (choose_count, set())
+            )
+            existing_skills.add(skill)
+        return groups
 
     async def level_up(
         self,

@@ -423,3 +423,9 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   personagem, exibida na ficha; enviar uma nova imagem substitui a
   anterior, e o jogador pode removê-la e voltar ao estado sem imagem.
   Só o dono da ficha pode alterá-la.
+- Fase 10 do backend, história 3: proficiências de perícia agora respeitam
+  as capacidades da raça/classe do personagem, em vez de livres. Novo
+  `POST /characters/{id}/proficiencies` aceita apenas perícias dentro do
+  conjunto de escolha ("escolha N de [...]") oferecido pela raça e
+  classe(s) do personagem, rejeitando o resto com 422; perícias concedidas
+  sem escolha são aplicadas automaticamente na criação do personagem.
