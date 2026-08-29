@@ -1,5 +1,7 @@
 """Integration tests for SessionService using SQLite in-memory database."""
 
+from datetime import date
+
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
-from app.sessions.schemas import SessionCreate, SessionNoteCreate
+from app.sessions.schemas import SessionCreate, SessionNoteCreate, SessionUpdate
 from app.sessions.service import SessionService
 
 
@@ -217,3 +219,78 @@ async def test_open_session_twice_conflicts(db: AsyncSession) -> None:
     with pytest.raises(HTTPException) as exc:
         await service.open_session(session.id, dm.id, db)
     assert exc.value.status_code == 409
+
+
+async def test_dm_can_complete_in_progress_session(db: AsyncSession) -> None:
+    """The DM can complete a session that is in progress."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="The Beginning"), db
+    )
+    await service.open_session(session.id, dm.id, db)
+
+    completed = await service.complete_session(session.id, dm.id, db)
+    assert completed.status == "completed"
+
+
+async def test_complete_session_skipping_in_progress_is_rejected(
+    db: AsyncSession,
+) -> None:
+    """Completing a `planned` session directly (skipping `in_progress`) is rejected."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="The Beginning"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.complete_session(session.id, dm.id, db)
+    assert exc.value.status_code == 422
+
+
+async def test_player_cannot_complete_session(db: AsyncSession) -> None:
+    """A non-DM member cannot complete a session."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="The Beginning"), db
+    )
+    await service.open_session(session.id, dm.id, db)
+
+    with pytest.raises(HTTPException) as exc:
+        await service.complete_session(session.id, player.id, db)
+    assert exc.value.status_code == 403
+
+
+async def test_dm_can_update_session_title_and_date(db: AsyncSession) -> None:
+    """The DM can edit a session's title and scheduled date."""
+    campaign, dm, _player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="Draft Title"), db
+    )
+
+    updated = await service.update_session(
+        session.id,
+        dm.id,
+        SessionUpdate(title="Final Title", scheduled_date=date(2026, 9, 1)),
+        db,
+    )
+    assert updated.title == "Final Title"
+    assert updated.scheduled_date == date(2026, 9, 1)
+
+
+async def test_player_cannot_update_session(db: AsyncSession) -> None:
+    """A non-DM member cannot edit a session."""
+    campaign, dm, player = await _make_campaign_with_dm_and_player(db)
+    service = SessionService()
+    session = await service.create_session(
+        campaign.id, dm.id, SessionCreate(title="Draft Title"), db
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.update_session(
+            session.id, player.id, SessionUpdate(title="Hijacked"), db
+        )
+    assert exc.value.status_code == 403

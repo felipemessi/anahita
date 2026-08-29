@@ -14,7 +14,12 @@ from app.sessions.domain import (
     validate_note_author,
 )
 from app.sessions.models import Session, SessionNote
-from app.sessions.schemas import SessionCreate, SessionNoteCreate, SessionRead
+from app.sessions.schemas import (
+    SessionCreate,
+    SessionNoteCreate,
+    SessionRead,
+    SessionUpdate,
+)
 
 
 class SessionService:
@@ -109,6 +114,66 @@ class SessionService:
                 detail="Only a planned session can be opened",
             )
         session.status = SessionStatus.in_progress
+        await db.commit()
+        await db.refresh(session)
+        return session
+
+    async def complete_session(
+        self, session_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
+    ) -> Session:
+        """Complete an `in_progress` session. DM only.
+
+        Only `in_progress` -> `completed` is accepted. A `planned` session
+        must go through `open_session` first — skipping straight from
+        `planned` to `completed` is rejected (422) rather than silently
+        allowed, so the lifecycle stays predictable (Fase 13 decision).
+        """
+        session, member = await self._require_session_membership(
+            session_id, requester_id, db
+        )
+        if member.role != CampaignRole.dm:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the campaign's DM can complete sessions",
+            )
+        if session.status != SessionStatus.in_progress:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Only an in-progress session can be completed; "
+                    "open it first"
+                ),
+            )
+        session.status = SessionStatus.completed
+        await db.commit()
+        await db.refresh(session)
+        return session
+
+    async def update_session(
+        self,
+        session_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: SessionUpdate,
+        db: AsyncSession,
+    ) -> Session:
+        """Edit a session's `title`/`scheduled_date`. DM only.
+
+        Only the fields supplied (non-`None`) are changed, same convention
+        as `CharacterUpdate` — there is no way to explicitly clear
+        `scheduled_date` back to `None` through this endpoint today.
+        """
+        session, member = await self._require_session_membership(
+            session_id, requester_id, db
+        )
+        if member.role != CampaignRole.dm:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the campaign's DM can edit sessions",
+            )
+        if data.title is not None:
+            session.title = data.title
+        if data.scheduled_date is not None:
+            session.scheduled_date = data.scheduled_date
         await db.commit()
         await db.refresh(session)
         return session

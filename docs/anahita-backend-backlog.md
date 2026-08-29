@@ -372,13 +372,15 @@
 
 > Objetivo: fechar as lacunas de gestão básica de sessão e visibilidade de NPC antes do redesign maior (Fase 15).
 
-- **Como mestre, quero concluir uma sessão.**
-  - [ ] `SessionStatus` já tem `completed` no enum — adicionar `POST /sessions/{id}/complete` (ou `PATCH` de status) transicionando `in_progress`→`completed`, DM-only
-  - [ ] Testes: transição válida funciona; transição de `planned` direto pra `completed` (pulando `in_progress`) é rejeitada ou tratada conforme decisão; jogador não pode concluir (403)
+- **Como mestre, quero concluir uma sessão.** ✅ (2026-08-29)
+  - [x] `SessionStatus` já tem `completed` no enum — adicionar `POST /sessions/{id}/complete` (ou `PATCH` de status) transicionando `in_progress`→`completed`, DM-only
+  - [x] Testes: transição válida funciona; transição de `planned` direto pra `completed` (pulando `in_progress`) é rejeitada ou tratada conforme decisão; jogador não pode concluir (403)
+  - Notas: política de transição escolhida foi a recomendação do backlog — `SessionService.complete_session` rejeita com **422** qualquer transição que não seja `in_progress`→`completed` (inclusive `planned`→`completed` direto, pulando `open_session`), em vez de aceitar silenciosamente ou usar 409. `open_session` (Fase 6) já usava 409 para "sessão já aberta"; aqui optei por 422 deliberadamente, seguindo a recomendação explícita do backlog ("mais previsível") em vez de reaproveitar o código de `open_session` — os dois passam a conviver com semânticas ligeiramente diferentes (409 = conflito de estado idempotente; 422 = transição inválida da máquina de estado), decisão consciente, não inconsistência.
 
-- **Como mestre, quero editar o nome de uma sessão.**
-  - [ ] `SessionUpdate` (hoje inexistente) + `PATCH /sessions/{id}` — DM-only, campo `title` (e talvez `scheduled_date`, reaproveitando pro fix da Fase 9)
-  - [ ] Testes: edição funciona; jogador não pode editar (403)
+- **Como mestre, quero editar o nome de uma sessão.** ✅ (2026-08-29)
+  - [x] `SessionUpdate` (hoje inexistente) + `PATCH /sessions/{id}` — DM-only, campo `title` (e `scheduled_date`, reaproveitando pro fix da Fase 9 — já que agora sessões podem ser criadas sem data, faz sentido permitir editar depois)
+  - [x] Testes: edição funciona; jogador não pode editar (403)
+  - Notas: `SessionUpdate` segue a mesma convenção parcial já usada por `CharacterUpdate` (Fase 10) — cada campo é opcional e só é aplicado quando não-`None`; não há como limpar `scheduled_date` de volta para `None` através deste endpoint (mesma limitação já aceita em `CharacterUpdate`, documentada no docstring do schema).
 
 - **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.**
   - [ ] Backend já aceita (`EncounterParticipantCreate.character_id`) — confirmar que a rota `POST /encounters/{id}/participants` funciona ponta a ponta com `character_id` preenchido (o gap real é de frontend, ver Fase 13 do backlog de frontend); se houver validação faltando (ex. mesmo personagem duplicado no encontro), adicionar
