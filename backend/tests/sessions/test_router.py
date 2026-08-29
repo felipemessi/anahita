@@ -171,3 +171,160 @@ async def test_player_cannot_open_session_over_http(client: AsyncClient) -> None
         headers={"Authorization": f"Bearer {player_token}"},
     )
     assert open_resp.status_code == 403
+
+
+async def test_dm_completes_in_progress_session_over_http(client: AsyncClient) -> None:
+    """The DM can complete an in-progress session over HTTP."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Session One"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+    await client.post(
+        f"/sessions/{session_id}/open",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+
+    complete_resp = await client.post(
+        f"/sessions/{session_id}/complete",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert complete_resp.status_code == 200
+    assert complete_resp.json()["status"] == "completed"
+
+
+async def test_completing_planned_session_over_http_is_rejected(
+    client: AsyncClient,
+) -> None:
+    """Completing a still-`planned` session (skipping `in_progress`) is rejected."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Session One"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+
+    complete_resp = await client.post(
+        f"/sessions/{session_id}/complete",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert complete_resp.status_code == 422
+
+
+async def test_player_cannot_complete_session_over_http(client: AsyncClient) -> None:
+    """A player cannot complete a session over HTTP."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Session One"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+    await client.post(
+        f"/sessions/{session_id}/open",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    complete_resp = await client.post(
+        f"/sessions/{session_id}/complete",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert complete_resp.status_code == 403
+
+
+async def test_dm_updates_session_title_over_http(client: AsyncClient) -> None:
+    """The DM can edit a session's title over HTTP."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Draft Title"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+
+    update_resp = await client.patch(
+        f"/sessions/{session_id}",
+        json={"title": "Final Title", "scheduled_date": "2026-09-01"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert update_resp.status_code == 200
+    body = update_resp.json()
+    assert body["title"] == "Final Title"
+    assert body["scheduled_date"] == "2026-09-01"
+
+
+async def test_player_cannot_update_session_over_http(client: AsyncClient) -> None:
+    """A player cannot edit a session over HTTP."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Draft Title"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id = session_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    update_resp = await client.patch(
+        f"/sessions/{session_id}",
+        json={"title": "Hijacked"},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert update_resp.status_code == 403

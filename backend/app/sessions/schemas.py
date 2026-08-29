@@ -17,6 +17,13 @@ class SessionCreate(BaseModel):
     dm_notes: str | None = None
 
 
+class SessionUpdate(BaseModel):
+    """Request body to edit a session; DM-only. All fields optional/partial."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    scheduled_date: date | None = None
+
+
 class SessionRead(BaseModel):
     """Response schema for a session.
 

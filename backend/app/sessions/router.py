@@ -14,6 +14,7 @@ from app.sessions.schemas import (
     SessionNoteCreate,
     SessionNoteRead,
     SessionRead,
+    SessionUpdate,
 )
 from app.sessions.service import SessionService
 
@@ -65,6 +66,31 @@ async def open_session(
 ) -> SessionRead:
     """Open a planned session for play; only the campaign's DM may do this."""
     session = await service.open_session(session_id, user.id, db)
+    return SessionRead.model_validate(session)
+
+
+@router.post("/sessions/{session_id}/complete", response_model=SessionRead)
+async def complete_session(
+    session_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[SessionService, Depends(get_session_service)],
+) -> SessionRead:
+    """Complete an in-progress session; only the campaign's DM may do this."""
+    session = await service.complete_session(session_id, user.id, db)
+    return SessionRead.model_validate(session)
+
+
+@router.patch("/sessions/{session_id}", response_model=SessionRead)
+async def update_session(
+    session_id: uuid.UUID,
+    body: SessionUpdate,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[SessionService, Depends(get_session_service)],
+) -> SessionRead:
+    """Edit a session's title/scheduled date; only the campaign's DM may do this."""
+    session = await service.update_session(session_id, user.id, body, db)
     return SessionRead.model_validate(session)
 
 

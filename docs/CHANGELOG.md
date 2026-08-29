@@ -16,6 +16,14 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   para adicionar jogadores (PCs) ao combate, não só monstros/NPCs — a
   lacuna real relatada era de frontend (falta um `CharacterPicker`),
   desbloqueando aquele trabalho.
+- Endpoint `POST /sessions/{id}/complete` (Fase 13), DM-only, transicionando
+  uma sessão `in_progress`→`completed`. Qualquer outra transição de origem
+  (ex. `planned`→`completed` direto, pulando `open_session`) é rejeitada
+  com 422, mantendo a máquina de estado previsível.
+- Schema `SessionUpdate` + endpoint `PATCH /sessions/{id}` (Fase 13),
+  DM-only, permitindo editar `title` e `scheduled_date` de uma sessão já
+  criada — reaproveitável para corrigir a data de sessões criadas sem
+  data (Fase 9).
 - Profundidade de raça homebrew (Fase 11): `RaceCreate` estendido com
   `age`/`alignment_desc`/`size_description`/`language_desc` e listas
   estruturadas `language_ids`/`proficiency_ids` (validadas contra o
