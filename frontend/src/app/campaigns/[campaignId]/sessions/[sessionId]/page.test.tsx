@@ -12,9 +12,13 @@ vi.mock("@/hooks/use-campaign", () => ({
 
 const useSessions = vi.fn();
 const useOpenSession = vi.fn();
+const useCompleteSession = vi.fn();
+const useUpdateSession = vi.fn();
 vi.mock("@/hooks/use-session", () => ({
   useSessions: (...args: unknown[]) => useSessions(...args),
   useOpenSession: (...args: unknown[]) => useOpenSession(...args),
+  useCompleteSession: (...args: unknown[]) => useCompleteSession(...args),
+  useUpdateSession: (...args: unknown[]) => useUpdateSession(...args),
 }));
 
 const useEncounters = vi.fn();
@@ -46,14 +50,20 @@ const plannedSession = {
 
 describe("SessionDetailPage", () => {
   const openSessionMutate = vi.fn();
+  const completeSessionMutate = vi.fn();
+  const updateSessionMutate = vi.fn();
 
   beforeEach(() => {
     openSessionMutate.mockReset();
+    completeSessionMutate.mockReset();
+    updateSessionMutate.mockReset();
     useSessions.mockReturnValue({ data: [plannedSession], isLoading: false });
     useEncounters.mockReturnValue({ data: [] });
     useCreateEncounter.mockReturnValue({ mutate: vi.fn(), isPending: false });
     useStartEncounter.mockReturnValue({ mutate: vi.fn(), isPending: false });
     useOpenSession.mockReturnValue({ mutate: openSessionMutate, isPending: false });
+    useCompleteSession.mockReturnValue({ mutate: completeSessionMutate, isPending: false });
+    useUpdateSession.mockReturnValue({ mutate: updateSessionMutate, isPending: false });
   });
 
   it("the DM sees an 'Abrir sessão' button for a planned session", () => {
@@ -86,5 +96,58 @@ describe("SessionDetailPage", () => {
 
     expect(screen.queryByRole("button", { name: "Abrir sessão" })).not.toBeInTheDocument();
     expect(screen.getByText("Em andamento")).toBeInTheDocument();
+  });
+
+  it("the DM sees a 'Concluir sessão' button for an in-progress session and it completes it", () => {
+    useMyMembership.mockReturnValue({ data: { role: "dm" } });
+    useSessions.mockReturnValue({
+      data: [{ ...plannedSession, status: "in_progress" }],
+      isLoading: false,
+    });
+
+    render(<SessionDetailPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Concluir sessão" }));
+
+    expect(completeSessionMutate).toHaveBeenCalledWith("sess-1");
+  });
+
+  it("a player doesn't see the 'Concluir sessão' button", () => {
+    useMyMembership.mockReturnValue({ data: { role: "player" } });
+    useSessions.mockReturnValue({
+      data: [{ ...plannedSession, status: "in_progress" }],
+      isLoading: false,
+    });
+
+    render(<SessionDetailPage />);
+
+    expect(
+      screen.queryByRole("button", { name: "Concluir sessão" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("the DM can edit and save the session title", () => {
+    useMyMembership.mockReturnValue({ data: { role: "dm" } });
+
+    render(<SessionDetailPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+    const input = screen.getByDisplayValue("A Emboscada");
+    fireEvent.change(input, { target: { value: "A Nova Emboscada" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(updateSessionMutate).toHaveBeenCalledWith(
+      { sessionId: "sess-1", data: { title: "A Nova Emboscada" } },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("a player doesn't see the title 'Editar' button", () => {
+    useMyMembership.mockReturnValue({ data: { role: "player" } });
+
+    render(<SessionDetailPage />);
+
+    expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
   });
 });

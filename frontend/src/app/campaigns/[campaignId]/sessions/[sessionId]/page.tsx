@@ -10,7 +10,12 @@ import {
   useEncounters,
   useStartEncounter,
 } from "@/hooks/use-combat";
-import { useOpenSession, useSessions } from "@/hooks/use-session";
+import {
+  useCompleteSession,
+  useOpenSession,
+  useSessions,
+  useUpdateSession,
+} from "@/hooks/use-session";
 import { NoteEditor } from "@/components/sessions/note-editor";
 
 const ENCOUNTER_STATUS_LABEL: Record<string, string> = {
@@ -45,6 +50,11 @@ export default function SessionDetailPage() {
   const createEncounter = useCreateEncounter(sessionId);
   const startEncounter = useStartEncounter();
   const openSession = useOpenSession(campaignId);
+  const completeSession = useCompleteSession(campaignId);
+  const updateSession = useUpdateSession(campaignId);
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
   function handleCreateEncounter(event: React.FormEvent) {
     event.preventDefault();
@@ -52,6 +62,21 @@ export default function SessionDetailPage() {
     createEncounter.mutate(
       { name: encounterName.trim() },
       { onSuccess: () => setEncounterName("") },
+    );
+  }
+
+  function handleStartEditingTitle(currentTitle: string) {
+    setTitleDraft(currentTitle);
+    setIsEditingTitle(true);
+  }
+
+  function handleSaveTitle(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = titleDraft.trim();
+    if (!trimmed) return;
+    updateSession.mutate(
+      { sessionId, data: { title: trimmed } },
+      { onSuccess: () => setIsEditingTitle(false) },
     );
   }
 
@@ -67,23 +92,69 @@ export default function SessionDetailPage() {
     <main className="mx-auto max-w-3xl space-y-8 px-6 py-10">
       <div>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold">
-            Sessão {session.session_number} — {session.title}
-          </h1>
-          {isDm && session.status === "planned" ? (
-            <button
-              type="button"
-              onClick={() => openSession.mutate(session.id)}
-              disabled={openSession.isPending}
-              className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              Abrir sessão
-            </button>
+          {isDm && isEditingTitle ? (
+            <form onSubmit={handleSaveTitle} className="flex flex-1 items-center gap-2">
+              <input
+                value={titleDraft}
+                onChange={(event) => setTitleDraft(event.target.value)}
+                autoFocus
+                className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={!titleDraft.trim() || updateSession.isPending}
+                className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                Salvar
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingTitle(false)}
+                className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
+              >
+                Cancelar
+              </button>
+            </form>
           ) : (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {SESSION_STATUS_LABEL[session.status] ?? session.status}
-            </span>
+            <h1 className="text-2xl font-bold">
+              Sessão {session.session_number} — {session.title}
+              {isDm ? (
+                <button
+                  type="button"
+                  onClick={() => handleStartEditingTitle(session.title)}
+                  className="ml-2 text-sm font-normal text-muted-foreground hover:underline"
+                >
+                  Editar
+                </button>
+              ) : null}
+            </h1>
           )}
+          <div className="flex shrink-0 items-center gap-2">
+            {isDm && session.status === "planned" ? (
+              <button
+                type="button"
+                onClick={() => openSession.mutate(session.id)}
+                disabled={openSession.isPending}
+                className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                Abrir sessão
+              </button>
+            ) : (
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {SESSION_STATUS_LABEL[session.status] ?? session.status}
+              </span>
+            )}
+            {isDm && session.status === "in_progress" ? (
+              <button
+                type="button"
+                onClick={() => completeSession.mutate(session.id)}
+                disabled={completeSession.isPending}
+                className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                Concluir sessão
+              </button>
+            ) : null}
+          </div>
         </div>
         {session.scheduled_date ? (
           <p className="text-sm text-muted-foreground">{session.scheduled_date}</p>

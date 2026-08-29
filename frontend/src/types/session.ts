@@ -25,6 +25,11 @@ export interface SessionCreate {
   dm_notes?: string | null;
 }
 
+export interface SessionUpdate {
+  title?: string;
+  scheduled_date?: string | null;
+}
+
 export interface SessionNote {
   id: string;
   session_id: string;
