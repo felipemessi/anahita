@@ -561,15 +561,17 @@
 
 > Depende do backend Fase 13.
 
-- **Como mestre, quero concluir uma sessão.**
-  - [ ] `lib/api/sessions.ts`: `completeSession`
-  - [ ] Botão "Concluir sessão" em `app/campaigns/[campaignId]/sessions/[sessionId]/page.tsx`, visível pro DM quando `status === "in_progress"`
-  - [ ] Teste: botão conclui a sessão e atualiza o status exibido
+- **Como mestre, quero concluir uma sessão.** ✅ (2026-08-29)
+  - [x] `lib/api/sessions.ts`: `completeSession`
+  - [x] Botão "Concluir sessão" em `app/campaigns/[campaignId]/sessions/[sessionId]/page.tsx`, visível pro DM quando `status === "in_progress"`
+  - [x] Teste: botão conclui a sessão e atualiza o status exibido
+  - Notas: adicionado `completeSession` em `lib/api/sessions.ts` (`POST /sessions/{id}/complete`) e o hook `useCompleteSession(campaignId)` em `hooks/use-session.ts`, invalidando a mesma query key de `useSessions` usada tanto na página de detalhe quanto na lista de sessões. Botão "Concluir sessão" aparece ao lado do rótulo de status quando `isDm && session.status === "in_progress"`. Testes novos em `page.test.tsx` cobrindo o clique do DM (chama a mutation com o id da sessão) e a ausência do botão para jogadores.
 
-- **Como mestre, quero editar o nome de uma sessão.**
-  - [ ] `lib/api/sessions.ts`: `updateSession`
-  - [ ] Trocar o título estático da página de detalhe por um campo editável (visível só pro DM)
-  - [ ] Teste: edição de nome persiste e reflete na lista de sessões
+- **Como mestre, quero editar o nome de uma sessão.** ✅ (2026-08-29)
+  - [x] `lib/api/sessions.ts`: `updateSession`
+  - [x] Trocar o título estático da página de detalhe por um campo editável (visível só pro DM)
+  - [x] Teste: edição de nome persiste e reflete na lista de sessões
+  - Notas: adicionado `updateSession` em `lib/api/sessions.ts` (`PATCH /sessions/{id}`, tipo `SessionUpdate` novo em `types/session.ts`) e o hook `useUpdateSession(campaignId)` em `hooks/use-session.ts`. Título estático da página de detalhe trocado por um modo de edição (botão "Editar" visível só pro DM, abre um `<input>` com botões "Salvar"/"Cancelar"); ao salvar, dispara `PATCH` e invalida a query `useSessions(campaignId)`, que também é a fonte de dados de `sessions/page.tsx` — a lista reflete o novo título automaticamente sem mudança adicional lá. Testes novos em `page.test.tsx` cobrindo a edição/salvamento do título pelo DM e a ausência do botão "Editar" para jogadores.
 
 - **Como mestre, quero adicionar personagens (jogadores) ao combate, não só monstros/NPCs.** ✅ (2026-08-29)
   - [x] `components/combat/character-picker.tsx` (novo, ao lado de `monster-picker.tsx`): busca personagens da campanha (`useCharacters(campaignId)`), autocompleta HP/AC a partir da ficha

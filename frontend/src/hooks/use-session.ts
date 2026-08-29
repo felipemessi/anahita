@@ -2,8 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { addNote, createSession, listNotes, listSessions, openSession } from "@/lib/api/sessions";
-import type { SessionCreate, SessionNoteCreate } from "@/types/session";
+import {
+  addNote,
+  completeSession,
+  createSession,
+  listNotes,
+  listSessions,
+  openSession,
+  updateSession,
+} from "@/lib/api/sessions";
+import type { SessionCreate, SessionNoteCreate, SessionUpdate } from "@/types/session";
 
 export const SESSIONS_QUERY_KEY = ["sessions"] as const;
 
@@ -56,6 +64,33 @@ export function useOpenSession(campaignId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (sessionId: string) => openSession(sessionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...SESSIONS_QUERY_KEY, campaignId],
+      });
+    },
+  });
+}
+
+/** Complete an in-progress session (DM only); invalidates the campaign's session list. */
+export function useCompleteSession(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => completeSession(sessionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...SESSIONS_QUERY_KEY, campaignId],
+      });
+    },
+  });
+}
+
+/** Edit a session's title/scheduled date (DM only); invalidates the campaign's session list. */
+export function useUpdateSession(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: SessionUpdate }) =>
+      updateSession(sessionId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...SESSIONS_QUERY_KEY, campaignId],

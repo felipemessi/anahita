@@ -4,6 +4,7 @@ import type {
   SessionCreate,
   SessionNote,
   SessionNoteCreate,
+  SessionUpdate,
 } from "@/types/session";
 
 /** Calls the sessions endpoints exposed by backend/app/sessions/router.py. */
@@ -43,4 +44,20 @@ export function addNote(
 /** Open a planned session for play; only the campaign's DM may do this. */
 export function openSession(sessionId: string): Promise<GameSession> {
   return apiFetch<GameSession>(`/sessions/${sessionId}/open`, { method: "POST" });
+}
+
+/** Complete an in-progress session; only the campaign's DM may do this. */
+export function completeSession(sessionId: string): Promise<GameSession> {
+  return apiFetch<GameSession>(`/sessions/${sessionId}/complete`, { method: "POST" });
+}
+
+/** Edit a session's title/scheduled date; only the campaign's DM may do this. */
+export function updateSession(
+  sessionId: string,
+  data: SessionUpdate,
+): Promise<GameSession> {
+  return apiFetch<GameSession>(`/sessions/${sessionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }

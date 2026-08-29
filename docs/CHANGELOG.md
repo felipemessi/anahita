@@ -17,6 +17,14 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   painel de adicionar participante. Fecha a lacuna de seleção de alvo em
   combate identificada na Fase 9 — um encontro agora pode ter
   participantes-personagem, populando o dropdown de alvo do `ActionPicker`.
+- Conclusão de sessão no frontend (Fase 13): `completeSession` em
+  `lib/api/sessions.ts` (`POST /sessions/{id}/complete`) e o hook
+  `useCompleteSession`; botão "Concluir sessão" na página de detalhe da
+  sessão, visível pro DM quando `status === "in_progress"`.
+- Edição do nome de sessão no frontend (Fase 13): `updateSession` em
+  `lib/api/sessions.ts` (`PATCH /sessions/{id}`) e o hook
+  `useUpdateSession`; título estático da página de detalhe da sessão
+  trocado por um campo editável, visível só pro DM.
 - Visibilidade de NPCs para o mestre (Fase 13): `NPC` ganha `is_revealed`
   (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`.
   `GET /campaigns/{id}/npcs` filtra NPCs não revelados para não-DM (sem
