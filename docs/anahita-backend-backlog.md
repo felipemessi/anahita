@@ -387,12 +387,13 @@
   - [x] Testes: adicionar personagem funciona; personagem duplicado no mesmo encontro é rejeitado
   - Notas: **backend confirmado pronto para o frontend consumir.** `POST /encounters/{id}/participants` (`app/combat/router.py`→`CombatService.add_participant`) já aceitava `character_id` de ponta a ponta — confirmado com teste HTTP novo (`test_add_character_participant_over_http`, `backend/tests/combat/test_router.py`) que envia `character_id` pelo endpoint real e recebe o participante de volta com esse campo preenchido, e com teste de serviço (`test_add_participant_with_character_id`, `backend/tests/combat/test_service.py`) usando um personagem real da fixture `campaign_with_pc`. A lacuna real (já confirmada na Fase 9) é 100% de frontend: falta um `CharacterPicker` equivalente ao `MonsterPicker` em `frontend/src/app/campaigns/[campaignId]/combat/[encounterId]/page.tsx`. A validação faltante foi adicionada: `add_participant` agora rejeita (422) um `character_id` já presente como participante no mesmo encontro (`app/combat/service.py`), coberto por `test_add_participant_rejects_duplicate_character` (serviço) e `test_add_character_participant_rejects_duplicate_over_http` (HTTP). Isso desbloqueia a história equivalente da Fase 13 do backlog de frontend.
 
-- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
-  - [ ] `NPC` ganha `is_revealed: bool` (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`
-  - [ ] Migração Alembic
-  - [ ] `GET /campaigns/{id}/npcs` (e detalhe) para jogador só retorna `is_revealed=true`; DM sempre vê tudo
-  - [ ] `POST /npcs/{id}/reveal` (ou `PATCH`), DM-only
-  - [ ] Testes: jogador não vê NPC oculto na lista nem no detalhe (404 ou filtro, a decidir); DM vê tudo; reveal muda a visibilidade corretamente
+- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.** ✅ (2026-08-29)
+  - [x] `NPC` ganha `is_revealed: bool` (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`
+  - [x] Migração Alembic
+  - [x] `GET /campaigns/{id}/npcs` (e detalhe) para jogador só retorna `is_revealed=true`; DM sempre vê tudo
+  - [x] `POST /npcs/{id}/reveal` (ou `PATCH`), DM-only
+  - [x] Testes: jogador não vê NPC oculto na lista nem no detalhe (404 ou filtro, a decidir); DM vê tudo; reveal muda a visibilidade corretamente
+  - Notas: reaproveitado 1:1 o padrão já usado por `Handout.is_revealed`/`HandoutService`. Decisão de visibilidade: **filtro na listagem** (`GET /campaigns/{id}/npcs` simplesmente omite NPCs não revelados para não-DM, sem erro) e **404 no detalhe direto** (`GET /npcs/{id}`, endpoint novo — não existia antes desta história) quando um não-DM tenta acessar um NPC oculto pelo id, mesmo que ele exista e pertença à campanha do requisitante — mesmo padrão exato de `HandoutService.get_handout`, para não vazar a existência do NPC oculto. `POST /npcs/{id}/reveal` é DM-only (`WorldService._require_dm`), idêntico ao fluxo de `reveal_handout`, mas sem broadcast via WebSocket (a história não pediu e não há paralelo de "encontro ativo" para NPCs). `NPCRead` ganhou o campo `is_revealed`. Um teste HTTP pré-existente (`test_dm_creates_npc_and_player_can_list_it`) esperava que o player visse o NPC recém-criado sem reveal — ajustado para revelar antes, já que esse é o novo comportamento correto.
 
 ---
 

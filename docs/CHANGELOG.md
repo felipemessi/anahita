@@ -9,6 +9,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Visibilidade de NPCs para o mestre (Fase 13): `NPC` ganha `is_revealed`
+  (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`.
+  `GET /campaigns/{id}/npcs` filtra NPCs não revelados para não-DM (sem
+  erro); novo endpoint `GET /npcs/{id}` retorna 404 para não-DM em NPC
+  oculto, mesmo padrão de `HandoutService.get_handout`. Novo endpoint
+  `POST /npcs/{id}/reveal`, DM-only.
 - Validação de personagem duplicado em combate (Fase 13): `POST
   /encounters/{id}/participants` (`CombatService.add_participant`) agora
   rejeita (422) adicionar um `character_id` que já é participante do mesmo

@@ -53,7 +53,7 @@ async def _register_and_login(client: AsyncClient, email: str) -> str:
 
 
 async def test_dm_creates_npc_and_player_can_list_it(client: AsyncClient) -> None:
-    """Full flow: DM creates an NPC; a fellow member can list it."""
+    """Full flow: DM creates and reveals an NPC; a fellow member can list it."""
     dm_token = await _register_and_login(client, "dm@example.com")
     campaign_resp = await client.post(
         "/campaigns",
@@ -68,6 +68,11 @@ async def test_dm_creates_npc_and_player_can_list_it(client: AsyncClient) -> Non
         headers={"Authorization": f"Bearer {dm_token}"},
     )
     assert npc_resp.status_code == 201
+    npc_id = npc_resp.json()["id"]
+    await client.post(
+        f"/npcs/{npc_id}/reveal",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
 
     invite_resp = await client.post(
         f"/campaigns/{campaign_id}/invites",
@@ -94,6 +99,78 @@ async def test_dm_creates_npc_and_player_can_list_it(client: AsyncClient) -> Non
         headers={"Authorization": f"Bearer {player_token}"},
     )
     assert player_create_resp.status_code == 403
+
+
+async def test_player_only_sees_revealed_npcs_over_http(client: AsyncClient) -> None:
+    """A player's GET list/detail only include NPCs the DM has revealed."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_resp = await client.post(
+        "/campaigns",
+        json={"name": "Icewind Dale"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    campaign_id = campaign_resp.json()["id"]
+
+    hidden_resp = await client.post(
+        f"/campaigns/{campaign_id}/npcs",
+        json={"name": "Hidden NPC", "race": "Human", "description": ""},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    hidden_id = hidden_resp.json()["id"]
+    public_resp = await client.post(
+        f"/campaigns/{campaign_id}/npcs",
+        json={"name": "Public NPC", "race": "Human", "description": ""},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    public_id = public_resp.json()["id"]
+    reveal_resp = await client.post(
+        f"/npcs/{public_id}/reveal",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert reveal_resp.status_code == 200
+    assert reveal_resp.json()["is_revealed"] is True
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    dm_list = await client.get(
+        f"/campaigns/{campaign_id}/npcs",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    player_list = await client.get(
+        f"/campaigns/{campaign_id}/npcs",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert {n["name"] for n in dm_list.json()} == {"Hidden NPC", "Public NPC"}
+    assert {n["name"] for n in player_list.json()} == {"Public NPC"}
+
+    player_hidden_detail = await client.get(
+        f"/npcs/{hidden_id}",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert player_hidden_detail.status_code == 404
+
+    player_public_detail = await client.get(
+        f"/npcs/{public_id}",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert player_public_detail.status_code == 200
+
+    player_reveal_resp = await client.post(
+        f"/npcs/{hidden_id}/reveal",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert player_reveal_resp.status_code == 403
 
 
 async def test_dm_links_npc_to_faction(client: AsyncClient) -> None:
