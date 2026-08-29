@@ -1375,6 +1375,83 @@ class ProficiencyRace(Base):
     )
 
 
+# `ProficiencyClass`/`ProficiencyRace` above only model *fixed* grants (the
+# class/race always gives the proficiency, no pick involved). The SRD also
+# grants some proficiencies as a choice — e.g. Rogue "choose 4 skills from
+# this list", Half-Elf "choose 2 skills of your choice" — which those two
+# junctions can't express (Fase 10: `docs/anahita-backend-backlog.md`,
+# gap first documented in the Fase 7 notes). `ProficiencyChoiceGroup` +
+# `ProficiencyChoiceOption` model that separately: a group belongs to
+# exactly one class or race and says how many of its listed options
+# (`ProficiencyChoiceOption` rows) may be picked — enforced by
+# `CharacterService.set_proficiency_choices`, which is the only place that
+# writes to a character's `CharacterSkill.proficient`.
+
+
+class ProficiencyChoiceGroup(Base):
+    """A "choose N of [...]" proficiency grant for a class or race."""
+
+    __tablename__ = "catalog_proficiency_choice_groups"
+    __table_args__ = (
+        CheckConstraint(
+            "(class_definition_id IS NOT NULL AND race_id IS NULL)"
+            " OR (class_definition_id IS NULL AND race_id IS NOT NULL)",
+            name="ck_catalog_proficiency_choice_groups_scope",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    class_definition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_class_definitions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    race_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_races.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    choose_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    options: Mapped[list[ProficiencyChoiceOption]] = relationship(
+        "ProficiencyChoiceOption",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProficiencyChoiceOption(Base):
+    """One proficiency a player may pick within a `ProficiencyChoiceGroup`."""
+
+    __tablename__ = "catalog_proficiency_choice_options"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id", "proficiency_id", name="uq_catalog_proficiency_choice_options"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiency_choice_groups.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    proficiency_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_proficiencies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    group: Mapped[ProficiencyChoiceGroup] = relationship(
+        "ProficiencyChoiceGroup", back_populates="options"
+    )
+    proficiency: Mapped[Proficiency] = relationship("Proficiency")
+
+
 # --- Backgrounds and Feats (SRD 2014 §7.4.7) --------------------------------
 
 

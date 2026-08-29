@@ -139,6 +139,19 @@ SKILL_ABILITY: dict[Skill, AbilityScore] = {
 }
 
 
+#: `Skill` uses underscores (`animal_handling`); `SkillDefinition.index` (and
+#: `Proficiency.skill_id` -> `SkillDefinition`) uses hyphens
+#: (`animal-handling`), the SRD's own convention — this bridges the two so
+#: `CharacterService` can match a catalog skill Proficiency back to the
+#: character-domain `Skill` it corresponds to (Fase 10).
+SKILL_TO_CATALOG_INDEX: dict[Skill, str] = {
+    skill: skill.value.replace("_", "-") for skill in Skill
+}
+CATALOG_INDEX_TO_SKILL: dict[str, Skill] = {
+    index: skill for skill, index in SKILL_TO_CATALOG_INDEX.items()
+}
+
+
 #: Ability score prerequisites to multiclass into (or out of) each SRD class
 #: (PHB multiclassing rules, keyed by `ClassDefinition.index`).
 #:
