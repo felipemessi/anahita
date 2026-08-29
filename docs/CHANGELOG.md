@@ -9,6 +9,13 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Validação de personagem duplicado em combate (Fase 13): `POST
+  /encounters/{id}/participants` (`CombatService.add_participant`) agora
+  rejeita (422) adicionar um `character_id` que já é participante do mesmo
+  encontro. Confirmado ponta a ponta que a rota já aceitava `character_id`
+  para adicionar jogadores (PCs) ao combate, não só monstros/NPCs — a
+  lacuna real relatada era de frontend (falta um `CharacterPicker`),
+  desbloqueando aquele trabalho.
 - Profundidade de raça homebrew (Fase 11): `RaceCreate` estendido com
   `age`/`alignment_desc`/`size_description`/`language_desc` e listas
   estruturadas `language_ids`/`proficiency_ids` (validadas contra o

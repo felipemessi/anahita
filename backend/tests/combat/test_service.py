@@ -107,6 +107,72 @@ async def test_add_participant_rejects_both_character_and_npc(
     assert exc_info.value.status_code == 422
 
 
+async def test_add_participant_with_character_id(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """A character (PC) can be added to an encounter as a participant."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    encounter = await service.add_participant(
+        encounter.id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            character_id=fx.player_character_id,
+            name="Aldric",
+            initiative=15,
+            hit_point_max=10,
+            armor_class=14,
+            turn_order=0,
+        ),
+        db,
+    )
+    assert len(encounter.participants) == 1
+    assert encounter.participants[0].character_id == fx.player_character_id
+    assert encounter.participants[0].name == "Aldric"
+
+
+async def test_add_participant_rejects_duplicate_character(
+    db: AsyncSession, campaign_with_pc: _CampaignFixture
+) -> None:
+    """The same character cannot be added twice to the same encounter."""
+    fx = campaign_with_pc
+    service = CombatService()
+    encounter = await service.create_encounter(
+        fx.session_id, fx.dm_id, EncounterCreate(name="Ambush"), db
+    )
+    await service.add_participant(
+        encounter.id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            character_id=fx.player_character_id,
+            name="Aldric",
+            initiative=15,
+            hit_point_max=10,
+            armor_class=14,
+            turn_order=0,
+        ),
+        db,
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        await service.add_participant(
+            encounter.id,
+            fx.dm_id,
+            EncounterParticipantCreate(
+                character_id=fx.player_character_id,
+                name="Aldric (dupe)",
+                initiative=10,
+                hit_point_max=10,
+                armor_class=14,
+                turn_order=1,
+            ),
+            db,
+        )
+    assert exc_info.value.status_code == 422
+
+
 async def test_update_participant_hp_rejects_exceeding_max(
     db: AsyncSession, campaign_with_session: _CampaignFixture
 ) -> None:

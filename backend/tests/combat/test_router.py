@@ -1,5 +1,6 @@
 """Integration tests for the combat HTTP endpoints."""
 
+import uuid
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -185,6 +186,82 @@ async def test_player_can_view_but_not_manage_encounter(client: AsyncClient) -> 
         headers={"Authorization": f"Bearer {player_token}"},
     )
     assert add_resp.status_code == 403
+
+
+async def test_add_character_participant_over_http(client: AsyncClient) -> None:
+    """The DM can add a character (PC) participant, not just a monster/NPC.
+
+    A character need not already exist for the FK to resolve in this SQLite
+    test DB (see `tests.combat.conftest.campaign_with_pc`'s note on FK
+    enforcement) — this exercises the same request shape the frontend's
+    future `CharacterPicker` would send.
+    """
+    dm_token = await _register_and_login(client, "dm@example.com")
+    session_id = await _make_campaign_and_session(client, dm_token)
+
+    create_resp = await client.post(
+        f"/sessions/{session_id}/encounters",
+        json={"name": "Ambush"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    encounter_id = create_resp.json()["id"]
+
+    character_id = str(uuid.uuid4())
+    participant_resp = await client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={
+            "character_id": character_id,
+            "name": "Aldric",
+            "initiative": 15,
+            "hit_point_max": 10,
+            "armor_class": 14,
+            "turn_order": 0,
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert participant_resp.status_code == 200
+    participants = participant_resp.json()["participants"]
+    assert len(participants) == 1
+    assert participants[0]["character_id"] == character_id
+    assert participants[0]["name"] == "Aldric"
+
+
+async def test_add_character_participant_rejects_duplicate_over_http(
+    client: AsyncClient,
+) -> None:
+    """Adding the same character twice to an encounter is rejected."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    session_id = await _make_campaign_and_session(client, dm_token)
+
+    create_resp = await client.post(
+        f"/sessions/{session_id}/encounters",
+        json={"name": "Ambush"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    encounter_id = create_resp.json()["id"]
+
+    character_id = str(uuid.uuid4())
+    body = {
+        "character_id": character_id,
+        "name": "Aldric",
+        "initiative": 15,
+        "hit_point_max": 10,
+        "armor_class": 14,
+        "turn_order": 0,
+    }
+    first_resp = await client.post(
+        f"/encounters/{encounter_id}/participants",
+        json=body,
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert first_resp.status_code == 200
+
+    second_resp = await client.post(
+        f"/encounters/{encounter_id}/participants",
+        json={**body, "turn_order": 1},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert second_resp.status_code == 422
 
 
 async def test_remove_participant_over_http(client: AsyncClient) -> None:
