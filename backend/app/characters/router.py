@@ -23,6 +23,7 @@ from app.characters.schemas import (
     CharacterRead,
     CharacterRestRequest,
     CharacterRestResponse,
+    CharacterSessionOrderRequest,
     CharacterSpellCastRequest,
     CharacterSpellCastResponse,
     CharacterSpellCreate,
@@ -102,6 +103,22 @@ async def get_character_sessions(
     player and the campaign's DM.
     """
     return await service.get_character_sessions(character_id, user.id, db)
+
+
+@router.patch("/{character_id}/sessions/order", response_model=list[SessionRead])
+async def reorder_character_sessions(
+    character_id: uuid.UUID,
+    body: CharacterSessionOrderRequest,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> list[SessionRead]:
+    """Set the character's personal session display order (owner-only).
+
+    Never affects `Session.session_number` or any other player's/DM's view
+    of the same sessions.
+    """
+    return await service.reorder_sessions(character_id, user.id, body, db)
 
 
 @router.post("/{character_id}/classes", response_model=CharacterRead)
