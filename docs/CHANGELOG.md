@@ -435,3 +435,11 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   conjunto de escolha ("escolha N de [...]") oferecido pela raça e
   classe(s) do personagem, rejeitando o resto com 422; perícias concedidas
   sem escolha são aplicadas automaticamente na criação do personagem.
+- Fase 11 do backend, segunda história: exclusão de conteúdo homebrew do
+  catálogo (`DELETE /catalog/{races,classes,spells,items,magic-items,
+  monsters,backgrounds,feats,rules}/{id}`), DM-only e restrita à própria
+  campanha. Conteúdo SRD nunca pode ser excluído (403); homebrew de outra
+  campanha retorna 404, sem confirmar sua existência para quem não é
+  membro. Exclusão é bloqueada com 409 quando uma raça, classe, magia,
+  item, item mágico ou monstro homebrew ainda está referenciado (por um
+  personagem, seu inventário, um loot drop, um encontro ou um NPC).

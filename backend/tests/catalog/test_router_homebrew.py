@@ -353,3 +353,158 @@ async def test_create_magic_item_requires_dm(client: AsyncClient) -> None:
         headers={"Authorization": f"Bearer {player_token}"},
     )
     assert resp.status_code == 403
+
+
+# --- Homebrew deletion (backlog Fase 11) -------------------------------------
+
+#: (URL path segment, minimal create payload beyond `campaign_id`) for each
+#: of the 9 homebrew categories — reused by the parametrized delete tests
+#: below so every category exercises the same policy.
+_CATEGORIES: list[tuple[str, dict[str, object]]] = [
+    ("races", {"name": "Duskling"}),
+    ("classes", {"name": "Duelist", "hit_die": 8, "primary_ability": "dex"}),
+    ("spells", {"name": "Homebrew Bolt", "level": 1, "school": "evocation"}),
+    ("items", {"name": "Rusty Dagger", "item_type": "weapon"}),
+    ("magic-items", {"name": "Ring of Whispers"}),
+    ("backgrounds", {"name": "Shipwreck Survivor"}),
+    ("feats", {"name": "Storm Born"}),
+    (
+        "monsters",
+        {
+            "name": "Swamp Horror",
+            "size": "large",
+            "creature_type": "monstrosity",
+            "hit_points": 45,
+            "challenge_rating": 3,
+        },
+    ),
+    ("rules", {"name": "House Rule: Flanking", "desc": "Advantage."}),
+]
+
+
+@pytest.mark.parametrize("path, payload", _CATEGORIES)
+async def test_delete_own_campaign_homebrew_succeeds(
+    client: AsyncClient, path: str, payload: dict[str, object]
+) -> None:
+    """The DM can delete homebrew they created in their own campaign."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    create_resp = await client.post(
+        f"/catalog/{path}",
+        json={"campaign_id": campaign_id, **payload},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert create_resp.status_code == 201
+    entity_id = create_resp.json()["id"]
+
+    delete_resp = await client.delete(
+        f"/catalog/{path}/{entity_id}",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert delete_resp.status_code == 204
+
+    get_resp = await client.get(f"/catalog/{path}/{entity_id}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.parametrize("path, payload", _CATEGORIES)
+async def test_delete_srd_content_is_rejected(
+    client: AsyncClient, path: str, payload: dict[str, object]
+) -> None:
+    """Deleting SRD content (campaign_id IS NULL) is rejected, never deleted."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    await _make_campaign(client, dm_token, "Waterdeep")
+
+    list_resp = await client.get(f"/catalog/{path}", params={"include_custom": False})
+    srd_entries = list_resp.json()
+    assert srd_entries, f"expected seeded SRD {path}"
+    srd_id = srd_entries[0]["id"]
+
+    delete_resp = await client.delete(
+        f"/catalog/{path}/{srd_id}",
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert delete_resp.status_code == 403
+
+    get_resp = await client.get(f"/catalog/{path}/{srd_id}")
+    assert get_resp.status_code == 200
+
+
+@pytest.mark.parametrize("path, payload", _CATEGORIES)
+async def test_delete_other_campaign_homebrew_is_rejected(
+    client: AsyncClient, path: str, payload: dict[str, object]
+) -> None:
+    """Deleting homebrew from a campaign the requester isn't in returns 404.
+
+    Not 403 — a DM of Campaign A must never learn whether homebrew content
+    exists in Campaign B, which they have no access to at all.
+    """
+    dm_a_token = await _register_and_login(client, "dm-a@example.com")
+    campaign_a = await _make_campaign(client, dm_a_token, "Campaign A")
+    dm_b_token = await _register_and_login(client, "dm-b@example.com")
+    await _make_campaign(client, dm_b_token, "Campaign B")
+
+    create_resp = await client.post(
+        f"/catalog/{path}",
+        json={"campaign_id": campaign_a, **payload},
+        headers={"Authorization": f"Bearer {dm_a_token}"},
+    )
+    assert create_resp.status_code == 201
+    entity_id = create_resp.json()["id"]
+
+    delete_resp = await client.delete(
+        f"/catalog/{path}/{entity_id}",
+        headers={"Authorization": f"Bearer {dm_b_token}"},
+    )
+    assert delete_resp.status_code == 404
+
+    get_resp = await client.get(f"/catalog/{path}/{entity_id}")
+    assert get_resp.status_code == 200
+
+
+async def test_delete_homebrew_requires_dm(client: AsyncClient) -> None:
+    """A non-DM member of the owning campaign is rejected with 403, not 404."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    create_resp = await client.post(
+        "/catalog/races",
+        json={"campaign_id": campaign_id, "name": "Duskling"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    race_id = create_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    resp = await client.delete(
+        f"/catalog/races/{race_id}",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert resp.status_code == 403
+
+    # 403 (not 404) because the player *is* a member of this campaign — the
+    # 404-instead-of-403 leak protection only kicks in for a non-member (see
+    # `test_delete_other_campaign_homebrew_is_rejected` above).
+    get_resp = await client.get(f"/catalog/races/{race_id}")
+    assert get_resp.status_code == 200
+
+
+# The 409-on-existing-reference policy (block deletion when a character
+# still uses the homebrew entity) is exercised directly against the service
+# layer in `tests/catalog/test_service.py` — building a referencing row (a
+# `Character`, `CharacterClass`, `CharacterSpell`, etc.) doesn't need the
+# full character-creation HTTP flow, and every one of the 6 categories with
+# a cross-domain reference (races, classes, spells, items, magic items,
+# monsters) is covered there.

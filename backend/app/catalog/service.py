@@ -135,6 +135,20 @@ from app.catalog.schemas import (
     WeaponDetailRead,
 )
 
+# NOTE: `app.queries.catalog_reference_queries` (used by the homebrew-delete
+# functions below) is deliberately *not* imported at module level here. It
+# pulls in `app.characters.models`, `app.combat.models`, `app.inventory.
+# models`, and `app.world.models` — and since `app.catalog.service` itself is
+# imported very broadly (e.g. by `app.characters.service`), a top-level
+# import would register those domains' tables on the shared `Base.metadata`
+# as a side effect of merely importing this module. That silently breaks any
+# test whose own conftest builds an isolated SQLite DB from a narrower set of
+# imports (e.g. `tests/characters/conftest.py`, which never imports
+# `app.combat.models`) — its `encounters` table would gain a
+# `sessions`-table FK it can't resolve. Each `delete_custom_*` function below
+# imports it locally instead, so the cost is paid only when a delete is
+# actually attempted.
+
 
 async def get_translated[T: CatalogI18nMixin](
     session: AsyncSession,
@@ -2116,3 +2130,126 @@ async def create_custom_rule(session: AsyncSession, data: RuleCreate) -> RuleRea
     result = await get_rule_translated(session, rule.id, locale="en")
     assert result is not None  # just created it
     return result
+
+
+# --- Homebrew deletion (backlog Fase 11) -------------------------------------
+#
+# Every function here assumes the caller (router) has already fetched the
+# entity and verified the requester is the DM of its owning campaign — these
+# only enforce the *content* side of the policy: raise 409 if something
+# outside the catalog still references the entity, otherwise delete it.
+#
+# Policy decision (documented in `docs/anahita-backend-backlog.md` Fase 11):
+# block deletion with 409 when references exist, rather than deleting and
+# leaving an orphaned foreign key. Backgrounds, feats, and rules have no
+# cross-domain references at all (see `app.queries.catalog_reference_queries`
+# docstring), so their delete functions skip straight to deleting.
+
+
+async def delete_custom_race(session: AsyncSession, race: Race) -> None:
+    """Delete a homebrew race. Raises 409 if a character still has this race."""
+    from app.queries.catalog_reference_queries import race_is_referenced
+
+    if await race_is_referenced(session, race.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete: a character still has this race",
+        )
+    await session.delete(race)
+    await session.commit()
+
+
+async def delete_custom_class(
+    session: AsyncSession, class_definition: ClassDefinition
+) -> None:
+    """Delete a homebrew class. Raises 409 if a character still has levels in it."""
+    from app.queries.catalog_reference_queries import class_is_referenced
+
+    if await class_is_referenced(session, class_definition.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete: a character still has levels in this class",
+        )
+    await session.delete(class_definition)
+    await session.commit()
+
+
+async def delete_custom_spell(session: AsyncSession, spell: Spell) -> None:
+    """Delete a homebrew spell. Raises 409 if a character knows/casts it."""
+    from app.queries.catalog_reference_queries import spell_is_referenced
+
+    if await spell_is_referenced(session, spell.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete: a character still knows or is casting this spell",
+        )
+    await session.delete(spell)
+    await session.commit()
+
+
+async def delete_custom_item(session: AsyncSession, item: Item) -> None:
+    """Delete a homebrew item. Raises 409 if it's still carried/stored/looted."""
+    from app.queries.catalog_reference_queries import item_is_referenced
+
+    if await item_is_referenced(session, item.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete: this item is still in use",
+        )
+    await session.delete(item)
+    await session.commit()
+
+
+async def delete_custom_magic_item(
+    session: AsyncSession, magic_item: MagicItem
+) -> None:
+    """Delete a homebrew magic item. Raises 409 if it's referenced by a loot drop."""
+    from app.queries.catalog_reference_queries import magic_item_is_referenced
+
+    if await magic_item_is_referenced(session, magic_item.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete: this magic item is still in use",
+        )
+    await session.delete(magic_item)
+    await session.commit()
+
+
+async def delete_custom_background(
+    session: AsyncSession, background: Background
+) -> None:
+    """Delete a homebrew background.
+
+    No reference check: `Character.background` is free text, not a foreign
+    key, so nothing outside the catalog can point at this row.
+    """
+    await session.delete(background)
+    await session.commit()
+
+
+async def delete_custom_feat(session: AsyncSession, feat: Feat) -> None:
+    """Delete a homebrew feat. No cross-domain reference exists to check."""
+    await session.delete(feat)
+    await session.commit()
+
+
+async def delete_custom_monster(session: AsyncSession, monster: Monster) -> None:
+    """Delete a homebrew monster.
+
+    Raises 409 if it's still used in an encounter or by an NPC's stat block.
+    """
+    from app.queries.catalog_reference_queries import monster_is_referenced
+
+    if await monster_is_referenced(session, monster.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete: this monster is still in use",
+        )
+    await session.delete(monster)
+    await session.commit()
+
+
+async def delete_custom_rule(session: AsyncSession, rule: Rule) -> None:
+    """Delete a homebrew rule. No cross-domain reference exists to check."""
+    await session.delete(rule)
+    await session.commit()

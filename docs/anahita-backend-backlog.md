@@ -328,11 +328,15 @@
   - [ ] Modelar proficiências concedidas pela raça (`ProficiencyRace`) e idiomas como campos estruturados (não só `language_desc` livre) na criação/edição de raça homebrew
   - [ ] Testes: raça homebrew ganha bônus de atributo/traço/sub-raça corretamente; tentativa de anexar a raça SRD (não-homebrew) ou de outra campanha é rejeitada
 
-- **Como mestre, quero poder excluir uma raça/classe/magia/... homebrew que eu criei.**
-  - [ ] `DELETE /catalog/{races,classes,spells,items,magic-items,monsters,backgrounds,feats,rules}/{id}` para as 9 categorias — reaproveitar o padrão `_require_dm` já usado em `router.py` para create
-  - [ ] `service.py`: rejeitar exclusão de conteúdo SRD (`campaign_id IS NULL`) com 403/400; permitir só homebrew da própria campanha
-  - [ ] Decidir e implementar a política pra referências existentes (ex. um personagem já usa a raça homebrew que o DM quer apagar) — bloquear com 409, ou permitir e deixar a referência órfã com fallback de exibição
-  - [ ] Testes: delete de homebrew da própria campanha funciona; delete de SRD é rejeitado; delete de homebrew de outra campanha é rejeitado (404); delete com referência existente segue a política decidida
+- **Como mestre, quero poder excluir uma raça/classe/magia/... homebrew que eu criei.** ✅ (2026-08-28)
+  - [x] `DELETE /catalog/{races,classes,spells,items,magic-items,monsters,backgrounds,feats,rules}/{id}` para as 9 categorias — reaproveitar o padrão `_require_dm` já usado em `router.py` para create
+  - [x] `service.py`: rejeitar exclusão de conteúdo SRD (`campaign_id IS NULL`) com 403/400; permitir só homebrew da própria campanha
+  - [x] Decidir e implementar a política pra referências existentes (ex. um personagem já usa a raça homebrew que o DM quer apagar) — bloquear com 409, ou permitir e deixar a referência órfã com fallback de exibição
+  - [x] Testes: delete de homebrew da própria campanha funciona; delete de SRD é rejeitado; delete de homebrew de outra campanha é rejeitado (404); delete com referência existente segue a política decidida
+
+  Notas: política escolhida foi **bloquear com 409** quando existe referência cruzada, em vez de deletar e deixar a referência órfã — evita dados quebrados/inconsistentes (ex. `Character.race_id` apontando para uma raça inexistente), conforme a recomendação do backlog. As checagens de referência cruzada ficam em `app/queries/catalog_reference_queries.py` (padrão já usado no domínio pra queries cross-domain — ver `app/queries/campaign_queries.py`): raças (`Character.race_id`), classes (`CharacterClass.class_definition_id`), magias (`CharacterSpell.spell_id` e `Character.concentrating_spell_id`), itens (`CharacterEquipment.item_id`, `PartyInventory.item_id`, `LootDrop.item_id`), itens mágicos (`LootDrop.magic_item_id`) e monstros (`EncounterParticipant.monster_id`, `NPC.stat_block_id`) são bloqueados com 409 se referenciados. Backgrounds, feats e regras não têm nenhuma referência cross-domain hoje (`Character.background` é texto livre, não FK) — seu delete nunca checa referências, só a política de posse/escopo.
+
+  Autorização do delete: SRD (`campaign_id IS NULL`) nunca pode ser deletado (403). Homebrew de uma campanha da qual o requisitante não é membro retorna 404 em vez de 403 — evita confirmar pra um DM de fora que aquele conteúdo homebrew existe numa campanha à qual ele não tem acesso. Um membro que não é o DM daquela campanha recebe 403 (mesmo padrão do create).
 
 ---
 
