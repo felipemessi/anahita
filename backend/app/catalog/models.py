@@ -88,6 +88,9 @@ class Race(Base):
         back_populates="race",
         cascade="all, delete-orphan",
     )
+    languages: Mapped[list[RaceLanguage]] = relationship(
+        "RaceLanguage", back_populates="race", cascade="all, delete-orphan"
+    )
 
 
 class RaceI18n(CatalogI18nMixin, Base):
@@ -267,6 +270,39 @@ class RaceAbilityBonus(Base):
     )
 
 
+class RaceLanguage(Base):
+    """Junction: a Race grants a Language by default (structured — Fase 11).
+
+    `RaceI18n.language_desc` (free text, e.g. "one extra language of your
+    choice") stays for flavor/choice text that doesn't map to a fixed
+    `Language` row; this table is for the *guaranteed* languages a race
+    grants (e.g. every Elf knows Common and Elvish), so character creation
+    and other domains can read them structurally instead of parsing prose.
+    """
+
+    __tablename__ = "catalog_race_languages"
+    __table_args__ = (
+        UniqueConstraint("race_id", "language_id", name="uq_catalog_race_languages"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    race_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_races.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    language_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalog_languages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    race: Mapped[Race] = relationship("Race", back_populates="languages")
+    language: Mapped[Language] = relationship("Language")
+
+
 class ClassDefinition(Base):
     """A character class definition from the SRD or a campaign homebrew.
 
@@ -292,9 +328,7 @@ class ClassDefinition(Base):
     # Short ability code (`str`/`dex`/`con`/`int`/`wis`/`cha`) governing this
     # class's spells, or NULL for non-caster classes (PRD §7.4.4 progression;
     # consumed by `engine/spellcasting.py`).
-    spellcasting_ability: Mapped[str | None] = mapped_column(
-        String(3), nullable=True
-    )
+    spellcasting_ability: Mapped[str | None] = mapped_column(String(3), nullable=True)
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # FK to users.id / campaigns.id — enforced at DB level in migration.
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(

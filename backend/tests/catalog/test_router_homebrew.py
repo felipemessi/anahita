@@ -508,3 +508,209 @@ async def test_delete_homebrew_requires_dm(client: AsyncClient) -> None:
 # full character-creation HTTP flow, and every one of the 6 categories with
 # a cross-domain reference (races, classes, spells, items, magic items,
 # monsters) is covered there.
+
+
+# --- Race depth: attach ability bonuses / traits / subraces (Fase 11) -------
+
+
+async def test_attach_ability_bonus_to_homebrew_race(client: AsyncClient) -> None:
+    """The DM can attach an ability bonus to their own homebrew race."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+    create_resp = await client.post(
+        "/catalog/races",
+        json={"campaign_id": campaign_id, "name": "Duskling"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    race_id = create_resp.json()["id"]
+
+    resp = await client.post(
+        f"/catalog/races/{race_id}/ability-bonuses",
+        json={"ability": "wis", "bonus": 2},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["ability"] == "wis"
+    assert resp.json()["bonus"] == 2
+
+    race_resp = await client.get(f"/catalog/races/{race_id}")
+    ability_bonuses = race_resp.json()["ability_bonuses"]
+    assert any(ab["ability"] == "wis" and ab["bonus"] == 2 for ab in ability_bonuses)
+
+
+async def test_attach_trait_to_homebrew_race(client: AsyncClient) -> None:
+    """The DM can attach a trait to their own homebrew race."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+    create_resp = await client.post(
+        "/catalog/races",
+        json={"campaign_id": campaign_id, "name": "Duskling"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    race_id = create_resp.json()["id"]
+
+    resp = await client.post(
+        f"/catalog/races/{race_id}/traits",
+        json={
+            "trait_name": "Twilight Resilience",
+            "description": "Resistance to necrotic damage.",
+            "mechanical_effect": "resistance:necrotic",
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["trait_name"] == "Twilight Resilience"
+
+    race_resp = await client.get(f"/catalog/races/{race_id}")
+    names = [t["trait_name"] for t in race_resp.json()["traits"]]
+    assert "Twilight Resilience" in names
+
+
+async def test_attach_subrace_to_homebrew_race(client: AsyncClient) -> None:
+    """The DM can attach a subrace, with nested traits/bonuses, in one request."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+    create_resp = await client.post(
+        "/catalog/races",
+        json={"campaign_id": campaign_id, "name": "Duskling"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    race_id = create_resp.json()["id"]
+
+    resp = await client.post(
+        f"/catalog/races/{race_id}/subraces",
+        json={
+            "name": "Deep Duskling",
+            "description": "A subrace adapted to the Underdark.",
+            "ability_bonuses": [{"ability": "con", "bonus": 1}],
+            "traits": [
+                {
+                    "trait_name": "Sunlight Sensitivity",
+                    "description": "Disadvantage on attacks in direct sunlight.",
+                }
+            ],
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["name"] == "Deep Duskling"
+    assert body["ability_bonuses"][0]["ability"] == "con"
+    assert body["traits"][0]["trait_name"] == "Sunlight Sensitivity"
+
+    race_resp = await client.get(f"/catalog/races/{race_id}")
+    subrace_names = [s["name"] for s in race_resp.json()["subraces"]]
+    assert "Deep Duskling" in subrace_names
+
+
+@pytest.mark.parametrize(
+    "sub_path, payload",
+    [
+        ("ability-bonuses", {"ability": "wis", "bonus": 1}),
+        ("traits", {"trait_name": "Some Trait"}),
+        ("subraces", {"name": "Some Subrace"}),
+    ],
+)
+async def test_attach_to_srd_race_is_rejected(
+    client: AsyncClient, sub_path: str, payload: dict[str, object]
+) -> None:
+    """Attaching to an SRD race (campaign_id IS NULL) is rejected, not written."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    await _make_campaign(client, dm_token, "Waterdeep")
+
+    list_resp = await client.get(
+        "/catalog/races", params={"include_custom": False}
+    )
+    srd_race_id = list_resp.json()[0]["id"]
+
+    resp = await client.post(
+        f"/catalog/races/{srd_race_id}/{sub_path}",
+        json=payload,
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "sub_path, payload",
+    [
+        ("ability-bonuses", {"ability": "wis", "bonus": 1}),
+        ("traits", {"trait_name": "Some Trait"}),
+        ("subraces", {"name": "Some Subrace"}),
+    ],
+)
+async def test_attach_to_other_campaign_homebrew_race_is_rejected(
+    client: AsyncClient, sub_path: str, payload: dict[str, object]
+) -> None:
+    """Attaching to another campaign's homebrew race returns 404, not 403.
+
+    Same leak-protection policy as delete: a DM of Campaign A must never
+    learn whether homebrew content exists in Campaign B.
+    """
+    dm_a_token = await _register_and_login(client, "dm-a@example.com")
+    campaign_a = await _make_campaign(client, dm_a_token, "Campaign A")
+    dm_b_token = await _register_and_login(client, "dm-b@example.com")
+    await _make_campaign(client, dm_b_token, "Campaign B")
+
+    create_resp = await client.post(
+        "/catalog/races",
+        json={"campaign_id": campaign_a, "name": "Duskling"},
+        headers={"Authorization": f"Bearer {dm_a_token}"},
+    )
+    race_id = create_resp.json()["id"]
+
+    resp = await client.post(
+        f"/catalog/races/{race_id}/{sub_path}",
+        json=payload,
+        headers={"Authorization": f"Bearer {dm_b_token}"},
+    )
+    assert resp.status_code == 404
+
+
+async def test_attach_ability_bonus_requires_dm(client: AsyncClient) -> None:
+    """A non-DM member of the owning campaign is rejected with 403, not 404."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+    create_resp = await client.post(
+        "/catalog/races",
+        json={"campaign_id": campaign_id, "name": "Duskling"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    race_id = create_resp.json()["id"]
+
+    invite_resp = await client.post(
+        f"/campaigns/{campaign_id}/invites",
+        json={"role": "player"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    invite_code = invite_resp.json()["invite_code"]
+    player_token = await _register_and_login(client, "player@example.com")
+    await client.post(
+        "/campaigns/invites/redeem",
+        json={"invite_code": invite_code},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    resp = await client.post(
+        f"/catalog/races/{race_id}/ability-bonuses",
+        json={"ability": "wis", "bonus": 1},
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+    assert resp.status_code == 403
+
+
+async def test_create_race_rejects_unknown_language_id(client: AsyncClient) -> None:
+    """RaceCreate rejects an unknown `language_ids` entry with 422."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    campaign_id = await _make_campaign(client, dm_token, "Waterdeep")
+
+    resp = await client.post(
+        "/catalog/races",
+        json={
+            "campaign_id": campaign_id,
+            "name": "Duskling",
+            "language_ids": ["00000000-0000-0000-0000-000000000000"],
+        },
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    assert resp.status_code == 422

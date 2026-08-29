@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog import service
-from app.catalog.domain import CreatureSize
+from app.catalog.domain import AbilityScore, CreatureSize
 from app.catalog.models import (
     AbilityScoreDefinition,
     Background,
@@ -17,6 +17,7 @@ from app.catalog.models import (
     Feat,
     Feature,
     Item,
+    Language,
     MagicItem,
     Monster,
     MonsterConditionImmunity,
@@ -33,9 +34,13 @@ from app.catalog.schemas import (
     MonsterActionDamageRead,
     MonsterCreate,
     MonsterDamageModifierRead,
+    RaceAbilityBonusCreate,
     RaceCreate,
+    RaceTraitCreate,
     RuleCreate,
     SpellCreate,
+    SubraceCreate,
+    SubraceTraitCreate,
 )
 from app.catalog.seeds.seed import seed_catalog
 from app.characters.models import Character, CharacterClass, CharacterEquipment, CharacterSpell
@@ -1351,3 +1356,173 @@ async def test_delete_custom_rule_has_no_reference_check(db: AsyncSession) -> No
     await service.delete_custom_rule(db, rule)
 
     assert await service.get_rule(db, created.id) is None
+
+
+# --- Homebrew race depth: ability bonuses, traits, subraces (backlog Fase 11) ---
+
+
+async def _get_language_id(db: AsyncSession, index: str) -> uuid.UUID:
+    result = await db.execute(select(Language).where(Language.index == index))
+    language = result.scalar_one()
+    return language.id
+
+
+async def _get_proficiency_id(db: AsyncSession, index: str) -> uuid.UUID:
+    result = await db.execute(select(Proficiency).where(Proficiency.index == index))
+    proficiency = result.scalar_one()
+    return proficiency.id
+
+
+@pytest.mark.asyncio
+async def test_create_custom_race_with_structured_languages_and_proficiencies(
+    db: AsyncSession,
+) -> None:
+    """A homebrew race can be created with structured language/proficiency grants."""
+    await seed_catalog(db)
+    campaign_id = uuid.uuid4()
+    common_id = await _get_language_id(db, "common")
+    elvish_id = await _get_language_id(db, "elvish")
+    perception_id = await _get_proficiency_id(db, "skill-perception")
+
+    created = await service.create_custom_race(
+        db,
+        RaceCreate(
+            campaign_id=campaign_id,
+            name="Duskling",
+            age="Reaches maturity at 20.",
+            alignment_desc="Usually neutral.",
+            size_description="Dusklings are about the same size as humans.",
+            language_desc="One extra language of your choice.",
+            language_ids=[common_id, elvish_id],
+            proficiency_ids=[perception_id],
+        ),
+    )
+
+    assert created.age == "Reaches maturity at 20."
+    assert created.alignment_desc == "Usually neutral."
+    assert created.size_description == "Dusklings are about the same size as humans."
+    assert created.language_desc == "One extra language of your choice."
+    assert {lang.index for lang in created.languages} == {"common", "elvish"}
+    assert {p.id for p in created.proficiencies} == {perception_id}
+
+
+@pytest.mark.asyncio
+async def test_create_custom_race_rejects_unknown_language_id(
+    db: AsyncSession,
+) -> None:
+    """create_custom_race raises 422 for a language_id that doesn't exist."""
+    await seed_catalog(db)
+    with pytest.raises(HTTPException) as exc_info:
+        await service.create_custom_race(
+            db,
+            RaceCreate(
+                campaign_id=uuid.uuid4(),
+                name="Duskling",
+                language_ids=[uuid.uuid4()],
+            ),
+        )
+    assert exc_info.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_custom_race_rejects_unknown_proficiency_id(
+    db: AsyncSession,
+) -> None:
+    """create_custom_race raises 422 for a proficiency_id that doesn't exist."""
+    await seed_catalog(db)
+    with pytest.raises(HTTPException) as exc_info:
+        await service.create_custom_race(
+            db,
+            RaceCreate(
+                campaign_id=uuid.uuid4(),
+                name="Duskling",
+                proficiency_ids=[uuid.uuid4()],
+            ),
+        )
+    assert exc_info.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_add_race_ability_bonus(db: AsyncSession) -> None:
+    """add_race_ability_bonus attaches an ability bonus to a homebrew race."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_race(
+        db, RaceCreate(campaign_id=campaign_id, name="Duskling")
+    )
+    race = await service.get_race(db, created.id)
+    assert race is not None
+
+    bonus = await service.add_race_ability_bonus(
+        db, race, RaceAbilityBonusCreate(ability=AbilityScore.wis, bonus=2)
+    )
+    assert bonus.ability == "wis"
+    assert bonus.bonus == 2
+
+    refreshed = await service.get_race_translated(db, race.id)
+    assert refreshed is not None
+    assert any(ab.ability == "wis" and ab.bonus == 2 for ab in refreshed.ability_bonuses)
+
+
+@pytest.mark.asyncio
+async def test_add_race_trait(db: AsyncSession) -> None:
+    """add_race_trait attaches a translated trait to a homebrew race."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_race(
+        db, RaceCreate(campaign_id=campaign_id, name="Duskling")
+    )
+    race = await service.get_race(db, created.id)
+    assert race is not None
+
+    trait = await service.add_race_trait(
+        db,
+        race,
+        RaceTraitCreate(
+            trait_name="Twilight Resilience",
+            description="Resistance to necrotic damage.",
+            mechanical_effect="resistance:necrotic",
+        ),
+    )
+    assert trait.trait_name == "Twilight Resilience"
+    assert trait.mechanical_effect == "resistance:necrotic"
+
+    refreshed = await service.get_race_translated(db, race.id)
+    assert refreshed is not None
+    assert any(t.trait_name == "Twilight Resilience" for t in refreshed.traits)
+
+
+@pytest.mark.asyncio
+async def test_add_race_subrace_with_nested_traits_and_ability_bonuses(
+    db: AsyncSession,
+) -> None:
+    """add_race_subrace attaches a subrace with its own bonuses/traits in one call."""
+    campaign_id = uuid.uuid4()
+    created = await service.create_custom_race(
+        db, RaceCreate(campaign_id=campaign_id, name="Duskling")
+    )
+    race = await service.get_race(db, created.id)
+    assert race is not None
+
+    subrace = await service.add_race_subrace(
+        db,
+        race,
+        SubraceCreate(
+            name="Deep Duskling",
+            description="A subrace adapted to the Underdark.",
+            ability_bonuses=[RaceAbilityBonusCreate(ability=AbilityScore.con, bonus=1)],
+            traits=[
+                SubraceTraitCreate(
+                    trait_name="Sunlight Sensitivity",
+                    description="Disadvantage on attacks in direct sunlight.",
+                )
+            ],
+        ),
+    )
+    assert subrace.name == "Deep Duskling"
+    assert len(subrace.ability_bonuses) == 1
+    assert subrace.ability_bonuses[0].ability == "con"
+    assert len(subrace.traits) == 1
+    assert subrace.traits[0].trait_name == "Sunlight Sensitivity"
+
+    refreshed = await service.get_race_translated(db, race.id)
+    assert refreshed is not None
+    assert any(s.name == "Deep Duskling" for s in refreshed.subraces)

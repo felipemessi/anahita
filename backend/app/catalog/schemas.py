@@ -5,6 +5,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.domain import (
+    AbilityScore,
     ArmorCategory,
     CreatureSize,
     ItemType,
@@ -13,6 +14,40 @@ from app.catalog.domain import (
     SpellTargetType,
     WeaponCategory,
 )
+
+
+class LanguageRead(BaseModel):
+    """Read schema for a language.
+
+    Defined ahead of the Race schemas (rather than alongside the other SRD
+    fixed-vocabulary `*Read` schemas further below) because `RaceRead` embeds
+    it directly for a race's structured `languages` list (Fase 11).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    language_type: str
+    is_custom: bool
+
+
+class ProficiencyRead(BaseModel):
+    """Read schema for a proficiency.
+
+    Defined ahead of the Race schemas for the same reason as `LanguageRead`
+    above — `RaceRead` embeds it for a race's `proficiencies` list.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    index: str | None
+    proficiency_type: str
+    skill_id: uuid.UUID | None
+    ability_score_id: uuid.UUID | None
+    equipment_category_id: uuid.UUID | None
+    is_custom: bool
 
 
 class RaceTraitRead(BaseModel):
@@ -80,6 +115,8 @@ class RaceRead(BaseModel):
     traits: list[RaceTraitRead]
     subraces: list[SubraceRead]
     ability_bonuses: list[RaceAbilityBonusRead]
+    languages: list[LanguageRead]
+    proficiencies: list[ProficiencyRead]
 
 
 class RaceSummary(BaseModel):
@@ -436,17 +473,6 @@ class MagicSchoolRead(BaseModel):
     is_custom: bool
 
 
-class LanguageRead(BaseModel):
-    """Read schema for a language."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    index: str | None
-    language_type: str
-    is_custom: bool
-
-
 class WeaponPropertyRead(BaseModel):
     """Read schema for a weapon property."""
 
@@ -454,23 +480,6 @@ class WeaponPropertyRead(BaseModel):
 
     id: uuid.UUID
     index: str | None
-    is_custom: bool
-
-
-# --- Proficiencies (SRD 2014 §7.4.3) -----------------------------------------
-
-
-class ProficiencyRead(BaseModel):
-    """Read schema for a proficiency."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    index: str | None
-    proficiency_type: str
-    skill_id: uuid.UUID | None
-    ability_score_id: uuid.UUID | None
-    equipment_category_id: uuid.UUID | None
     is_custom: bool
 
 
@@ -760,14 +769,73 @@ class RuleSummary(BaseModel):
 
 
 class RaceCreate(BaseModel):
-    """Request body to create a homebrew race, always scoped to a campaign."""
+    """Request body to create a homebrew race, always scoped to a campaign.
+
+    `language_ids`/`proficiency_ids` reference existing catalog `Language`/
+    `Proficiency` rows (SRD or the same campaign's own homebrew) — the
+    structured grants a DM can pick from, e.g. "this race always knows
+    Common and Elvish" (Fase 11, replacing free text for anything that maps
+    to a real catalog row). `language_desc` stays available for flavor/choice
+    text that doesn't reduce to a fixed list (e.g. "one language of your
+    choice"). Ability bonuses, traits, and subraces are attached afterwards
+    via their own `POST /catalog/races/{id}/...` endpoints, since each of
+    those carries its own translatable text.
+    """
 
     campaign_id: uuid.UUID
     name: str = Field(min_length=1, max_length=100)
     description: str = ""
+    age: str = ""
+    alignment_desc: str = ""
+    size_description: str = ""
+    language_desc: str = ""
     speed: int = Field(default=30, ge=0)
     size: str = "medium"
     darkvision_range: int = Field(default=0, ge=0)
+    language_ids: list[uuid.UUID] = Field(default_factory=list)
+    proficiency_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class RaceAbilityBonusCreate(BaseModel):
+    """Request body to attach an ability bonus to a homebrew race (Fase 11)."""
+
+    ability: AbilityScore
+    bonus: int = Field(ge=-4, le=4)
+
+
+class RaceTraitCreate(BaseModel):
+    """Request body to attach a trait to a homebrew race (Fase 11).
+
+    `mechanical_effect` is the free-text hook the rules engine / character
+    sheet displays as-is (e.g. "resistance to poison damage") — traits
+    aren't modeled as structured effects yet, same as the SRD-seeded ones.
+    """
+
+    trait_name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+    mechanical_effect: str | None = Field(default=None, max_length=500)
+
+
+class SubraceTraitCreate(BaseModel):
+    """Request body for a trait nested in a `SubraceCreate` payload (Fase 11)."""
+
+    trait_name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+    mechanical_effect: str | None = Field(default=None, max_length=500)
+
+
+class SubraceCreate(BaseModel):
+    """Request body to attach a subrace to a homebrew race (Fase 11).
+
+    Ability bonuses and traits are nested inline (rather than needing their
+    own follow-up requests) since a subrace is only ever created as part of
+    fleshing out its parent homebrew race.
+    """
+
+    name: str = Field(min_length=1, max_length=100)
+    description: str = ""
+    ability_bonuses: list[RaceAbilityBonusCreate] = Field(default_factory=list)
+    traits: list[SubraceTraitCreate] = Field(default_factory=list)
 
 
 class ClassDefinitionCreate(BaseModel):

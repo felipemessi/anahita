@@ -325,11 +325,13 @@
 
 > Objetivo: uma vez corrigido o bug de criação (Fase 9), fechar as lacunas reais de modelagem e permitir exclusão de conteúdo homebrew.
 
-- **Como mestre, quero customizar todos os atributos possíveis de uma raça homebrew (bônus de atributo, traços, sub-raças, idiomas, proficiências, resistências).**
-  - [ ] Estender `RaceCreate` (hoje só `name/description/speed/size/darkvision_range`) e adicionar endpoints de anexo pra `RaceAbilityBonus`, `RaceTrait`, `Subrace`/`SubraceTrait`
-  - [ ] `POST /catalog/races/{id}/ability-bonuses`, `/traits`, `/subraces` — todos DM-only, só sobre raça homebrew da própria campanha
-  - [ ] Modelar proficiências concedidas pela raça (`ProficiencyRace`) e idiomas como campos estruturados (não só `language_desc` livre) na criação/edição de raça homebrew
-  - [ ] Testes: raça homebrew ganha bônus de atributo/traço/sub-raça corretamente; tentativa de anexar a raça SRD (não-homebrew) ou de outra campanha é rejeitada
+- **Como mestre, quero customizar todos os atributos possíveis de uma raça homebrew (bônus de atributo, traços, sub-raças, idiomas, proficiências, resistências).** ✅ (2026-08-29)
+  - [x] Estender `RaceCreate` (hoje só `name/description/speed/size/darkvision_range`) e adicionar endpoints de anexo pra `RaceAbilityBonus`, `RaceTrait`, `Subrace`/`SubraceTrait`
+  - [x] `POST /catalog/races/{id}/ability-bonuses`, `/traits`, `/subraces` — todos DM-only, só sobre raça homebrew da própria campanha
+  - [x] Modelar proficiências concedidas pela raça (`ProficiencyRace`) e idiomas como campos estruturados (não só `language_desc` livre) na criação/edição de raça homebrew
+  - [x] Testes: raça homebrew ganha bônus de atributo/traço/sub-raça corretamente; tentativa de anexar a raça SRD (não-homebrew) ou de outra campanha é rejeitada
+
+  Notas: `RaceCreate` ganhou `age`/`alignment_desc`/`size_description`/`language_desc` (já existiam em `RaceI18n`, só faltava expor na criação) mais `language_ids`/`proficiency_ids` — listas de UUIDs que devem apontar pra `Language`/`Proficiency` já existentes no catálogo (SRD ou homebrew da própria campanha), validadas com 422 se algum id não existir. Idiomas estruturados viraram uma junction nova `RaceLanguage`/`catalog_race_languages` (migração `c1d2e3f4a5b6`), espelhando o `ProficiencyRace` que já existia — `RaceI18n.language_desc` continua disponível para texto de sabor/escolha que não se reduz a uma lista fixa (ex. "um idioma extra à sua escolha"). Bônus de atributo e traços entram via `POST /catalog/races/{id}/ability-bonuses` e `/traits`; sub-raças (com seus próprios bônus/traços aninhados no mesmo payload) via `POST /catalog/races/{id}/subraces` — não precisam de endpoint de criação separado porque uma sub-raça só existe dependurada numa raça. "Resistências" do enunciado da história não ganharam campo estruturado próprio: seguem modeladas como `RaceTrait.mechanical_effect` (texto livre), mesmo padrão já usado pelos traços do seed SRD (ex. resiliência anã) — não há hoje um `DamageModifier`-like pra raças (só `Monster` tem). A rota `_require_dm_for_delete` foi renomeada pra `_require_dm_for_homebrew_write` e passou a ser reaproveitada pelas 3 rotas de anexo (mesma política: SRD rejeitado com 403, homebrew de outra campanha com 404 pra não vazar existência, membro não-DM com 403).
 
 - **Como mestre, quero poder excluir uma raça/classe/magia/... homebrew que eu criei.** ✅ (2026-08-28)
   - [x] `DELETE /catalog/{races,classes,spells,items,magic-items,monsters,backgrounds,feats,rules}/{id}` para as 9 categorias — reaproveitar o padrão `_require_dm` já usado em `router.py` para create

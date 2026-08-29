@@ -9,6 +9,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Profundidade de raça homebrew (Fase 11): `RaceCreate` estendido com
+  `age`/`alignment_desc`/`size_description`/`language_desc` e listas
+  estruturadas `language_ids`/`proficiency_ids` (validadas contra o
+  catálogo, 422 se desconhecidas); nova junction `RaceLanguage` para
+  idiomas concedidos por raça, espelhando `ProficiencyRace`. Endpoints
+  `POST /catalog/races/{id}/ability-bonuses`, `/traits` e `/subraces`
+  (este último aceitando bônus/traços de sub-raça aninhados no mesmo
+  payload) — todos DM-only, restritos à raça homebrew da própria
+  campanha do requisitante.
 - Edição de informações do personagem no frontend (Fase 10): novo componente
   `character-info-editor.tsx` na ficha, permitindo editar nome, alinhamento,
   antecedente e atributos-base via `PATCH /characters/{id}`. Alterar um

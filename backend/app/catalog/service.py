@@ -54,7 +54,9 @@ from app.catalog.models import (
     ProficiencyClass,
     ProficiencyRace,
     Race,
+    RaceAbilityBonus,
     RaceI18n,
+    RaceLanguage,
     RaceTrait,
     RaceTraitI18n,
     Rule,
@@ -100,6 +102,7 @@ from app.catalog.schemas import (
     ItemPropertyRead,
     ItemRead,
     ItemSummary,
+    LanguageRead,
     MagicItemCreate,
     MagicItemRead,
     MagicItemSummary,
@@ -115,10 +118,12 @@ from app.catalog.schemas import (
     MonsterSpeedRead,
     MonsterSummary,
     ProficiencyRead,
+    RaceAbilityBonusCreate,
     RaceAbilityBonusRead,
     RaceCreate,
     RaceRead,
     RaceSummary,
+    RaceTraitCreate,
     RaceTraitRead,
     RuleCreate,
     RuleRead,
@@ -130,6 +135,7 @@ from app.catalog.schemas import (
     SpellRead,
     SpellSummary,
     SubclassRead,
+    SubraceCreate,
     SubraceRead,
     SubraceTraitRead,
     WeaponDetailRead,
@@ -196,6 +202,7 @@ async def list_races(
         selectinload(Race.ability_bonuses),
         selectinload(Race.subraces).selectinload(Subrace.traits),
         selectinload(Race.subraces).selectinload(Subrace.ability_bonuses),
+        selectinload(Race.languages).selectinload(RaceLanguage.language),
     )
     if campaign_id is not None:
         stmt = stmt.where(
@@ -217,6 +224,7 @@ async def get_race(session: AsyncSession, race_id: uuid.UUID) -> Race | None:
             selectinload(Race.ability_bonuses),
             selectinload(Race.subraces).selectinload(Subrace.traits),
             selectinload(Race.subraces).selectinload(Subrace.ability_bonuses),
+            selectinload(Race.languages).selectinload(RaceLanguage.language),
         )
     )
     result = await session.execute(stmt)
@@ -297,6 +305,7 @@ async def get_race_translated(
     subraces = [
         await _translate_subrace(session, subrace, locale) for subrace in race.subraces
     ]
+    proficiencies = await list_proficiencies_for_race(session, race.id)
     return RaceRead(
         id=race.id,
         index=race.index,
@@ -315,6 +324,8 @@ async def get_race_translated(
         ability_bonuses=[
             RaceAbilityBonusRead.model_validate(ab) for ab in race.ability_bonuses
         ],
+        languages=[LanguageRead.model_validate(rl.language) for rl in race.languages],
+        proficiencies=[ProficiencyRead.model_validate(p) for p in proficiencies],
     )
 
 
@@ -546,9 +557,7 @@ async def get_class_translated(
         (cl for cl in cls.class_levels if cl.subclass_definition_id is None),
         key=lambda cl: cl.level,
     )
-    levels = [
-        await _translate_class_level(session, cl, locale) for cl in base_levels
-    ]
+    levels = [await _translate_class_level(session, cl, locale) for cl in base_levels]
     subclasses = [
         await _translate_subclass(session, sc, locale) for sc in cls.subclasses
     ]
@@ -1272,7 +1281,9 @@ async def list_proficiencies_for_race(
 
 #: Eager-load options shared by `list_backgrounds`/`get_background`.
 _BACKGROUND_LOAD_OPTIONS = (
-    selectinload(Background.proficiencies).selectinload(BackgroundProficiency.proficiency),
+    selectinload(Background.proficiencies).selectinload(
+        BackgroundProficiency.proficiency
+    ),
     selectinload(Background.equipment).selectinload(BackgroundEquipment.item),
     selectinload(Background.feature),
 )
@@ -1522,7 +1533,9 @@ _MONSTER_LOAD_OPTIONS = (
     selectinload(Monster.senses),
     selectinload(Monster.armor_classes),
     selectinload(Monster.proficiencies).selectinload(MonsterProficiency.proficiency),
-    selectinload(Monster.damage_modifiers).selectinload(MonsterDamageModifier.damage_type),
+    selectinload(Monster.damage_modifiers).selectinload(
+        MonsterDamageModifier.damage_type
+    ),
     selectinload(Monster.condition_immunities).selectinload(
         MonsterConditionImmunity.condition
     ),
@@ -1720,9 +1733,7 @@ async def list_monsters_translated(
 
 async def list_rule_sections(session: AsyncSession) -> list[RuleSection]:
     """Return all rule sections."""
-    result = await session.execute(
-        select(RuleSection).order_by(RuleSection.index)
-    )
+    result = await session.execute(select(RuleSection).order_by(RuleSection.index))
     return list(result.scalars().all())
 
 
@@ -1851,8 +1862,40 @@ _ITEM_TYPE_TO_EQUIPMENT_CATEGORY_INDEX = {
 
 
 async def create_custom_race(session: AsyncSession, data: RaceCreate) -> RaceRead:
-    """Create a homebrew race and return it translated (locale `en`)."""
+    """Create a homebrew race and return it translated (locale `en`).
+
+    `data.language_ids`/`data.proficiency_ids` must reference existing
+    catalog `Language`/`Proficiency` rows (SRD or homebrew) — raises 422
+    listing the first unknown id of either kind if not.
+    """
     validate_custom_campaign_scope(is_custom=True, campaign_id=data.campaign_id)
+
+    if data.language_ids:
+        languages = await session.execute(
+            select(Language.id).where(Language.id.in_(data.language_ids))
+        )
+        found_language_ids = set(languages.scalars().all())
+        missing = set(data.language_ids) - found_language_ids
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Unknown language id(s): {sorted(str(m) for m in missing)}",
+            )
+
+    if data.proficiency_ids:
+        proficiencies = await session.execute(
+            select(Proficiency.id).where(Proficiency.id.in_(data.proficiency_ids))
+        )
+        found_proficiency_ids = set(proficiencies.scalars().all())
+        missing_p = set(data.proficiency_ids) - found_proficiency_ids
+        if missing_p:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"Unknown proficiency id(s): {sorted(str(m) for m in missing_p)}"
+                ),
+            )
+
     race = Race(
         speed=data.speed,
         size=data.size,
@@ -1868,12 +1911,137 @@ async def create_custom_race(session: AsyncSession, data: RaceCreate) -> RaceRea
             locale="en",
             name=data.name,
             description=data.description,
+            age=data.age,
+            alignment_desc=data.alignment_desc,
+            size_description=data.size_description,
+            language_desc=data.language_desc,
         )
     )
+    for language_id in data.language_ids:
+        session.add(RaceLanguage(race_id=race.id, language_id=language_id))
+    for proficiency_id in data.proficiency_ids:
+        session.add(ProficiencyRace(race_id=race.id, proficiency_id=proficiency_id))
     await session.commit()
     result = await get_race_translated(session, race.id, locale="en")
     assert result is not None  # just created it
     return result
+
+
+async def add_race_ability_bonus(
+    session: AsyncSession, race: Race, data: RaceAbilityBonusCreate
+) -> RaceAbilityBonusRead:
+    """Attach an ability bonus to a homebrew race (Fase 11).
+
+    Caller (router) is responsible for verifying `race` is homebrew and
+    belongs to the requester's own campaign before calling this.
+    """
+    bonus = RaceAbilityBonus(
+        race_id=race.id, ability=data.ability.value, bonus=data.bonus
+    )
+    session.add(bonus)
+    await session.commit()
+    await session.refresh(bonus)
+    # `race.ability_bonuses` may already be loaded (stale, missing `bonus`) in
+    # the session's identity map — expire it so a later `get_race`/
+    # `get_race_translated` call on the same `race` re-queries instead of
+    # returning the cached collection.
+    session.expire(race, ["ability_bonuses"])
+    return RaceAbilityBonusRead.model_validate(bonus)
+
+
+async def add_race_trait(
+    session: AsyncSession, race: Race, data: RaceTraitCreate
+) -> RaceTraitRead:
+    """Attach a trait to a homebrew race (Fase 11).
+
+    Caller (router) is responsible for verifying `race` is homebrew and
+    belongs to the requester's own campaign before calling this.
+    """
+    trait = RaceTrait(race_id=race.id, mechanical_effect=data.mechanical_effect)
+    session.add(trait)
+    await session.flush()
+    session.add(
+        RaceTraitI18n(
+            entity_id=trait.id,
+            locale="en",
+            trait_name=data.trait_name,
+            description=data.description,
+        )
+    )
+    await session.commit()
+    # See the matching comment in `add_race_ability_bonus` above.
+    session.expire(race, ["traits"])
+    return RaceTraitRead(
+        id=trait.id,
+        trait_name=data.trait_name,
+        description=data.description,
+        mechanical_effect=trait.mechanical_effect,
+    )
+
+
+async def add_race_subrace(
+    session: AsyncSession, race: Race, data: SubraceCreate
+) -> SubraceRead:
+    """Attach a subrace (with its own ability bonuses/traits) to a homebrew race.
+
+    Fase 11. Caller (router) is responsible for verifying `race` is homebrew
+    and belongs to the requester's own campaign before calling this.
+    """
+    subrace = Subrace(race_id=race.id)
+    session.add(subrace)
+    await session.flush()
+    session.add(
+        SubraceI18n(
+            entity_id=subrace.id,
+            locale="en",
+            name=data.name,
+            description=data.description,
+        )
+    )
+    ability_bonus_reads = []
+    for ab in data.ability_bonuses:
+        bonus = RaceAbilityBonus(
+            subrace_id=subrace.id, ability=ab.ability.value, bonus=ab.bonus
+        )
+        session.add(bonus)
+        await session.flush()
+        ability_bonus_reads.append(
+            RaceAbilityBonusRead(id=bonus.id, ability=bonus.ability, bonus=bonus.bonus)
+        )
+    trait_reads = []
+    for trait_data in data.traits:
+        trait = SubraceTrait(
+            subrace_id=subrace.id, mechanical_effect=trait_data.mechanical_effect
+        )
+        session.add(trait)
+        await session.flush()
+        session.add(
+            SubraceTraitI18n(
+                entity_id=trait.id,
+                locale="en",
+                trait_name=trait_data.trait_name,
+                description=trait_data.description,
+            )
+        )
+        trait_reads.append(
+            SubraceTraitRead(
+                id=trait.id,
+                trait_name=trait_data.trait_name,
+                description=trait_data.description,
+                mechanical_effect=trait.mechanical_effect,
+            )
+        )
+    await session.commit()
+    # See the matching comment in `add_race_ability_bonus` above.
+    session.expire(race, ["subraces"])
+    return SubraceRead(
+        id=subrace.id,
+        index=subrace.index,
+        name=data.name,
+        description=data.description,
+        traits=trait_reads,
+        ability_bonuses=ability_bonus_reads,
+    )
 
 
 async def create_custom_class(
