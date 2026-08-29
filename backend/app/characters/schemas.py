@@ -189,6 +189,25 @@ class CharacterRestRequest(BaseModel):
     hit_dice_spent: list[CharacterHitDiceSpend] = Field(default_factory=list)
 
 
+class CharacterSessionOrderRequest(BaseModel):
+    """Request body to set a character's personal session display order.
+
+    `session_ids` lists sessions the character is associated with (per
+    `GET /characters/{id}/sessions`) in the desired display order —
+    `sort_order` is assigned from each id's position (0-based) in the list.
+    Purely a per-character preference; never touches `Session.session_number`
+    or any other character's/player's view. Replaces any previously saved
+    personal order for this character wholesale — a session omitted from the
+    list simply has no saved preference any more, and falls back to being
+    appended after the explicitly ordered ones, sorted by `session_number`
+    (see `CharacterService.get_character_sessions`). Every id must be a
+    session the character is actually associated with (422 otherwise), and
+    no id may repeat (422).
+    """
+
+    session_ids: list[uuid.UUID] = Field(min_length=1)
+
+
 class CharacterFeatureChoiceInput(BaseModel):
     """One choice made for a level's choice feature (e.g. Fighting Style)."""
 

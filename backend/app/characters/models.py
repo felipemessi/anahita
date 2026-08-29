@@ -124,6 +124,32 @@ class Character(Base):
     )
 
 
+class CharacterSessionOrder(Base):
+    """A character's personal display-order override for one associated session.
+
+    Purely a per-character UI preference (Fase 10) — never touches
+    `Session.session_number`, the shared/official ordering every other
+    reader (DM notes, other players' sheets) still uses. Rows only exist
+    for sessions a player has explicitly reordered; a session the character
+    is associated with (via `app.queries.character_sessions`) but has no
+    row here falls back to `session_number` order, appended after any
+    explicitly ordered sessions — see
+    `CharacterService.get_character_sessions`.
+    """
+
+    __tablename__ = "character_session_orders"
+    __table_args__ = (
+        UniqueConstraint(
+            "character_id", "session_id", name="uq_character_session_orders"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    character_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("characters.id"))
+    session_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("sessions.id"))
+    sort_order: Mapped[int] = mapped_column(Integer)
+
+
 class CharacterAbilityScore(Base):
     """One of a character's six ability scores."""
 

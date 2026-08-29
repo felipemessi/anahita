@@ -9,6 +9,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Endpoint `PATCH /characters/{id}/sessions/order` (Fase 10), permitindo ao
+  jogador reordenar pessoalmente a exibição das sessões na ficha do seu
+  personagem, sem afetar `Session.session_number` (a ordem oficial/
+  compartilhada) nem a visão de qualquer outro personagem/jogador/DM. Nova
+  tabela de junção `character_session_orders` (`character_id`/`session_id`/
+  `sort_order`); `GET /characters/{id}/sessions` passa a respeitar essa
+  ordem pessoal quando existir, caindo para `session_number` como default
+  caso contrário. Owner-only — nem o DM da campanha pode setá-la. Fecha as
+  5 histórias da Fase 10 (backend).
 - Endpoint `GET /characters/{id}/sessions` (Fase 10), listando as sessões em
   que um personagem participou de fato — derivado de participação em
   combate (`EncounterParticipant` → `Encounter` → `Session`), sem tabela ou

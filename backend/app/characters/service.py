@@ -47,6 +47,7 @@ from app.characters.models import (
     CharacterFeature,
     CharacterFeatureChoice,
     CharacterResource,
+    CharacterSessionOrder,
     CharacterSkill,
     CharacterSpell,
     CharacterSpellSlot,
@@ -75,6 +76,7 @@ from app.characters.schemas import (
     CharacterResourceRead,
     CharacterRestRequest,
     CharacterRestResponse,
+    CharacterSessionOrderRequest,
     CharacterSkillRead,
     CharacterSpellCastRequest,
     CharacterSpellCastResponse,
@@ -90,6 +92,7 @@ from app.characters.schemas import (
 from app.queries.character_sessions import get_sessions_for_character
 from app.queries.spell_attack import resolve_character_spell_attack
 from app.queries.weapon_attack import resolve_character_weapon_attack
+from app.sessions.models import Session
 from app.sessions.schemas import SessionRead
 from app.storage import get_storage_service
 from app.storage.base import StorageService
@@ -349,6 +352,15 @@ class CharacterService:
         `app.queries.character_sessions` for the reasoning. Viewable by the
         same audience as `get_character`. `dm_notes` is populated only when
         the requester DMs the campaign, matching `SessionService.list_sessions`.
+
+        Ordering: sessions the character has a saved personal preference for
+        (`CharacterSessionOrder`, Fase 10) come first, sorted by
+        `sort_order`; any remaining sessions are appended afterwards, sorted
+        by `session_number` (the same fallback used when the character has
+        no saved preference at all). Purely a per-character display
+        convenience — the underlying `Session.session_number` is never
+        touched, and another character/player's view of the same sessions
+        is unaffected.
         """
         result = await db.execute(select(Character).where(Character.id == character_id))
         character = result.scalar_one_or_none()
@@ -376,6 +388,7 @@ class CharacterService:
             is_dm = dm_result.scalar_one_or_none() is not None
 
         sessions = await get_sessions_for_character(character_id, db)
+        sessions = await self._apply_personal_session_order(character_id, sessions, db)
         return [
             SessionRead(
                 id=s.id,
@@ -390,6 +403,97 @@ class CharacterService:
             )
             for s in sessions
         ]
+
+    async def _apply_personal_session_order(
+        self, character_id: uuid.UUID, sessions: list[Session], db: AsyncSession
+    ) -> list[Session]:
+        """Reorder `sessions` per any saved `CharacterSessionOrder` preference.
+
+        `sessions` is expected already in `session_number` order. Sessions
+        with a saved `sort_order` come first (ascending); the rest
+        keep their incoming (`session_number`) relative order, appended
+        after. A session with a saved preference that no longer appears in
+        `sessions` (e.g. participation changed) is simply ignored — it has
+        nothing to reorder.
+        """
+        order_result = await db.execute(
+            select(CharacterSessionOrder).where(
+                CharacterSessionOrder.character_id == character_id
+            )
+        )
+        order_by_session = {
+            row.session_id: row.sort_order for row in order_result.scalars().all()
+        }
+        if not order_by_session:
+            return sessions
+        ordered = [s for s in sessions if s.id in order_by_session]
+        ordered.sort(key=lambda s: order_by_session[s.id])
+        unordered = [s for s in sessions if s.id not in order_by_session]
+        return ordered + unordered
+
+    async def reorder_sessions(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        data: CharacterSessionOrderRequest,
+        db: AsyncSession,
+    ) -> list[SessionRead]:
+        """Set the character's personal session display order.
+
+        Owner-only (unlike the read, which the DM can also see) — this is a
+        personal preference, not campaign data. Replaces any previously
+        saved order for this character wholesale: every id in
+        `data.session_ids` must be a session the character is actually
+        associated with (422 otherwise), and none may repeat (422).
+        """
+        result = await db.execute(select(Character).where(Character.id == character_id))
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+
+        if len(set(data.session_ids)) != len(data.session_ids):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Duplicate session_id in reorder request",
+            )
+
+        associated_sessions = await get_sessions_for_character(character_id, db)
+        associated_ids = {s.id for s in associated_sessions}
+        unknown_ids = set(data.session_ids) - associated_ids
+        if unknown_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="session_ids must all be sessions this character is "
+                "associated with",
+            )
+
+        existing_result = await db.execute(
+            select(CharacterSessionOrder).where(
+                CharacterSessionOrder.character_id == character_id
+            )
+        )
+        for row in existing_result.scalars().all():
+            await db.delete(row)
+        # Flush the deletes before adding the replacement rows — otherwise
+        # SQLAlchemy may batch the new inserts ahead of the deletes in the
+        # same flush and trip `uq_character_session_orders`.
+        await db.flush()
+        for index, session_id in enumerate(data.session_ids):
+            db.add(
+                CharacterSessionOrder(
+                    character_id=character_id,
+                    session_id=session_id,
+                    sort_order=index,
+                )
+            )
+        await db.commit()
+
+        return await self.get_character_sessions(character_id, requester_id, db)
 
     async def add_class(
         self,
