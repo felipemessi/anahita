@@ -9,6 +9,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Revelação de NPCs no frontend (Fase 13): `npc-card.tsx` ganha badge
+  "Oculto"/"Revelado" e botão "Revelar" (ambos DM-only), consumindo o
+  `POST /npcs/{id}/reveal` já existente no backend. A listagem de NPCs do
+  jogador (`world/npcs/page.tsx`) já mostrava só NPCs revelados sem
+  mudança adicional, já que `GET /campaigns/{id}/npcs` filtra
+  server-side. Fecha a Fase 13 do frontend (Fluxo de Sessões).
 - Visibilidade de NPCs para o mestre (Fase 13): `NPC` ganha `is_revealed`
   (default `False`), seguindo o mesmo padrão de `Handout.is_revealed`.
   `GET /campaigns/{id}/npcs` filtra NPCs não revelados para não-DM (sem

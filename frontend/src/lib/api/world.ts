@@ -35,6 +35,11 @@ export function createNpc(campaignId: string, data: NpcCreate): Promise<Npc> {
   });
 }
 
+/** Reveal an NPC to players. DM only. */
+export function revealNpc(npcId: string): Promise<Npc> {
+  return apiFetch<Npc>(`/npcs/${npcId}/reveal`, { method: "POST" });
+}
+
 /** List a campaign's locations (flat, unordered by hierarchy). */
 export function listLocations(campaignId: string): Promise<Location[]> {
   return apiFetch<Location[]>(`/campaigns/${campaignId}/locations`);

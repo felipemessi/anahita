@@ -20,6 +20,7 @@ import {
   listNpcLocations,
   listNpcs,
   listNpcSessions,
+  revealNpc,
   searchWorld,
   updateLocationParent,
 } from "@/lib/api/world";
@@ -50,6 +51,19 @@ export function useCreateNpc(campaignId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: NpcCreate) => createNpc(campaignId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...WORLD_QUERY_KEY, campaignId, "npcs"],
+      });
+    },
+  });
+}
+
+/** Reveal an NPC to players (DM only); invalidates the campaign's NPC list. */
+export function useRevealNpc(campaignId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (npcId: string) => revealNpc(npcId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...WORLD_QUERY_KEY, campaignId, "npcs"],

@@ -64,6 +64,7 @@ const dashboard = {
       personality: null,
       is_alive: true,
       stat_block_id: null,
+      is_revealed: true,
       created_at: "2026-08-01T00:00:00Z",
     },
   ],
