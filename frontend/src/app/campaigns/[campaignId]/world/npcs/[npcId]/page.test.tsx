@@ -52,6 +52,7 @@ describe("NpcDetailPage", () => {
           personality: null,
           is_alive: true,
           stat_block_id: null,
+          is_revealed: true,
           created_at: "2026-01-01T00:00:00Z",
         },
       ],

@@ -579,10 +579,11 @@
   - [x] Teste: adicionar personagem via `character-picker` cria o participante com `character_id` preenchido corretamente
   - Notas: `CharacterPicker` segue o mesmo padrão visual/de estado do `MonsterPicker`, mas mais simples — sem entrada manual, já que um participante-personagem sempre carrega `character_id` e a ficha é a fonte da verdade. `useCharacters(campaignId)` popula um `<select>` (em vez da busca por texto do monstro, já que a lista de personagens de uma campanha é tipicamente pequena); ao escolher um, um `useEffect` autopreenche nome/PV máximo/CA a partir do registro — usando o type guard `isFullCharacter` já existente em `types/character.ts`, já que `listCharacters` retorna `Character | CharacterSummary` e só o DM (que é quem vê este picker) recebe a ficha completa com esses campos. Iniciativa e ordem de turno continuam manuais, como no `MonsterPicker`. Submissão fica desabilitada até um personagem ser selecionado. Na página de combate, um par de botões-abas ("Monstro/NPC" / "Personagem") substitui a renderização fixa do `MonsterPicker` dentro do painel "Adicionar participante" já existente — sem mudar o fluxo de abrir/fechar o painel. Resolve a lacuna de seleção de alvo em combate identificada na Fase 9 (história "bug: alvo vazio no ActionPicker"): agora um encontro pode ter participantes-personagem, populando o dropdown de alvo do `ActionPicker`.
 
-- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.**
-  - [ ] `npc-card.tsx`: toggle de revelação (DM-only), badge visual de "oculto"/"revelado"
-  - [ ] Visão do jogador em `world/npcs/page.tsx`: lista só NPCs revelados
-  - [ ] Teste: jogador não vê NPC oculto na lista; DM vê e revela normalmente
+- **Como mestre, quero que NPCs fiquem ocultos para jogadores até que eu decida revelá-los.** ✅ (2026-08-29)
+  - [x] `npc-card.tsx`: toggle de revelação (DM-only), badge visual de "oculto"/"revelado"
+  - [x] Visão do jogador em `world/npcs/page.tsx`: lista só NPCs revelados
+  - [x] Teste: jogador não vê NPC oculto na lista; DM vê e revela normalmente
+  - Notas: backend já filtrava `GET /campaigns/{id}/npcs` para não-DM e expunha `POST /npcs/{id}/reveal` (mergeado antes desta história) — bastou consumir. Adicionado `Npc.is_revealed` em `types/world.ts`, `revealNpc` em `lib/api/world.ts`, `useRevealNpc` em `hooks/use-world.ts`, seguindo o mesmo padrão já usado por `Handout.is_revealed`/`useRevealHandout`. `npc-card.tsx` ganhou badge "Oculto"/"Revelado" (visível só pro DM) e botão "Revelar" (DM-only, some quando já revelado). `world/npcs/page.tsx` não precisou de mudança — a filtragem de NPCs ocultos pro jogador já é feita pelo backend na própria listagem consumida por `useNpcs`. Testes novos em `npc-card.test.tsx` (badge/botão) e `world/npcs/page.test.tsx` (DM vê+revela; jogador só vê NPCs já revelados).
 
 ---
 

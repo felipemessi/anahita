@@ -5,6 +5,7 @@ const useNpcFactions = vi.fn();
 const useNpcLocations = vi.fn();
 const useNpcSessions = vi.fn();
 const useLinkNpcSession = vi.fn();
+const useRevealNpc = vi.fn();
 const useCatalogEntry = vi.fn();
 const useSessions = vi.fn();
 
@@ -13,6 +14,7 @@ vi.mock("@/hooks/use-world", () => ({
   useNpcLocations: (...args: unknown[]) => useNpcLocations(...args),
   useNpcSessions: (...args: unknown[]) => useNpcSessions(...args),
   useLinkNpcSession: (...args: unknown[]) => useLinkNpcSession(...args),
+  useRevealNpc: (...args: unknown[]) => useRevealNpc(...args),
 }));
 vi.mock("@/hooks/use-catalog", () => ({
   useCatalogEntry: (...args: unknown[]) => useCatalogEntry(...args),
@@ -38,6 +40,7 @@ const NPC = {
   personality: null,
   is_alive: true,
   stat_block_id: null,
+  is_revealed: true,
   created_at: "2026-01-01T00:00:00Z",
 };
 
@@ -46,6 +49,7 @@ beforeEach(() => {
   useNpcLocations.mockReturnValue({ data: [] });
   useNpcSessions.mockReturnValue({ data: [] });
   useLinkNpcSession.mockReturnValue({ mutate: vi.fn(), isPending: false });
+  useRevealNpc.mockReturnValue({ mutate: vi.fn(), isPending: false });
   useCatalogEntry.mockReturnValue({ data: undefined });
   useSessions.mockReturnValue({
     data: [{ id: "sess-1", session_number: 1, title: "The Beginning" }],
@@ -91,5 +95,47 @@ describe("NpcCard", () => {
       { session_id: "sess-1" },
       expect.anything(),
     );
+  });
+
+  it("shows the hidden badge and a reveal button to the DM for a hidden NPC", () => {
+    render(
+      <NpcCard npc={{ ...NPC, is_revealed: false }} campaignId="campaign-1" isDm />,
+    );
+
+    expect(screen.getByText("Oculto")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /revelar/i })).toBeInTheDocument();
+  });
+
+  it("shows the revealed badge and no reveal button to the DM once revealed", () => {
+    render(
+      <NpcCard npc={{ ...NPC, is_revealed: true }} campaignId="campaign-1" isDm />,
+    );
+
+    expect(screen.getByText("Revelado")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /revelar/i })).not.toBeInTheDocument();
+  });
+
+  it("hides the reveal badge and button from a player", () => {
+    render(
+      <NpcCard
+        npc={{ ...NPC, is_revealed: false }}
+        campaignId="campaign-1"
+        isDm={false}
+      />,
+    );
+
+    expect(screen.queryByText("Oculto")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /revelar/i })).not.toBeInTheDocument();
+  });
+
+  it("lets the DM reveal a hidden NPC", () => {
+    const mutate = vi.fn();
+    useRevealNpc.mockReturnValue({ mutate, isPending: false });
+    render(
+      <NpcCard npc={{ ...NPC, is_revealed: false }} campaignId="campaign-1" isDm />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /revelar/i }));
+    expect(mutate).toHaveBeenCalledWith("npc-1");
   });
 });

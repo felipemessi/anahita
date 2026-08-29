@@ -12,6 +12,7 @@ import {
   useNpcFactions,
   useNpcLocations,
   useNpcSessions,
+  useRevealNpc,
 } from "@/hooks/use-world";
 import type { Npc } from "@/types/world";
 
@@ -34,6 +35,7 @@ export function NpcCard({
   const { data: campaignSessions } = useSessions(campaignId);
   const { data: monster } = useCatalogEntry("monsters", npc.stat_block_id ?? "");
   const linkSession = useLinkNpcSession(npc.id);
+  const revealNpc = useRevealNpc(campaignId);
 
   function handleLinkSession(event: React.FormEvent) {
     event.preventDefault();
@@ -58,21 +60,44 @@ export function NpcCard({
             {!npc.is_alive ? (
               <span className="ml-2 text-xs text-destructive">(falecido)</span>
             ) : null}
+            {isDm ? (
+              <span
+                className={`ml-2 rounded-full border px-2 py-0.5 text-xs ${
+                  npc.is_revealed
+                    ? "border-border text-muted-foreground"
+                    : "border-destructive/50 text-destructive"
+                }`}
+              >
+                {npc.is_revealed ? "Revelado" : "Oculto"}
+              </span>
+            ) : null}
           </p>
           <p className="text-sm text-muted-foreground">
             {npc.race}
             {npc.occupation ? ` · ${npc.occupation}` : ""}
           </p>
         </div>
-        {npc.stat_block_id ? (
-          <button
-            type="button"
-            onClick={() => setShowStatBlock((visible) => !visible)}
-            className="shrink-0 rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary/50"
-          >
-            {showStatBlock ? "Ocultar stat block" : "Ver stat block"}
-          </button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {isDm && !npc.is_revealed ? (
+            <button
+              type="button"
+              onClick={() => revealNpc.mutate(npc.id)}
+              disabled={revealNpc.isPending}
+              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary/50 disabled:opacity-50"
+            >
+              Revelar
+            </button>
+          ) : null}
+          {npc.stat_block_id ? (
+            <button
+              type="button"
+              onClick={() => setShowStatBlock((visible) => !visible)}
+              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary/50"
+            >
+              {showStatBlock ? "Ocultar stat block" : "Ver stat block"}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {npc.description ? <p className="text-sm">{npc.description}</p> : null}

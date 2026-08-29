@@ -14,6 +14,8 @@ export interface Npc {
   is_alive: boolean;
   /** SRD or campaign-homebrew Monster (catalog §7.4.8) this NPC uses as a stat block. */
   stat_block_id: string | null;
+  /** Whether players can see this NPC yet. Non-DM members never receive a hidden NPC. */
+  is_revealed: boolean;
   created_at: string;
 }
 

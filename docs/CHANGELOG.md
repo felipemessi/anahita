@@ -9,6 +9,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Revelação de NPCs no frontend (Fase 13): `npc-card.tsx` ganha badge
+  "Oculto"/"Revelado" e botão "Revelar" (ambos DM-only), consumindo o
+  `POST /npcs/{id}/reveal` já existente no backend. A listagem de NPCs do
+  jogador (`world/npcs/page.tsx`) já mostrava só NPCs revelados sem
+  mudança adicional, já que `GET /campaigns/{id}/npcs` filtra
+  server-side. Fecha a Fase 13 do frontend (Fluxo de Sessões).
 - `CharacterPicker` no combate (Fase 13, frontend): novo
   `components/combat/character-picker.tsx`, ao lado do `MonsterPicker`
   existente, listando os personagens da campanha via `useCharacters` e
