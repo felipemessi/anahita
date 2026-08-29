@@ -335,6 +335,20 @@ export interface CharacterCreate {
   generation_method?: AbilityGenerationMethod | null;
 }
 
+/**
+ * Post-creation edit of a character's identity/ability scores
+ * (`PATCH /characters/{id}`, Fase 10) — every field is optional, and
+ * `ability_scores` is a *partial* list: only the abilities being changed,
+ * not all six (unlike `CharacterCreate.ability_scores`). Race/class stay
+ * locked, out of scope. Editing DEX/CON recalculates AC/max HP server-side.
+ */
+export interface CharacterUpdate {
+  name?: string;
+  alignment?: string | null;
+  background?: string | null;
+  ability_scores?: CharacterAbilityScoreCreate[];
+}
+
 export interface Character {
   id: string;
   campaign_member_id: string;

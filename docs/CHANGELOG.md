@@ -9,6 +9,12 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Edição de informações do personagem no frontend (Fase 10): novo componente
+  `character-info-editor.tsx` na ficha, permitindo editar nome, alinhamento,
+  antecedente e atributos-base via `PATCH /characters/{id}`. Alterar um
+  atributo-base exige confirmação (aviso de que CA/PV máximo/perícias podem
+  mudar) antes de enviar; nome/alinhamento/antecedente enviam direto. Raça e
+  classe seguem bloqueadas para edição (decisão do backend).
 - Endpoint `GET /characters/{id}/sessions` (Fase 10), listando as sessões em
   que um personagem participou de fato — derivado de participação em
   combate (`EncounterParticipant` → `Encounter` → `Session`), sem tabela ou

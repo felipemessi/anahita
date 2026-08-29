@@ -6,6 +6,7 @@ import { CatalogFilterBar } from "@/components/catalog/catalog-filter-bar";
 import { AbilityScores } from "@/components/characters/ability-scores";
 import { ClassResources } from "@/components/characters/class-resources";
 import { ConcentrationIndicator } from "@/components/characters/concentration-indicator";
+import { CharacterInfoEditor } from "@/components/characters/character-info-editor";
 import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
@@ -95,6 +96,9 @@ export function CharacterSheet({
             {character.background ? ` · ${character.background}` : ""}
             {character.alignment ? ` · ${character.alignment}` : ""}
           </p>
+          <div className="mt-2">
+            <CharacterInfoEditor character={character} />
+          </div>
         </header>
 
         <LevelUpDialog
