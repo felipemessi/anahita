@@ -19,6 +19,7 @@ from app.characters.schemas import (
     CharacterEquipmentUpdate,
     CharacterFeatureCreate,
     CharacterLevelUpRequest,
+    CharacterProficiencyChoiceGroupRead,
     CharacterProficiencyChoiceRequest,
     CharacterRead,
     CharacterRestRequest,
@@ -143,6 +144,20 @@ async def level_up(
 ) -> CharacterRead:
     """Level up a character by one level in one class. Owner only."""
     return await service.level_up(character_id, user.id, body, db)
+
+
+@router.get(
+    "/{character_id}/proficiencies",
+    response_model=list[CharacterProficiencyChoiceGroupRead],
+)
+async def get_proficiency_choices(
+    character_id: uuid.UUID,
+    user: CurrentUser,
+    db: DB,
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> list[CharacterProficiencyChoiceGroupRead]:
+    """List the character's valid "choose N of [...]" skill groups. Owner only."""
+    return await service.get_proficiency_choices(character_id, user.id, db)
 
 
 @router.post("/{character_id}/proficiencies", response_model=CharacterRead)

@@ -23,6 +23,9 @@ vi.mock("@/components/characters/equipment-list", () => ({ EquipmentList: () => 
 vi.mock("@/components/characters/hit-dice-tracker", () => ({ HitDiceTracker: () => null }));
 vi.mock("@/components/characters/level-up-dialog", () => ({ LevelUpDialog: () => null }));
 vi.mock("@/components/characters/passive-scores", () => ({ PassiveScores: () => null }));
+vi.mock("@/components/characters/proficiency-choices", () => ({
+  ProficiencyChoices: () => null,
+}));
 vi.mock("@/components/characters/skill-list", () => ({ SkillList: () => null }));
 vi.mock("@/components/characters/spell-list-by-circle", () => ({ SpellListByCircle: () => null }));
 vi.mock("@/components/characters/spell-slots", () => ({ SpellSlots: () => null }));

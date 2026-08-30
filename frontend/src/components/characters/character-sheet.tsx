@@ -14,6 +14,7 @@ import { EquipmentList } from "@/components/characters/equipment-list";
 import { HitDiceTracker } from "@/components/characters/hit-dice-tracker";
 import { LevelUpDialog } from "@/components/characters/level-up-dialog";
 import { PassiveScores } from "@/components/characters/passive-scores";
+import { ProficiencyChoices } from "@/components/characters/proficiency-choices";
 import { RollButton } from "@/components/characters/roll-button";
 import { RollLogPanel, RollLogProvider } from "@/components/characters/roll-log";
 import { SkillList } from "@/components/characters/skill-list";
@@ -203,6 +204,8 @@ export function CharacterSheet({
         />
 
         <SkillList skills={character.skills} />
+
+        <ProficiencyChoices characterId={character.id} />
 
         <PassiveScores
           passivePerception={character.passive_perception}

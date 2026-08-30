@@ -68,6 +68,22 @@ class CharacterProficiencyChoiceRequest(BaseModel):
     skills: list[Skill] = Field(min_length=1)
 
 
+class CharacterProficiencyChoiceGroupRead(BaseModel):
+    """One "choose N of [...]" skill proficiency group offered to a character.
+
+    Surfaced by `GET /characters/{id}/proficiencies` so the frontend can
+    render the character's actual valid choice set (Fase 10 frontend) instead
+    of a free-text field — `options` is every skill the group offers,
+    `selected` is the subset of those already `proficient=True` on the
+    character (from a prior choice, or incidentally already fixed-granted).
+    """
+
+    id: uuid.UUID
+    choose_count: int
+    options: list[Skill]
+    selected: list[Skill]
+
+
 class CharacterClassCreate(BaseModel):
     """One class level entry supplied when creating a character."""
 
