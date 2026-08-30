@@ -64,6 +64,23 @@ export function getCharacterSessions(characterId: string): Promise<GameSession[]
   return apiFetch<GameSession[]>(`/characters/${characterId}/sessions`);
 }
 
+/**
+ * Set the character's personal session display order (Fase 10). Owner-only
+ * server-side, same enforcement pattern as `uploadCharacterPortrait` — a
+ * non-owner viewer's request is rejected there, not hidden here. Replaces
+ * any previously saved order wholesale; every id must be one of the
+ * sessions already returned by `getCharacterSessions`.
+ */
+export function reorderCharacterSessions(
+  characterId: string,
+  sessionIds: string[],
+): Promise<GameSession[]> {
+  return apiFetch<GameSession[]>(`/characters/${characterId}/sessions/order`, {
+    method: "PATCH",
+    body: JSON.stringify({ session_ids: sessionIds }),
+  });
+}
+
 /** Add a class to a character, enabling multiclass. */
 export function addCharacterClass(
   characterId: string,

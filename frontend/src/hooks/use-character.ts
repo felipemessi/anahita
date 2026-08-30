@@ -20,6 +20,7 @@ import {
   removeCharacterEquipment,
   removeCharacterPortrait,
   removeCharacterSpell,
+  reorderCharacterSessions,
   restCharacter,
   rollDeathSave,
   setCharacterConcentration,
@@ -49,6 +50,7 @@ import type {
   CharacterSpellUpdate,
   CharacterUpdate,
 } from "@/types/character";
+import type { GameSession } from "@/types/session";
 
 export const CHARACTERS_QUERY_KEY = ["characters"] as const;
 
@@ -79,6 +81,43 @@ export function useCharacterSessions(characterId: string) {
     queryKey: [...CHARACTERS_QUERY_KEY, characterId, "sessions"],
     queryFn: () => getCharacterSessions(characterId),
     enabled: Boolean(characterId),
+  });
+}
+
+/**
+ * Set the character's personal session display order (Fase 10) — an
+ * optimistic swap so the dropdown's up/down buttons feel instant, rolling
+ * back on failure (e.g. a non-owner viewer gets a 403).
+ */
+export function useReorderCharacterSessions(characterId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = [...CHARACTERS_QUERY_KEY, characterId, "sessions"];
+
+  return useMutation({
+    mutationFn: (sessionIds: string[]) => reorderCharacterSessions(characterId, sessionIds),
+    onMutate: async (sessionIds: string[]) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<GameSession[]>(queryKey);
+      if (previous) {
+        const byId = new Map(previous.map((session) => [session.id, session]));
+        const reordered = sessionIds
+          .map((id) => byId.get(id))
+          .filter((session): session is GameSession => Boolean(session));
+        queryClient.setQueryData(queryKey, reordered);
+      }
+      return { previous };
+    },
+    onError: (_err, _sessionIds, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
+    },
+    onSuccess: (sessions) => {
+      queryClient.setQueryData(queryKey, sessions);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
   });
 }
 

@@ -508,10 +508,11 @@
   - [x] Teste: dropdown lista as sessões do personagem; hambúrguer abre/fecha a navegação geral sem cobrir o conteúdo da ficha
   - Notas: novo `hooks/use-character.ts` → `useCharacterSessions` sobre `getCharacterSessions`. Novo componente isolado `components/characters/character-sessions-dropdown.tsx` (botão "Sessões" + contagem, lista com `max-h-72 overflow-y-auto`, fecha em Escape/clique fora) — deixado deliberadamente separado para a próxima história (reordenar sessões) acoplar dentro dele. Novo `components/layout/app-nav-menu.tsx`: botão hambúrguer que reaproveita `NAV_ITEMS` (exportado de `campaign-sidebar.tsx`) num painel overlay `position: absolute` com backdrop — fica fechado por padrão e nunca desloca o conteúdo da ficha, só sobrepõe enquanto aberto. Escopo limitado à página da ficha (`page.tsx`); `header.tsx`/`campaign-sidebar.tsx`/`mobile-nav.tsx` do layout de campanha não foram alterados — continuam servindo as demais páginas normalmente. Papel do usuário (`role`) obtido via `useMyMembership` (já usado no layout de campanha) para decidir itens DM-only no hambúrguer.
 
-- **Como jogador, quero reordenar as sessões na minha ficha para organização pessoal.**
-  - [ ] `lib/api/characters.ts`: `reorderCharacterSessions` (drag-and-drop ou botões subir/descer)
-  - [ ] UI de reordenação dentro do dropdown de sessões da história anterior
-  - [ ] Teste: reordenar atualiza a ordem exibida sem afetar a lista de sessões vista por outro personagem/jogador
+- **Como jogador, quero reordenar as sessões na minha ficha para organização pessoal.** ✅ (2026-08-30)
+  - [x] `lib/api/characters.ts`: `reorderCharacterSessions` (drag-and-drop ou botões subir/descer)
+  - [x] UI de reordenação dentro do dropdown de sessões da história anterior
+  - [x] Teste: reordenar atualiza a ordem exibida sem afetar a lista de sessões vista por outro personagem/jogador
+  - Notas: `lib/api/characters.ts` ganhou `reorderCharacterSessions` sobre `PATCH /characters/{id}/sessions/order` (backend Fase 10, já mergeado); novo hook `useReorderCharacterSessions` em `hooks/use-character.ts` faz o swap otimista no cache de `useCharacterSessions` (chave `[...CHARACTERS_QUERY_KEY, characterId, "sessions"]`) e reverte em erro. Botões subir/descer (não drag-and-drop — mais simples e acessível) dentro de `components/characters/character-sessions-dropdown.tsx`, como planejado na história anterior: cada linha virou um `flex` com o `Link` da sessão + coluna de dois botões (▲/▼), primeiro/último item com o botão correspondente desabilitado. Owner-only é reforçado só no backend (mesmo padrão do `CharacterPortrait`/`CharacterInfoEditor`) — os botões aparecem para qualquer visualizador da ficha e um erro de um não-dono (403) aparece inline no dropdown (`role="alert"`), já que a página da ficha não carrega hoje uma flag "sou o dono" para decidir visibilidade client-side. A reordenação é por-personagem (a `CharacterSessionOrder` do backend já garante isso) — não afeta a ordem que outro jogador/personagem vê da mesma sessão.
 
 ---
 
