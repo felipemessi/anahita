@@ -46,7 +46,8 @@ class ActionType(StrEnum):
     `attack_weapon`/`attack_spell`/`grapple`/`shove`/`search` are resolved
     server-side by `CombatService.declare_action`, `legendary_action`/
     `reaction` by `CombatService.use_legendary_action`/`trigger_reaction`
-    (Fase 7) — `attack`/`spell`/`other` remain for anything logged outside
+    (Fase 7), `use_class_resource` by `CombatService._resolve_class_resource`
+    (Fase 12) — `attack`/`spell`/`other` remain for anything logged outside
     those flows (e.g. free-text DM notes).
     """
 
@@ -66,6 +67,7 @@ class ActionType(StrEnum):
     search = "search"
     legendary_action = "legendary_action"
     reaction = "reaction"
+    use_class_resource = "use_class_resource"
     other = "other"
 
 

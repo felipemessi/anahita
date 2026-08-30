@@ -23,6 +23,8 @@ from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog.domain import AbilityScore
 from app.catalog.models import (
+    ClassDefinition,
+    Feature,
     Monster,
     MonsterAction,
     MonsterActionDamage,
@@ -40,6 +42,7 @@ from app.characters.models import (
     CharacterAbilityScore,
     CharacterSkill,
 )
+from app.characters.service import CharacterService
 from app.combat.domain import (
     ActionType,
     ConditionType,
@@ -57,6 +60,7 @@ from app.combat.models import (
     EncounterParticipant,
 )
 from app.combat.schemas import (
+    ClassResourceTargetOutcome,
     CombatLogRead,
     DeclareActionResultRead,
     EncounterConditionRead,
@@ -70,16 +74,40 @@ from app.combat.schemas import (
     WSTriggerReactionPayload,
     WSUseLegendaryActionPayload,
 )
-from app.queries.character_stats import character_proficiency_bonus
+from app.queries.character_stats import (
+    character_ability_modifier,
+    character_proficiency_bonus,
+)
 from app.queries.spell_attack import resolve_character_spell_attack
 from app.queries.weapon_attack import resolve_character_weapon_attack
 from app.sessions.models import Session
 from app.world.models import NPC
 from engine.abilities import calculate_modifier, calculate_skill_bonus
+from engine.combat import calculate_save_dc
 from engine.conditions import get_condition_effects
 from engine.dice import roll, roll_d20
 from engine.types import Condition as EngineCondition
 from engine.types import ConditionType as EngineConditionType
+
+#: `AbilityScore` -> `catalog.models.Monster` column name, for resolving a
+#: monster participant's ability modifier (see `_participant_ability_modifier`).
+_ABILITY_TO_MONSTER_ATTR: dict[AbilityScore, str] = {
+    AbilityScore.str: "strength",
+    AbilityScore.dex: "dexterity",
+    AbilityScore.con: "constitution",
+    AbilityScore.int: "intelligence",
+    AbilityScore.wis: "wisdom",
+    AbilityScore.cha: "charisma",
+}
+
+#: `catalog.models.Feature.index` of a resource option -> the mechanical
+#: effect it triggers when spent via `declare_action`'s `use_class_resource`
+#: (Fase 12). Only Channel Divinity: Turn Undead is wired up so far — any
+#: other option (or a resource with no option concept at all, e.g. Rage)
+#: still spends the resource through `CharacterService.use_resource` but
+#: resolves no further effect here (bookkeeping-only, same as before this
+#: backlog item).
+_CLASS_RESOURCE_EFFECTS = frozenset({"channel-divinity-turn-undead"})
 
 #: Skills whose contest resolves a grapple/shove (PHB: attacker's Athletics
 #: vs. the target's choice of Athletics/Acrobatics) — see `declare_action`.
@@ -602,11 +630,24 @@ class CombatService:
         self, participant: EncounterParticipant, db: AsyncSession
     ) -> int | None:
         """Return a Character/Monster participant's DEX modifier, else None."""
+        return await self._participant_ability_modifier(
+            participant, AbilityScore.dex, db
+        )
+
+    async def _participant_ability_modifier(
+        self, participant: EncounterParticipant, ability: AbilityScore, db: AsyncSession
+    ) -> int | None:
+        """Return a Character/Monster participant's `ability` modifier, else None.
+
+        `None` for a purely manual participant (no stat block) — the
+        caller decides whether that's a 422 or falls back to a manual
+        value (mirrors `_resolve_check_bonus`'s manual-bonus fallback).
+        """
         if participant.character_id is not None:
             result = await db.execute(
                 select(CharacterAbilityScore).where(
                     CharacterAbilityScore.character_id == participant.character_id,
-                    CharacterAbilityScore.ability == AbilityScore.dex,
+                    CharacterAbilityScore.ability == ability,
                 )
             )
             score = result.scalar_one_or_none()
@@ -622,7 +663,9 @@ class CombatService:
             monster = monster_result.scalar_one_or_none()
             if monster is None:
                 return None
-            return calculate_modifier(monster.dexterity)
+            return calculate_modifier(
+                getattr(monster, _ABILITY_TO_MONSTER_ATTR[ability])
+            )
         return None
 
     async def declare_action(
@@ -668,6 +711,10 @@ class CombatService:
             result = await self._resolve_attack(encounter, attacker, target, data, db)
         elif data.action_type in (ActionType.grapple, ActionType.shove):
             result = await self._resolve_contest(encounter, attacker, target, data, db)
+        elif data.action_type == ActionType.use_class_resource:
+            result = await self._resolve_class_resource(
+                encounter, attacker, requester_id, data, db
+            )
         else:
             result = self._resolve_flavor_action(encounter, attacker, data, db)
 
@@ -695,6 +742,226 @@ class CombatService:
             target_id=data.target_id,
             action_type=data.action_type,
             description=description,
+        )
+
+    async def _resolve_class_resource(
+        self,
+        encounter: Encounter,
+        attacker: EncounterParticipant,
+        requester_id: uuid.UUID,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Spend a class resource and resolve its mechanical effect, if any.
+
+        Delegates the bookkeeping (decrementing the resource, recording
+        which named option was spent) to `CharacterService.use_resource` —
+        same owner-only rule as that method: a DM declaring this action on
+        a player's behalf still gets a 403, unlike attacks/contests (which
+        the DM may always declare for anyone). Only a Character participant
+        has a resource to spend.
+
+        Only options listed in `_CLASS_RESOURCE_EFFECTS` trigger a further
+        mechanical effect (Channel Divinity: Turn Undead, so far) — every
+        other resource use is bookkeeping-only, same as before this
+        backlog item (Fase 12): the counter moves, nothing else happens.
+
+        Turn Undead's PHB effect ("each undead within 30 feet") isn't
+        modeled — this app has no area/map geometry yet (Fase 15). Instead
+        the effect applies only to `target_id`/`additional_target_ids`, the
+        participants the declaring client explicitly lists. Its "turned"
+        state also isn't one of this app's 15 tracked conditions, so a
+        failed save applies `frightened` instead (a deliberate
+        simplification, not a rules-accurate "turned"). Auto-destroying
+        low-CR undead at higher Cleric levels isn't modeled either.
+        """
+        if data.resource_key is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="resource_key is required for use_class_resource",
+            )
+        if attacker.character_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"{attacker.name} has no character sheet to spend a "
+                    "class resource from"
+                ),
+            )
+
+        option: Feature | None = None
+        if data.resource_option_id is not None:
+            option_result = await db.execute(
+                select(Feature).where(Feature.id == data.resource_option_id)
+            )
+            option = option_result.scalar_one_or_none()
+
+        target_ids: list[uuid.UUID] = []
+        for target_id in (data.target_id, *data.additional_target_ids):
+            if target_id not in target_ids:
+                target_ids.append(target_id)
+        targets = [self._find_participant_or_404(encounter, tid) for tid in target_ids]
+
+        # Resolve every target's save roll *before* spending the resource —
+        # `CharacterService.use_resource` commits internally, so a target
+        # this can't roll for (no stat block, no manual_save_rolls entry)
+        # must 422 here rather than burn the charge and fail after.
+        has_effect = option is not None and option.index in _CLASS_RESOURCE_EFFECTS
+        save_rolls: dict[uuid.UUID, int] = {}
+        if has_effect:
+            for participant in targets:
+                save_rolls[participant.id] = await self._resolve_save_roll(
+                    participant, data.manual_save_rolls, db
+                )
+
+        await CharacterService().use_resource(
+            attacker.character_id,
+            requester_id,
+            data.resource_key,
+            db,
+            option_id=data.resource_option_id,
+        )
+
+        resource_label = data.resource_key.replace("_", " ")
+        description = f"{attacker.name} uses {resource_label}"
+        outcomes: list[ClassResourceTargetOutcome] = []
+
+        if has_effect:
+            save_dc = await self._class_resource_save_dc(
+                attacker.character_id,
+                option.class_definition_id if option is not None else None,
+                db,
+            )
+            summaries: list[str] = []
+            for participant in targets:
+                outcome = self._apply_frighten_on_failed_save(
+                    encounter, participant, save_rolls[participant.id], save_dc, db
+                )
+                outcomes.append(outcome)
+                summaries.append(
+                    f"{participant.name} {outcome.save_roll} vs DC {save_dc} — "
+                    f"{'resists' if outcome.succeeded else 'frightened'}"
+                )
+            description = (
+                f"{attacker.name} uses {resource_label} to Turn Undead "
+                f"(DC {save_dc}): " + "; ".join(summaries)
+                if summaries
+                else f"{attacker.name} uses {resource_label} to Turn Undead"
+            )
+        elif targets:
+            description += " on " + ", ".join(t.name for t in targets)
+
+        self._log(
+            db,
+            encounter,
+            actor_id=attacker.id,
+            target_id=data.target_id,
+            action_type=ActionType.use_class_resource,
+            description=description,
+        )
+        return DeclareActionResultRead(
+            actor_id=attacker.id,
+            target_id=data.target_id,
+            action_type=ActionType.use_class_resource,
+            description=description,
+            resource_key=data.resource_key,
+            resource_targets=outcomes,
+        )
+
+    async def _class_resource_save_dc(
+        self,
+        character_id: uuid.UUID,
+        class_definition_id: uuid.UUID | None,
+        db: AsyncSession,
+    ) -> int:
+        """`8 + proficiency + spellcasting ability modifier` (PHB save DC).
+
+        `class_definition_id` is the resource option's own class (e.g.
+        Cleric, from `Feature.class_definition_id`) — mirrors
+        `CharacterService._spell_save_dc`, but resolved from ids alone
+        since `_resolve_class_resource` doesn't have a loaded
+        `ClassDefinition` on hand.
+        """
+        ability: AbilityScore | None = None
+        if class_definition_id is not None:
+            class_result = await db.execute(
+                select(ClassDefinition).where(ClassDefinition.id == class_definition_id)
+            )
+            class_def = class_result.scalar_one_or_none()
+            if class_def is not None and class_def.spellcasting_ability is not None:
+                ability = AbilityScore(class_def.spellcasting_ability)
+
+        ability_mod = (
+            await character_ability_modifier(character_id, ability, db)
+            if ability is not None
+            else 0
+        )
+        prof_bonus = await character_proficiency_bonus(character_id, db)
+        return calculate_save_dc(ability_mod, prof_bonus)
+
+    async def _resolve_save_roll(
+        self,
+        target: EncounterParticipant,
+        manual_save_rolls: dict[uuid.UUID, int] | None,
+        db: AsyncSession,
+    ) -> int:
+        """Return `target`'s Wisdom saving throw roll, manual or server-rolled.
+
+        Raises 422 if neither `manual_save_rolls` nor a stat block can
+        supply one — called *before* `CharacterService.use_resource` so a
+        target that can't be resolved fails without spending the charge.
+        """
+        manual_roll = (manual_save_rolls or {}).get(target.id)
+        if manual_roll is not None:
+            return manual_roll
+        wis_mod = await self._participant_ability_modifier(target, AbilityScore.wis, db)
+        if wis_mod is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"{target.name} has no stat block to roll a Wisdom "
+                    "saving throw from — supply a manual save roll"
+                ),
+            )
+        return roll_d20(bonus=wis_mod).total
+
+    def _apply_frighten_on_failed_save(
+        self,
+        encounter: Encounter,
+        target: EncounterParticipant,
+        save_roll: int,
+        save_dc: int,
+        db: AsyncSession,
+    ) -> ClassResourceTargetOutcome:
+        """Compare `save_roll` to `save_dc`, applying `frightened` on a failure.
+
+        See `_resolve_class_resource`'s docstring for the "frightened, not
+        turned" simplification this backs. Only stages the new
+        `EncounterCondition` — the caller commits.
+        """
+        succeeded = save_roll >= save_dc
+        condition_applied: str | None = None
+        if not succeeded:
+            already_frightened = any(
+                c.condition == ConditionType.frightened for c in target.conditions
+            )
+            if not already_frightened:
+                db.add(
+                    EncounterCondition(
+                        participant_id=target.id,
+                        condition=ConditionType.frightened,
+                        duration_rounds=10,  # 1 minute at 6s/round, PHB rule
+                        applied_at_round=encounter.current_round,
+                    )
+                )
+            condition_applied = ConditionType.frightened.value
+
+        return ClassResourceTargetOutcome(
+            participant_id=target.id,
+            save_roll=save_roll,
+            save_dc=save_dc,
+            succeeded=succeeded,
+            condition_applied=condition_applied,
         )
 
     async def _resolve_attack(
