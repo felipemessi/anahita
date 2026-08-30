@@ -70,6 +70,39 @@ class Character(Base):
     concentrating_spell_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("catalog_spells.id")
     )
+    # Active duration/expiration for `concentrating_spell_id` (Fase 12) —
+    # set together with it by `CharacterService._start_concentration` and
+    # cleared together with it wherever concentration ends. Exactly one of
+    # the two duration modes below is populated at a time, matching how the
+    # spell was cast:
+    #
+    # - Inside an encounter: `concentration_encounter_id` +
+    #   `concentration_round_started` (the encounter's `current_round` at
+    #   cast time) + `concentration_duration_rounds` (the spell's duration
+    #   converted to whole combat rounds, `engine.spell_duration`) — combat
+    #   time, same convention as `EncounterCondition.duration_rounds`.
+    #   Remaining rounds are computed on read from the encounter's current
+    #   round, never decremented in place.
+    # - Outside an encounter: `concentration_expires_at`, a wall-clock
+    #   deadline computed from `datetime.now(UTC)` + the spell's duration.
+    #
+    # All four stay `None` when the spell's duration has nothing to track
+    # ("Instantaneous", "Special", "Until dispelled" — see
+    # `engine.spell_duration.parse_spell_duration`), meaning concentration
+    # only ends explicitly (a saving throw failure, casting another spell,
+    # or `set_concentration`), never by a clock.
+    concentration_encounter_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("encounters.id")
+    )
+    concentration_round_started: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    concentration_duration_rounds: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    concentration_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Single normalized-copper balance (1 cp = base unit; 1 sp = 10, 1 ep = 50,
     # 1 gp = 100, 1 pp = 1000 — same convention already used for catalog item
     # prices, see `app.catalog.seeds.convert_srd._cost_in_cp`), rather than
@@ -330,9 +363,7 @@ class CharacterResource(Base):
 
     __tablename__ = "character_resources"
     __table_args__ = (
-        UniqueConstraint(
-            "character_id", "resource_key", name="uq_character_resources"
-        ),
+        UniqueConstraint("character_id", "resource_key", name="uq_character_resources"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)

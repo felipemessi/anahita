@@ -1,6 +1,7 @@
 """Integration tests for CharacterService using SQLite in-memory database."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -10,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
+from app.catalog import service as catalog_service
 from app.catalog.domain import AbilityScore
 from app.catalog.models import Feat, Feature, Race, Spell, SpellClass
 from app.characters.domain import AbilityGenerationMethod, Skill
-from app.characters.models import CharacterAbilityScore, CharacterSkill
+from app.characters.models import Character, CharacterAbilityScore, CharacterSkill
+from app.combat.domain import EncounterStatus
+from app.combat.models import Encounter
 from app.characters.schemas import (
     CharacterAbilityScoreCreate,
     CharacterClassCreate,
@@ -34,6 +38,7 @@ from app.characters.schemas import (
     CharacterUpdate,
 )
 from app.characters.service import CharacterService
+from engine.spell_duration import parse_spell_duration, seconds_to_rounds
 from tests.characters.conftest import spell_id_by_index, spell_ids_for_class
 
 _STANDARD_ARRAY = {
@@ -1359,6 +1364,157 @@ async def test_set_concentration_non_concentration_spell_rejected(
             db,
         )
     assert exc.value.status_code == 422
+
+
+async def test_cast_concentration_spell_in_encounter_tracks_duration_in_rounds(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a concentration spell inside an encounter tracks rounds, decremented by turn advance."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_id = await _spell_id_for_class(
+        db, sorcerer_class_id, level=1, concentration=True
+    )
+    spell = await catalog_service.get_spell(db, uuid.UUID(spell_id))
+    assert spell is not None
+    parsed = parse_spell_duration(spell.duration)
+    assert parsed.seconds is not None  # every concentration spell has an "Up to X" cap
+    expected_rounds = seconds_to_rounds(parsed.seconds)
+
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    encounter = Encounter(
+        session_id=uuid.uuid4(),
+        name="Ambush",
+        status=EncounterStatus.active,
+        current_round=3,
+    )
+    db.add(encounter)
+    await db.flush()
+
+    character = (
+        await service.cast_spell(
+            character_id,
+            entry_id,
+            owner.id,
+            CharacterSpellCastRequest(encounter_id=encounter.id),
+            db,
+        )
+    ).character
+    assert character.concentration_remaining.mode == "rounds"
+    assert character.concentration_remaining.remaining_rounds == expected_rounds
+    assert character.concentration_remaining.expired is False
+
+    # Advancing the round decrements the remaining duration (computed live
+    # from the encounter's current round, not stored/decremented in place).
+    encounter.current_round += 2
+    await db.commit()
+    character = await service.get_character(character_id, owner.id, db)
+    assert character.concentration_remaining.remaining_rounds == expected_rounds - 2
+
+    # Once as many rounds have passed as the duration allows, it's expired.
+    encounter.current_round += expected_rounds
+    await db.commit()
+    character = await service.get_character(character_id, owner.id, db)
+    assert character.concentration_remaining.remaining_rounds == 0
+    assert character.concentration_remaining.expired is True
+
+
+async def test_cast_concentration_spell_outside_encounter_tracks_real_time(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """Casting a concentration spell with no `encounter_id` tracks a wall-clock deadline."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_id = await _spell_id_for_class(
+        db, sorcerer_class_id, level=1, concentration=True
+    )
+    service = CharacterService()
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    character = (
+        await service.cast_spell(
+            character_id, entry_id, owner.id, CharacterSpellCastRequest(), db
+        )
+    ).character
+    assert character.concentration_remaining.mode == "seconds"
+    assert character.concentration_remaining.remaining_seconds is not None
+    assert character.concentration_remaining.remaining_seconds > 0
+    assert character.concentration_remaining.expired is False
+
+    # Force the deadline into the past (simulating time passing) and confirm
+    # a fresh read reports it as expired.
+    result = await db.execute(
+        select(Character).where(Character.id == character_id)
+    )
+    row = result.scalar_one()
+    row.concentration_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    await db.commit()
+
+    character = await service.get_character(character_id, owner.id, db)
+    assert character.concentration_remaining.remaining_seconds == 0.0
+    assert character.concentration_remaining.expired is True
+
+
+async def test_set_concentration_in_encounter_tracks_duration_in_rounds(
+    db: AsyncSession, human_race_id: str, sorcerer_class_id: str
+) -> None:
+    """`set_concentration` (manual start) tracks duration the same way `cast_spell` does."""
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, sorcerer_class_id
+    )
+    spell_id = await _spell_id_for_class(
+        db, sorcerer_class_id, level=1, concentration=True
+    )
+    service = CharacterService()
+    await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(spell_id=uuid.UUID(spell_id), source_class="sorcerer"),
+        db,
+    )
+
+    encounter = Encounter(
+        session_id=uuid.uuid4(),
+        name="Ambush",
+        status=EncounterStatus.active,
+        current_round=1,
+    )
+    db.add(encounter)
+    await db.flush()
+
+    character = await service.set_concentration(
+        character_id,
+        owner.id,
+        CharacterConcentrationRequest(
+            spell_id=uuid.UUID(spell_id), encounter_id=encounter.id
+        ),
+        db,
+    )
+    assert character.concentration_remaining.mode == "rounds"
+    assert character.concentration_remaining.remaining_rounds is not None
+    assert character.concentration_remaining.remaining_rounds > 0
 
 
 async def test_passive_perception_defaults_to_ten_plus_bonus(

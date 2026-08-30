@@ -1,6 +1,7 @@
 """CharacterService orchestrates character sheet creation and reads."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, Protocol
 
 from fastapi import HTTPException, status
@@ -87,11 +88,17 @@ from app.characters.schemas import (
     CharacterSpellUpdate,
     CharacterSummaryRead,
     CharacterUpdate,
+    ConcentrationRemainingRead,
     SpellAttackProfileRead,
     WeaponAttackProfileRead,
 )
+from app.combat.models import Encounter
 from app.queries.character_sessions import get_sessions_for_character
 from app.queries.spell_attack import resolve_character_spell_attack
+from app.queries.spell_duration import (
+    ConcentrationRemaining,
+    get_concentration_remaining,
+)
 from app.queries.weapon_attack import resolve_character_weapon_attack
 from app.sessions.models import Session
 from app.sessions.schemas import SessionRead
@@ -106,6 +113,7 @@ from engine.abilities import (
 )
 from engine.armor_class import calculate_ac
 from engine.hit_points import calculate_max_hp
+from engine.spell_duration import parse_spell_duration, seconds_to_rounds
 from engine.spellcasting import (
     KNOWN_CASTER_CLASSES,
     PREPARED_CASTER_CLASSES,
@@ -341,7 +349,10 @@ class CharacterService:
         spell_catalog = await self._resolve_spell_catalog(character, db)
         max_slots = await self._max_spell_slots(character, db)
         max_resources = await self._max_resources(character, db)
-        return self._to_read(character, spell_catalog, max_slots, max_resources)
+        concentration_remaining = await get_concentration_remaining(character, db)
+        return self._to_read(
+            character, spell_catalog, max_slots, max_resources, concentration_remaining
+        )
 
     async def get_character_sessions(
         self, character_id: uuid.UUID, requester_id: uuid.UUID, db: AsyncSession
@@ -1226,7 +1237,16 @@ class CharacterService:
             if is_dm or owns_it:
                 max_slots = await self._max_spell_slots(c, db)
                 max_resources = await self._max_resources(c, db)
-                reads.append(self._to_read(c, spell_catalog, max_slots, max_resources))
+                concentration_remaining = await get_concentration_remaining(c, db)
+                reads.append(
+                    self._to_read(
+                        c,
+                        spell_catalog,
+                        max_slots,
+                        max_resources,
+                        concentration_remaining,
+                    )
+                )
             else:
                 reads.append(self._to_summary(c))
         return reads
@@ -1540,7 +1560,7 @@ class CharacterService:
         # Casting any concentration spell replaces whatever the character was
         # already concentrating on — only one at a time (PHB rule).
         if spell.concentration:
-            character.concentrating_spell_id = spell.id
+            await self._start_concentration(character, spell, data.encounter_id, db)
 
         save_dc = (
             self._spell_save_dc(character, class_match[1])
@@ -1941,7 +1961,7 @@ class CharacterService:
         """
         character = await self._load_character_owned_by(character_id, requester_id, db)
         if data.spell_id is None:
-            character.concentrating_spell_id = None
+            self._clear_concentration(character)
             await db.commit()
             return await self._reload_as_read(character.id, db)
 
@@ -1957,9 +1977,55 @@ class CharacterService:
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="This spell doesn't require concentration",
             )
-        character.concentrating_spell_id = data.spell_id
+        await self._start_concentration(character, spell, data.encounter_id, db)
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def _start_concentration(
+        self,
+        character: Character,
+        spell: Spell,
+        encounter_id: uuid.UUID | None,
+        db: AsyncSession,
+    ) -> None:
+        """Start concentration on `spell`, tracking its duration (Fase 12).
+
+        Cast inside an encounter (`encounter_id` set and found): duration is
+        tracked in combat rounds from that encounter's current round —
+        `concentration_duration_rounds` is the spell's SRD duration
+        converted to whole rounds (`engine.spell_duration`), same convention
+        as `EncounterCondition.duration_rounds`. Cast outside one, or the
+        encounter can't be found: duration is tracked as a wall-clock
+        deadline (`concentration_expires_at`). A duration with no clock to
+        track ("Instantaneous"/"Special"/"Until dispelled") leaves every
+        duration field `None` — see `parse_spell_duration`.
+        """
+        self._clear_concentration(character)
+        character.concentrating_spell_id = spell.id
+
+        parsed = parse_spell_duration(spell.duration)
+        if parsed.seconds is None:
+            return
+
+        encounter = (
+            await db.get(Encounter, encounter_id) if encounter_id is not None else None
+        )
+        if encounter is not None:
+            character.concentration_encounter_id = encounter.id
+            character.concentration_round_started = encounter.current_round
+            character.concentration_duration_rounds = seconds_to_rounds(parsed.seconds)
+        else:
+            character.concentration_expires_at = datetime.now(UTC) + timedelta(
+                seconds=parsed.seconds
+            )
+
+    def _clear_concentration(self, character: Character) -> None:
+        """Clear concentration and every associated duration field together."""
+        character.concentrating_spell_id = None
+        character.concentration_encounter_id = None
+        character.concentration_round_started = None
+        character.concentration_duration_rounds = None
+        character.concentration_expires_at = None
 
     async def add_equipment(
         self,
@@ -2545,7 +2611,10 @@ class CharacterService:
         spell_catalog = await self._resolve_spell_catalog(character, db)
         max_slots = await self._max_spell_slots(character, db)
         max_resources = await self._max_resources(character, db)
-        return self._to_read(character, spell_catalog, max_slots, max_resources)
+        concentration_remaining = await get_concentration_remaining(character, db)
+        return self._to_read(
+            character, spell_catalog, max_slots, max_resources, concentration_remaining
+        )
 
     async def _resolve_spell_catalog(
         self, character: Character, db: AsyncSession
@@ -2562,6 +2631,7 @@ class CharacterService:
         spell_catalog: dict[uuid.UUID, Spell],
         max_slots: dict[int, int],
         max_resources: dict[str, int],
+        concentration_remaining: ConcentrationRemaining,
     ) -> CharacterRead:
         """Build the read schema, computing ability modifiers and skill bonuses."""
         modifier_by_ability = {
@@ -2678,6 +2748,9 @@ class CharacterService:
             death_save_failures=character.death_save_failures,
             is_dead=character.is_dead,
             concentrating_spell_id=character.concentrating_spell_id,
+            concentration_remaining=ConcentrationRemainingRead.model_validate(
+                concentration_remaining
+            ),
             portrait_url=self._storage.get_url(character.portrait_key)
             if character.portrait_key
             else None,

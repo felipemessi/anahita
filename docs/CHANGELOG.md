@@ -9,6 +9,20 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Duração de magia com contador de tempo restante (Fase 12 — fecha o backend
+  da fase): expandido `Character.concentrating_spell_id` para carregar
+  duração/expiração ativa (`concentration_encounter_id`,
+  `concentration_round_started`, `concentration_duration_rounds`,
+  `concentration_expires_at`). Magia de concentração lançada dentro de um
+  encontro (`encounter_id` opcional em `cast_spell`/`set_concentration`)
+  conta em rodadas de combate, a partir do `current_round` do encontro;
+  fora de combate, conta em tempo real via `expires_at`. Novo
+  `engine/spell_duration.py` (puro) parseia o texto livre de duração do SRD
+  (`"Up to 1 minute"`, `"Instantaneous"`, `"Until dispelled"`, ...) para
+  segundos/rodadas. `CharacterRead.concentration_remaining` (calculado a
+  cada leitura, nunca decrementado em disco) informa `mode`
+  (`rounds`/`seconds`/`indefinite`), tempo restante e se já expirou, pra UI
+  renderizar o contador.
 - Recursos de classe geradores de ação em combate (Fase 12): novo
   `ActionType.use_class_resource` — `declare_action` agora consome um
   recurso de classe (`CharacterService.use_resource`) e resolve seu
