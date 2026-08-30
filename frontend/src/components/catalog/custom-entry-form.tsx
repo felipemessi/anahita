@@ -7,6 +7,8 @@ import { ApiError } from "@/lib/api/client";
 import type { CatalogDetailByCategory } from "@/lib/api/catalog";
 import type { CatalogCategory, CreatureSize, ItemType, SpellSchool } from "@/types/catalog";
 
+import { RaceHomebrewForm } from "./race-homebrew-form";
+
 interface FieldConfig {
   key: string;
   label: string;
@@ -117,6 +119,36 @@ function apiErrorMessage(err: ApiError): string {
  * automatically by `useCreateCustomEntry` from the current route.
  */
 export function CustomEntryForm<C extends CatalogCategory>({
+  category,
+  campaignId,
+  onCreated,
+}: {
+  category: C;
+  campaignId: string;
+  onCreated?: (entry: CatalogDetailByCategory[C]) => void;
+}) {
+  // Races carry structured attachments (language/proficiency multi-select at
+  // creation, plus ability-bonus/trait/subrace follow-up calls once the race
+  // exists) that don't fit this form's "one text/number/select field per
+  // key" model — delegate entirely to a dedicated sub-form instead of
+  // growing EXTRA_FIELDS/handleSubmit with race-only branches (Fase 11).
+  //
+  // This dispatch happens before any hook is called in this component (and
+  // `category` never changes across a mounted form instance — each route
+  // renders one fixed category), so the two branches below never violate
+  // the Rules of Hooks against each other.
+  if (category === "races") {
+    return (
+      <RaceHomebrewForm
+        campaignId={campaignId}
+        onCreated={onCreated as ((race: CatalogDetailByCategory["races"]) => void) | undefined}
+      />
+    );
+  }
+  return <GenericCatalogEntryForm category={category} campaignId={campaignId} onCreated={onCreated} />;
+}
+
+function GenericCatalogEntryForm<C extends CatalogCategory>({
   category,
   campaignId,
   onCreated,

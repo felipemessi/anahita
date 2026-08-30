@@ -115,6 +115,8 @@ export interface Race {
   traits: RaceTrait[];
   subraces: Subrace[];
   ability_bonuses: RaceAbilityBonus[];
+  languages: Language[];
+  proficiencies: Proficiency[];
 }
 
 export interface RaceSummary {

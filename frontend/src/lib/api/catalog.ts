@@ -11,16 +11,21 @@ import type {
   Feature,
   Item,
   ItemSummary,
+  Language,
   MagicItem,
   MagicItemSummary,
   Monster,
   MonsterSummary,
+  Proficiency,
   Race,
+  RaceAbilityBonus,
   RaceSummary,
+  RaceTrait,
   Rule,
   RuleSummary,
   Spell,
   SpellSummary,
+  Subrace,
 } from "@/types/catalog";
 
 /**
@@ -119,6 +124,22 @@ export function getAbilityScores(): Promise<AbilityScoreDefinition[]> {
 }
 
 /**
+ * List all languages (SRD + homebrew) — the pickable set for a homebrew
+ * race's `language_ids` (Fase 11).
+ */
+export function listLanguages(): Promise<Language[]> {
+  return apiFetch<Language[]>("/catalog/languages");
+}
+
+/**
+ * List all proficiencies (SRD + homebrew) — the pickable set for a homebrew
+ * race's `proficiency_ids` (Fase 11).
+ */
+export function listProficiencies(): Promise<Proficiency[]> {
+  return apiFetch<Proficiency[]>("/catalog/proficiencies");
+}
+
+/**
  * Create a homebrew entry in a catalog category, always scoped to a
  * campaign (`is_custom=true` + `campaign_id`, never global — PRD §6.1a).
  *
@@ -132,5 +153,52 @@ export function createCustomEntry<C extends CatalogCategory>(
   return apiFetch<CatalogDetailByCategory[C]>(`/catalog/${CATALOG_CATEGORY_PATH[category]}`, {
     method: "POST",
     body: JSON.stringify({ ...fields, is_custom: true, campaign_id: campaignId }),
+  });
+}
+
+/**
+ * Attach an ability bonus to a homebrew race — DM-only, own campaign
+ * (Fase 11: `POST /catalog/races/{id}/ability-bonuses`).
+ */
+export function addRaceAbilityBonus(
+  raceId: string,
+  body: { ability: string; bonus: number },
+): Promise<RaceAbilityBonus> {
+  return apiFetch<RaceAbilityBonus>(`/catalog/races/${raceId}/ability-bonuses`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Attach a trait to a homebrew race — DM-only, own campaign
+ * (Fase 11: `POST /catalog/races/{id}/traits`).
+ */
+export function addRaceTrait(
+  raceId: string,
+  body: { trait_name: string; description: string; mechanical_effect: string | null },
+): Promise<RaceTrait> {
+  return apiFetch<RaceTrait>(`/catalog/races/${raceId}/traits`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Attach a subrace (with nested ability bonuses/traits) to a homebrew race —
+ * DM-only, own campaign (Fase 11: `POST /catalog/races/{id}/subraces`).
+ */
+export function addRaceSubrace(
+  raceId: string,
+  body: {
+    name: string;
+    description: string;
+    ability_bonuses: { ability: string; bonus: number }[];
+    traits: { trait_name: string; description: string; mechanical_effect: string | null }[];
+  },
+): Promise<Subrace> {
+  return apiFetch<Subrace>(`/catalog/races/${raceId}/subraces`, {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
