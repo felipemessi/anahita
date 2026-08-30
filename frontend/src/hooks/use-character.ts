@@ -10,6 +10,7 @@ import {
   castCharacterSpell,
   createCharacter,
   getCharacter,
+  getCharacterSessions,
   getResourceOptions,
   getSpellAttackProfile,
   getWeaponAttackProfile,
@@ -60,6 +61,18 @@ export function useCharacter(characterId: string) {
   return useQuery({
     queryKey: [...CHARACTERS_QUERY_KEY, characterId],
     queryFn: () => getCharacter(characterId),
+    enabled: Boolean(characterId),
+  });
+}
+
+/**
+ * The sessions a character has actually appeared in (combat
+ * participation), for the ficha's sessions dropdown (Fase 10).
+ */
+export function useCharacterSessions(characterId: string) {
+  return useQuery({
+    queryKey: [...CHARACTERS_QUERY_KEY, characterId, "sessions"],
+    queryFn: () => getCharacterSessions(characterId),
     enabled: Boolean(characterId),
   });
 }

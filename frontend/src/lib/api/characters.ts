@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api/client";
 import type { Feature } from "@/types/catalog";
+import type { GameSession } from "@/types/session";
 import type {
   Character,
   CharacterClassCreate,
@@ -49,6 +50,16 @@ export function createCharacter(data: CharacterCreate): Promise<Character> {
 /** Fetch a character sheet with calculated modifiers and skill bonuses. */
 export function getCharacter(characterId: string): Promise<Character> {
   return apiFetch<Character>(`/characters/${characterId}`);
+}
+
+/**
+ * List the sessions a character has actually appeared in (combat
+ * participation), for the ficha's sessions dropdown (Fase 10). Derived
+ * server-side, not an explicit list — respects the character's own saved
+ * display order when one exists.
+ */
+export function getCharacterSessions(characterId: string): Promise<GameSession[]> {
+  return apiFetch<GameSession[]>(`/characters/${characterId}/sessions`);
 }
 
 /** Add a class to a character, enabling multiclass. */
