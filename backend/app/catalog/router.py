@@ -25,12 +25,14 @@ from app.catalog.schemas import (
     ItemCreate,
     ItemRead,
     ItemSummary,
+    LanguageRead,
     MagicItemCreate,
     MagicItemRead,
     MagicItemSummary,
     MonsterCreate,
     MonsterRead,
     MonsterSummary,
+    ProficiencyRead,
     RaceAbilityBonusCreate,
     RaceAbilityBonusRead,
     RaceCreate,
@@ -274,6 +276,28 @@ async def list_ability_scores(db: DB) -> list[AbilityScoreDefinitionRead]:
     """
     scores = await service.list_ability_scores(db)
     return [AbilityScoreDefinitionRead.model_validate(s) for s in scores]
+
+
+@router.get("/languages", response_model=list[LanguageRead])
+async def list_languages(db: DB) -> list[LanguageRead]:
+    """List all languages (SRD + homebrew).
+
+    Lets the client resolve `RaceCreate.language_ids` to a pickable list
+    when building a homebrew race (Fase 11).
+    """
+    languages = await service.list_languages(db)
+    return [LanguageRead.model_validate(lang) for lang in languages]
+
+
+@router.get("/proficiencies", response_model=list[ProficiencyRead])
+async def list_proficiencies(db: DB) -> list[ProficiencyRead]:
+    """List all proficiencies (SRD + homebrew).
+
+    Lets the client resolve `RaceCreate.proficiency_ids` to a pickable list
+    when building a homebrew race (Fase 11).
+    """
+    proficiencies = await service.list_proficiencies(db)
+    return [ProficiencyRead.model_validate(p) for p in proficiencies]
 
 
 @router.get("/spells", response_model=list[SpellSummary])

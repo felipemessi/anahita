@@ -2,8 +2,20 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useCreateCustomEntry = vi.fn();
+const useLanguages = vi.fn();
+const useProficiencies = vi.fn();
+const useAddRaceAbilityBonus = vi.fn();
+const useAddRaceTrait = vi.fn();
+const useAddRaceSubrace = vi.fn();
+const useCatalogEntry = vi.fn();
 vi.mock("@/hooks/use-catalog", () => ({
   useCreateCustomEntry: (...args: unknown[]) => useCreateCustomEntry(...args),
+  useLanguages: (...args: unknown[]) => useLanguages(...args),
+  useProficiencies: (...args: unknown[]) => useProficiencies(...args),
+  useAddRaceAbilityBonus: (...args: unknown[]) => useAddRaceAbilityBonus(...args),
+  useAddRaceTrait: (...args: unknown[]) => useAddRaceTrait(...args),
+  useAddRaceSubrace: (...args: unknown[]) => useAddRaceSubrace(...args),
+  useCatalogEntry: (...args: unknown[]) => useCatalogEntry(...args),
 }));
 
 import { ApiError } from "@/lib/api/client";
@@ -18,6 +30,28 @@ describe("CustomEntryForm", () => {
     mutateAsync.mockResolvedValue({ id: "monster-99" });
     useCreateCustomEntry.mockReset();
     useCreateCustomEntry.mockReturnValue({ mutateAsync, isPending: false });
+
+    useLanguages.mockReset();
+    useLanguages.mockReturnValue({ data: [] });
+    useProficiencies.mockReset();
+    useProficiencies.mockReturnValue({ data: [] });
+    useAddRaceAbilityBonus.mockReset();
+    useAddRaceAbilityBonus.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useAddRaceTrait.mockReset();
+    useAddRaceTrait.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useAddRaceSubrace.mockReset();
+    useAddRaceSubrace.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useCatalogEntry.mockReset();
+    useCatalogEntry.mockReturnValue({ data: undefined });
+  });
+
+  it("delegates category 'races' to the dedicated RaceHomebrewForm, not the generic field list", () => {
+    render(<CustomEntryForm category="races" campaignId="camp-1" />);
+    // Race-only fields (absent from the generic form) prove the dedicated
+    // sub-form rendered instead of EXTRA_FIELDS-driven inputs (Fase 11).
+    expect(screen.getByLabelText(/deslocamento/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/visão no escuro/i)).toBeInTheDocument();
+    expect(useCreateCustomEntry).toHaveBeenCalledWith("races", "camp-1");
   });
 
   it("never renders a campaign_id field — it is injected by the API layer, not the form", () => {

@@ -22,6 +22,18 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   de `CharacterPortrait`/`CharacterInfoEditor`: os botões aparecem para
   qualquer visualizador da ficha e um erro de um não-dono surge inline no
   dropdown.
+- Profundidade de raça homebrew no frontend (Fase 11): `custom-entry-form.tsx`
+  agora despacha a categoria `races` para um sub-formulário dedicado
+  (`race-homebrew-form.tsx`), expondo os campos até então ausentes
+  (`age`, `alignment_desc`, `size_description`, `language_desc`, `speed`,
+  `size`, `darkvision_range`) mais checkboxes de `language_ids`/
+  `proficiency_ids`. Após criar a raça, `race-attach-panel.tsx` permite
+  anexar bônus de atributo, traços e sub-raças via os endpoints
+  `POST /catalog/races/{id}/ability-bonuses|traits|subraces` (backend
+  Fase 11), mostrando de volta o que já foi salvo. Backend ganhou
+  `GET /catalog/languages` e `GET /catalog/proficiencies` — endpoints que
+  faltavam para o frontend listar as opções pickable de idioma/proficiência
+  (o `service.list_languages`/`list_proficiencies` já existia, sem rota).
 - Retrato do personagem no frontend (Fase 10): `lib/api/characters.ts`
   ganha `uploadCharacterPortrait`/`removeCharacterPortrait` (multipart,
   mesmo padrão de upload de Handouts), com os hooks

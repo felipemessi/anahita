@@ -4,11 +4,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CATALOG_QUERY_KEY_PREFIX } from "@/components/catalog/locale-switcher";
 import {
+  addRaceAbilityBonus,
+  addRaceSubrace,
+  addRaceTrait,
   createCustomEntry,
   getAbilityScores,
   getCatalogEntry,
   getFeature,
   listCatalogEntries,
+  listLanguages,
+  listProficiencies,
   type CatalogListFilters,
 } from "@/lib/api/catalog";
 import { getClientLocale } from "@/lib/i18n/locale";
@@ -65,6 +70,31 @@ export function useAbilityScores() {
   });
 }
 
+/**
+ * All languages (SRD + homebrew) — the pickable set for a homebrew race's
+ * `language_ids` field (Fase 11). Small and locale-independent, so cached
+ * once for the whole app like `useAbilityScores`.
+ */
+export function useLanguages() {
+  return useQuery({
+    queryKey: [...CATALOG_QUERY_KEY_PREFIX, "languages", "list"],
+    queryFn: listLanguages,
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * All proficiencies (SRD + homebrew) — the pickable set for a homebrew
+ * race's `proficiency_ids` field (Fase 11).
+ */
+export function useProficiencies() {
+  return useQuery({
+    queryKey: [...CATALOG_QUERY_KEY_PREFIX, "proficiencies", "list"],
+    queryFn: listProficiencies,
+    staleTime: Infinity,
+  });
+}
+
 /** Create a homebrew entry for `category`, always scoped to `campaignId`. */
 export function useCreateCustomEntry<C extends CatalogCategory>(
   category: C,
@@ -77,6 +107,57 @@ export function useCreateCustomEntry<C extends CatalogCategory>(
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CATALOG_QUERY_KEY_PREFIX, category],
+      });
+    },
+  });
+}
+
+/**
+ * Attach an ability bonus/trait/subrace to a just-created homebrew race
+ * (Fase 11) — invalidates the race's own detail query so the "read back"
+ * view reflects the newly attached content.
+ */
+export function useAddRaceAbilityBonus(raceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { ability: string; bonus: number }) =>
+      addRaceAbilityBonus(raceId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CATALOG_QUERY_KEY_PREFIX, "races", "detail", raceId],
+      });
+    },
+  });
+}
+
+export function useAddRaceTrait(raceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      trait_name: string;
+      description: string;
+      mechanical_effect: string | null;
+    }) => addRaceTrait(raceId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CATALOG_QUERY_KEY_PREFIX, "races", "detail", raceId],
+      });
+    },
+  });
+}
+
+export function useAddRaceSubrace(raceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string;
+      description: string;
+      ability_bonuses: { ability: string; bonus: number }[];
+      traits: { trait_name: string; description: string; mechanical_effect: string | null }[];
+    }) => addRaceSubrace(raceId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CATALOG_QUERY_KEY_PREFIX, "races", "detail", raceId],
       });
     },
   });

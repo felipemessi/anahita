@@ -714,3 +714,21 @@ async def test_create_race_rejects_unknown_language_id(client: AsyncClient) -> N
         headers={"Authorization": f"Bearer {dm_token}"},
     )
     assert resp.status_code == 422
+
+
+async def test_list_languages_over_http(client: AsyncClient) -> None:
+    """GET /catalog/languages lists the seeded SRD languages (Fase 11)."""
+    resp = await client.get("/catalog/languages")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) > 0
+    assert {"id", "index", "language_type", "is_custom"} <= body[0].keys()
+
+
+async def test_list_proficiencies_over_http(client: AsyncClient) -> None:
+    """GET /catalog/proficiencies lists the seeded SRD proficiencies (Fase 11)."""
+    resp = await client.get("/catalog/proficiencies")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) > 0
+    assert {"id", "index", "proficiency_type", "is_custom"} <= body[0].keys()

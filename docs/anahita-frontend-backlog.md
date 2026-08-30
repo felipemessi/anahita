@@ -520,9 +520,10 @@
 
 > Depende do backend Fase 11.
 
-- **Como mestre, quero customizar todos os atributos possíveis de uma raça homebrew.**
-  - [ ] `custom-entry-form.tsx`: expor os campos hoje ausentes na categoria `races` (`speed`, `size`, `darkvision_range`) e os novos endpoints de anexo (bônus de atributo, traços, sub-raças, idiomas, proficiências)
-  - [ ] Teste: formulário de raça homebrew salva todos os atributos customizados; leitura de volta reflete o que foi salvo
+- **Como mestre, quero customizar todos os atributos possíveis de uma raça homebrew.** ✅ (2026-08-30)
+  - [x] `custom-entry-form.tsx`: expor os campos hoje ausentes na categoria `races` (`speed`, `size`, `darkvision_range`) e os novos endpoints de anexo (bônus de atributo, traços, sub-raças, idiomas, proficiências)
+  - [x] Teste: formulário de raça homebrew salva todos os atributos customizados; leitura de volta reflete o que foi salvo
+  - Notas: `custom-entry-form.tsx` agora despacha `category === "races"` para um sub-formulário dedicado (`race-homebrew-form.tsx`) em vez de crescer o modelo genérico "um campo texto/número/select por chave" — raças carregam anexos estruturados (`language_ids`/`proficiency_ids` multi-select na criação, mais bônus de atributo/traços/sub-raças via `POST /catalog/races/{id}/...` só depois que a raça existe) que não cabem nesse modelo. O dispatch acontece antes de qualquer hook ser chamado no componente (sem violar Rules of Hooks), delegando a lógica dos demais campos pro corpo original renomeado `GenericCatalogEntryForm`. Após a criação, `race-attach-panel.tsx` mostra os anexos já salvos (lidos de volta via `useCatalogEntry`) e formulários para adicionar bônus de atributo, traços e sub-raças (sub-raça aceita um bônus + um traço inline por submissão, já que o backend aceita listas — limite conhecido: bônus/traços extras da mesma sub-raça exigiriam repetir o POST de anexo, não coberto por esta UI). Gap de backend descoberto durante a implementação: não existia endpoint para listar `Language`/`Proficiency` (só apareciam embutidos em `RaceRead`), impossibilitando montar os checkboxes de `language_ids`/`proficiency_ids` — adicionados `GET /catalog/languages` e `GET /catalog/proficiencies` (reaproveitando `service.list_languages`/`list_proficiencies`, já existentes) com testes de integração em `test_router_homebrew.py`.
 
 - **Como mestre, quero poder excluir uma raça/classe/magia/... homebrew que eu criei.**
   - [ ] `lib/api/catalog.ts`: `deleteCustomEntry` (as 9 categorias)
