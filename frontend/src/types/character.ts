@@ -58,6 +58,24 @@ export interface CharacterSkill {
   bonus: number;
 }
 
+/**
+ * One "choose N of [...]" skill proficiency group offered by the
+ * character's race/class(es) (Fase 10) — `options` is every skill the
+ * group offers, `selected` is the subset already `proficient` on the
+ * character (from a prior choice, or incidentally already fixed-granted).
+ */
+export interface CharacterProficiencyChoiceGroup {
+  id: string;
+  choose_count: number;
+  options: Skill[];
+  selected: Skill[];
+}
+
+/** Skill proficiencies being chosen — restricted server-side to the character's valid set. */
+export interface CharacterProficiencyChoiceRequest {
+  skills: Skill[];
+}
+
 export interface CharacterSpellCreate {
   spell_id: string;
   prepared?: boolean;

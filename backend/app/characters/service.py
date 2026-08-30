@@ -71,6 +71,7 @@ from app.characters.schemas import (
     CharacterHitDiceRollResult,
     CharacterHitDiceSpend,
     CharacterLevelUpRequest,
+    CharacterProficiencyChoiceGroupRead,
     CharacterProficiencyChoiceRequest,
     CharacterRead,
     CharacterResourceRead,
@@ -569,6 +570,50 @@ class CharacterService:
 
         await db.commit()
         return await self._reload_as_read(character.id, db)
+
+    async def get_proficiency_choices(
+        self,
+        character_id: uuid.UUID,
+        requester_id: uuid.UUID,
+        db: AsyncSession,
+    ) -> list[CharacterProficiencyChoiceGroupRead]:
+        """Every "choose N of [...]" skill group offered by this character.
+
+        Race and class(es), with which of each group's options are already
+        `proficient=True` on the character. Owner only — same data
+        `set_proficiency_choices` validates against, exposed read-only so
+        the frontend can render the actual valid set instead of a free-text
+        field (Fase 10 frontend).
+        """
+        result = await db.execute(
+            select(Character)
+            .where(Character.id == character_id)
+            .options(*_CHARACTER_LOAD_OPTIONS)
+        )
+        character = result.scalar_one_or_none()
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
+            )
+        await self._require_own_membership(
+            character.campaign_member_id, requester_id, db
+        )
+
+        groups = await self._skill_choice_groups(
+            db,
+            race_id=character.race_id,
+            class_definition_ids=[c.class_definition_id for c in character.classes],
+        )
+        proficient_skills = {row.skill for row in character.skills if row.proficient}
+        return [
+            CharacterProficiencyChoiceGroupRead(
+                id=group_id,
+                choose_count=choose_count,
+                options=sorted(skills, key=lambda s: s.value),
+                selected=sorted(skills & proficient_skills, key=lambda s: s.value),
+            )
+            for group_id, (choose_count, skills) in groups.items()
+        ]
 
     async def set_proficiency_choices(
         self,

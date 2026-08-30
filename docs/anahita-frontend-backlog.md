@@ -495,10 +495,11 @@
   - [ ] Componente de avatar circular (`border-radius: 50%`) no cabeçalho da ficha, reaproveitado depois nos tokens do mapa (Fase 15)
   - [ ] Teste: upload atualiza o avatar exibido; personagem sem imagem mostra um placeholder (iniciais ou ícone)
 
-- **Como jogador, quero marcar minhas proficiências com base nas capacidades da minha raça e classe(s), não livremente.**
-  - [ ] `lib/api/characters.ts`/`hooks/use-character.ts`: consumir o novo endpoint de escolha restrita de proficiência
-  - [ ] UI na ficha: lista o conjunto de escolha válido (ex. "escolha 2 de: ...") derivado da raça/classe do personagem, em vez de um campo livre
-  - [ ] Teste: só as opções do conjunto válido aparecem selecionáveis; proficiências fixas de raça/classe aparecem já marcadas, não editáveis
+- **Como jogador, quero marcar minhas proficiências com base nas capacidades da minha raça e classe(s), não livremente.** ✅ (2026-08-30)
+  - [x] `lib/api/characters.ts`/`hooks/use-character.ts`: consumir o novo endpoint de escolha restrita de proficiência
+  - [x] UI na ficha: lista o conjunto de escolha válido (ex. "escolha 2 de: ...") derivado da raça/classe do personagem, em vez de um campo livre
+  - [x] Teste: só as opções do conjunto válido aparecem selecionáveis; proficiências fixas de raça/classe aparecem já marcadas, não editáveis
+  - Notas: o backend Fase 10 só tinha `POST /characters/{id}/proficiencies` (grava a escolha) — não existia forma de descobrir o conjunto válido antes de submeter, então foi adicionado `GET /characters/{id}/proficiencies` (`CharacterService.get_proficiency_choices`, owner-only) retornando cada `ProficiencyChoiceGroup` com `choose_count`/`options`/`selected`, reaproveitando `_skill_choice_groups`; testado em `backend/tests/characters/test_proficiency_choices.py`. Novo componente `components/characters/proficiency-choices.tsx` (hooks `useProficiencyChoices`/`useSetProficiencyChoices`), montado na ficha logo após `SkillList`. Como o backend não expõe forma de desfazer uma escolha já feita, uma perícia em `selected` renderiza marcada e desabilitada (mesmo tratamento das proficiências fixas) — só as opções ainda não escolhidas do grupo ficam selecionáveis, até o `choose_count` restante; um grupo já totalmente preenchido não renderiza mais. `SKILL_LABELS` foi exportado de `skill-list.tsx` para reuso.
 
 - **Como jogador, quero que a navegação da ficha mostre as sessões do personagem agrupadas num dropdown (com overflow) e que a navegação geral do app fique num menu hambúrguer no topo.**
   - [ ] `lib/api/characters.ts`: `getCharacterSessions` (novo endpoint do backend Fase 10)

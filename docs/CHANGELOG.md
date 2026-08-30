@@ -9,6 +9,14 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Escolha de proficiências no frontend (Fase 10): novo
+  `GET /characters/{id}/proficiencies` no backend (owner-only), retornando
+  os grupos "escolha N de [...]" válidos da raça/classe do personagem —
+  faltava uma forma de descobrir o conjunto válido antes de submeter ao
+  `POST` já existente. `components/characters/proficiency-choices.tsx`
+  substitui o campo livre por uma lista das opções realmente oferecidas,
+  com perícias já escolhidas marcadas e não editáveis (o backend não
+  permite desfazer uma escolha).
 - Revelação de NPCs no frontend (Fase 13): `npc-card.tsx` ganha badge
   "Oculto"/"Revelado" e botão "Revelar" (ambos DM-only), consumindo o
   `POST /npcs/{id}/reveal` já existente no backend. A listagem de NPCs do

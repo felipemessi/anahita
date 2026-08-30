@@ -285,6 +285,78 @@ async def test_choice_wrong_owner_rejected(
     assert exc_info.value.status_code == 403
 
 
+async def test_get_proficiency_choices_lists_groups_and_selected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """GET returns each group's options and which are already proficient."""
+    insight = await _skill_proficiency(db, Skill.insight)
+    perception = await _skill_proficiency(db, Skill.perception)
+    survival = await _skill_proficiency(db, Skill.survival)
+    group = ProficiencyChoiceGroup(
+        id=uuid.uuid4(), race_id=uuid.UUID(human_race_id), choose_count=1
+    )
+    db.add(group)
+    await db.flush()
+    for prof in (insight, perception, survival):
+        db.add(
+            ProficiencyChoiceOption(
+                id=uuid.uuid4(), group_id=group.id, proficiency_id=prof.id
+            )
+        )
+    await db.commit()
+
+    owner = await _make_user(db, email="getchoices@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner=owner, member=member, race_id=human_race_id, class_id=fighter_class_id
+    )
+
+    service = CharacterService()
+    await service.set_proficiency_choices(
+        character_id,
+        owner.id,
+        CharacterProficiencyChoiceRequest(skills=[Skill.perception]),
+        db,
+    )
+
+    groups = await service.get_proficiency_choices(character_id, owner.id, db)
+    assert len(groups) == 1
+    assert groups[0].id == group.id
+    assert groups[0].choose_count == 1
+    assert set(groups[0].options) == {Skill.insight, Skill.perception, Skill.survival}
+    assert groups[0].selected == [Skill.perception]
+
+
+async def test_get_proficiency_choices_wrong_owner_rejected(
+    db: AsyncSession, human_race_id: str, fighter_class_id: str
+) -> None:
+    """A player who doesn't own the character can't read its choice groups."""
+    insight = await _skill_proficiency(db, Skill.insight)
+    group = ProficiencyChoiceGroup(
+        id=uuid.uuid4(), race_id=uuid.UUID(human_race_id), choose_count=1
+    )
+    db.add(group)
+    await db.flush()
+    db.add(
+        ProficiencyChoiceOption(
+            id=uuid.uuid4(), group_id=group.id, proficiency_id=insight.id
+        )
+    )
+    await db.commit()
+
+    owner = await _make_user(db, email="getowner@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner=owner, member=member, race_id=human_race_id, class_id=fighter_class_id
+    )
+    intruder = await _make_user(db, email="getintruder@example.com")
+
+    service = CharacterService()
+    with pytest.raises(HTTPException) as exc_info:
+        await service.get_proficiency_choices(character_id, intruder.id, db)
+    assert exc_info.value.status_code == 403
+
+
 async def test_class_choice_and_race_choice_are_both_honored(
     db: AsyncSession, human_race_id: str, fighter_class_id: str
 ) -> None:

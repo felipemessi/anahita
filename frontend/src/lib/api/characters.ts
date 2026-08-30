@@ -12,6 +12,8 @@ import type {
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
   CharacterLevelUpRequest,
+  CharacterProficiencyChoiceGroup,
+  CharacterProficiencyChoiceRequest,
   CharacterRestRequest,
   CharacterRestResponse,
   CharacterSpellCastRequest,
@@ -176,6 +178,30 @@ export function levelUpCharacter(
   data: CharacterLevelUpRequest,
 ): Promise<Character> {
   return apiFetch<Character>(`/characters/${characterId}/level-up`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * List the character's valid "choose N of [...]" skill proficiency groups
+ * (Fase 10), derived from its race/class(es) — drives the proficiency
+ * choice UI instead of a free-text field.
+ */
+export function getProficiencyChoices(
+  characterId: string,
+): Promise<CharacterProficiencyChoiceGroup[]> {
+  return apiFetch<CharacterProficiencyChoiceGroup[]>(
+    `/characters/${characterId}/proficiencies`,
+  );
+}
+
+/** Mark chosen skills proficient, restricted to the character's valid choice set. */
+export function setProficiencyChoices(
+  characterId: string,
+  data: CharacterProficiencyChoiceRequest,
+): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/proficiencies`, {
     method: "POST",
     body: JSON.stringify(data),
   });

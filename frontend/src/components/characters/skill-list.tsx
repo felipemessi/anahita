@@ -1,7 +1,7 @@
 import { RollButton } from "@/components/characters/roll-button";
 import type { CharacterSkill } from "@/types/character";
 
-const SKILL_LABELS: Record<string, string> = {
+export const SKILL_LABELS: Record<string, string> = {
   acrobatics: "Acrobacia",
   animal_handling: "Adestrar Animais",
   arcana: "Arcanismo",

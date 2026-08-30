@@ -10,6 +10,7 @@ import {
   castCharacterSpell,
   createCharacter,
   getCharacter,
+  getProficiencyChoices,
   getResourceOptions,
   getSpellAttackProfile,
   getWeaponAttackProfile,
@@ -20,6 +21,7 @@ import {
   restCharacter,
   rollDeathSave,
   setCharacterConcentration,
+  setProficiencyChoices,
   spendCharacterResource,
   updateCharacterCurrency,
   updateCharacterEquipment,
@@ -37,6 +39,7 @@ import type {
   CharacterEquipmentUpdate,
   CharacterFeatureCreate,
   CharacterLevelUpRequest,
+  CharacterProficiencyChoiceRequest,
   CharacterRestRequest,
   CharacterSpellCastRequest,
   CharacterSpellCreate,
@@ -224,6 +227,32 @@ export function useLevelUpCharacter(characterId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CharacterLevelUpRequest) => levelUpCharacter(characterId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, characterId],
+      });
+    },
+  });
+}
+
+/**
+ * The character's valid "choose N of [...]" skill proficiency groups
+ * (Fase 10), derived from its race/class(es).
+ */
+export function useProficiencyChoices(characterId: string) {
+  return useQuery({
+    queryKey: [...CHARACTERS_QUERY_KEY, characterId, "proficiency-choices"],
+    queryFn: () => getProficiencyChoices(characterId),
+    enabled: Boolean(characterId),
+  });
+}
+
+/** Mark chosen skills proficient, restricted to the character's valid choice set. */
+export function useSetProficiencyChoices(characterId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CharacterProficiencyChoiceRequest) =>
+      setProficiencyChoices(characterId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CHARACTERS_QUERY_KEY, characterId],
