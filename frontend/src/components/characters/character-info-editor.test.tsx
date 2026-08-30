@@ -31,6 +31,7 @@ const baseCharacter: Character = {
   death_save_failures: 0,
   is_dead: false,
   concentrating_spell_id: null,
+  portrait_url: null,
   passive_perception: 10,
   passive_investigation: 10,
   passive_insight: 10,

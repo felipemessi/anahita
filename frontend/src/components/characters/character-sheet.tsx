@@ -7,6 +7,7 @@ import { AbilityScores } from "@/components/characters/ability-scores";
 import { ClassResources } from "@/components/characters/class-resources";
 import { ConcentrationIndicator } from "@/components/characters/concentration-indicator";
 import { CharacterInfoEditor } from "@/components/characters/character-info-editor";
+import { CharacterPortrait } from "@/components/characters/character-portrait";
 import { CurrencyTracker } from "@/components/characters/currency-tracker";
 import { DeathSaveTracker } from "@/components/characters/death-save-tracker";
 import { EquipmentList } from "@/components/characters/equipment-list";
@@ -89,15 +90,18 @@ export function CharacterSheet({
   return (
     <RollLogProvider>
       <article className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold">{character.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            Nível {character.level}
-            {character.background ? ` · ${character.background}` : ""}
-            {character.alignment ? ` · ${character.alignment}` : ""}
-          </p>
-          <div className="mt-2">
-            <CharacterInfoEditor character={character} />
+        <header className="flex items-start gap-4">
+          <CharacterPortrait character={character} />
+          <div>
+            <h1 className="text-2xl font-bold">{character.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              Nível {character.level}
+              {character.background ? ` · ${character.background}` : ""}
+              {character.alignment ? ` · ${character.alignment}` : ""}
+            </p>
+            <div className="mt-2">
+              <CharacterInfoEditor character={character} />
+            </div>
           </div>
         </header>
 

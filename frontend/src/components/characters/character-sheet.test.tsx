@@ -11,6 +11,9 @@ vi.mock("@/components/characters/class-resources", () => ({ ClassResources: () =
 vi.mock("@/components/characters/character-info-editor", () => ({
   CharacterInfoEditor: () => null,
 }));
+vi.mock("@/components/characters/character-portrait", () => ({
+  CharacterPortrait: () => null,
+}));
 vi.mock("@/components/characters/concentration-indicator", () => ({
   ConcentrationIndicator: () => null,
 }));
@@ -64,6 +67,7 @@ const baseCharacter = {
   death_save_failures: 0,
   is_dead: false,
   concentrating_spell_id: null,
+  portrait_url: null,
   passive_perception: 10,
   passive_investigation: 10,
   passive_insight: 10,

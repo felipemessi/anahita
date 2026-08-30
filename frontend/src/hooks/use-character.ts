@@ -16,6 +16,7 @@ import {
   listCharacters,
   levelUpCharacter,
   removeCharacterEquipment,
+  removeCharacterPortrait,
   removeCharacterSpell,
   restCharacter,
   rollDeathSave,
@@ -26,6 +27,7 @@ import {
   updateCharacterHp,
   updateCharacterInfo,
   updateCharacterSpell,
+  uploadCharacterPortrait,
 } from "@/lib/api/characters";
 import type {
   CharacterClassCreate,
@@ -426,6 +428,34 @@ export function useUpdateCharacterInfo(characterId: string) {
 
   return useMutation({
     mutationFn: (data: CharacterUpdate) => updateCharacterInfo(characterId, data),
+    onSuccess: (character) => {
+      queryClient.setQueryData(queryKey, character);
+      void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
+/** Set (or replace) a character's portrait image (Fase 10). Owner only. */
+export function useUploadCharacterPortrait(characterId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = [...CHARACTERS_QUERY_KEY, characterId];
+
+  return useMutation({
+    mutationFn: (file: File) => uploadCharacterPortrait(characterId, file),
+    onSuccess: (character) => {
+      queryClient.setQueryData(queryKey, character);
+      void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
+/** Remove a character's portrait, reverting to the imageless state (Fase 10). Owner only. */
+export function useRemoveCharacterPortrait(characterId: string) {
+  const queryClient = useQueryClient();
+  const queryKey = [...CHARACTERS_QUERY_KEY, characterId];
+
+  return useMutation({
+    mutationFn: () => removeCharacterPortrait(characterId),
     onSuccess: (character) => {
       queryClient.setQueryData(queryKey, character);
       void queryClient.invalidateQueries({ queryKey });
