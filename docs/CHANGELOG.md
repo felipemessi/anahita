@@ -9,6 +9,18 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Recursos de classe geradores de ação em combate (Fase 12): novo
+  `ActionType.use_class_resource` — `declare_action` agora consome um
+  recurso de classe (`CharacterService.use_resource`) e resolve seu
+  efeito mecânico numa chamada só, em vez de só decrementar o contador.
+  Canalizar Divindade: Turn Undead é o primeiro efeito mapeado
+  (`channel-divinity-turn-undead` → `_CLASS_RESOURCE_EFFECTS`): cada alvo
+  listado em `target_id`/`additional_target_ids` rola resistência de
+  Sabedoria contra a DC de magia da classe dona da opção, aplicando
+  `frightened` (simplificação deliberada — sem geometria de mapa/área
+  ainda) em caso de falha. Qualquer outro recurso/opção continua
+  bookkeeping-only. Ver notas da história na Fase 12 do
+  `anahita-backend-backlog.md` para as simplificações documentadas.
 - Reordenação de sessões na ficha do personagem (Fase 10, frontend —
   fecha as 5 histórias do frontend da Fase 10): `lib/api/characters.ts`
   ganha `reorderCharacterSessions` sobre o

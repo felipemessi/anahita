@@ -189,6 +189,26 @@ class WSDeclareActionPayload(BaseModel):
     `engine/dice.py` (backlog Fase 6 história 6) — a player may only supply
     these for their own participant, the DM for any (mirrors
     `roll_initiative`).
+
+    `use_class_resource` (Fase 12) spends one use of a character's class
+    resource (`resource_key`, e.g. `channel_divinity_charges`) via
+    `CharacterService.use_resource` — same owner-only rule as that service
+    method, so a DM declaring this on a player's behalf still gets a 403
+    (unlike attacks/contests, which the DM may always declare). Only
+    Character participants have a resource to spend. `resource_option_id`
+    picks the named option when the resource has more than one (mirrors
+    `use_resource`'s own `option_id`) — for Channel Divinity: Turn Undead
+    specifically, it's also how the server knows to resolve the Wisdom
+    saving throw effect below, rather than treat the use as bookkeeping
+    only. `target_id` plus `additional_target_ids` name every undead
+    affected — this app has no area/map geometry yet (Fase 15), so "every
+    undead within 30 feet" is deliberately simplified to "whichever
+    participants the declaring client lists", each rolling a Wisdom save
+    (or taking `manual_save_rolls[participant_id]`) against the caster's
+    spell save DC; a failure applies `frightened` (not the PHB's "turned"
+    state, which this app's condition model doesn't have) for 1
+    minute/10 rounds. Auto-destroying low-CR undead at higher Cleric
+    levels isn't modeled.
     """
 
     participant_id: uuid.UUID
@@ -205,6 +225,25 @@ class WSDeclareActionPayload(BaseModel):
     manual_attack_roll: int | None = None
     manual_damage_roll: int | None = None
     manual_target_roll: int | None = None
+    resource_key: str | None = None
+    resource_option_id: uuid.UUID | None = None
+    additional_target_ids: list[uuid.UUID] = Field(default_factory=list)
+    manual_save_rolls: dict[uuid.UUID, int] | None = None
+
+
+class ClassResourceTargetOutcome(BaseModel):
+    """One target's Wisdom save outcome from a `use_class_resource` effect.
+
+    Only populated for a resource option with a mapped mechanical effect
+    (Channel Divinity: Turn Undead, so far) — see `WSDeclareActionPayload`'s
+    docstring.
+    """
+
+    participant_id: uuid.UUID
+    save_roll: int
+    save_dc: int
+    succeeded: bool
+    condition_applied: str | None = None
 
 
 class DeclareActionResultRead(BaseModel):
@@ -224,6 +263,11 @@ class DeclareActionResultRead(BaseModel):
     description: str
     # Same convention as `EncounterParticipantRead.concentration_dc`.
     concentration_dc: int | None = None
+    # `use_class_resource` only (Fase 12) — which resource was spent, and
+    # each affected target's saving throw outcome (empty when the option
+    # has no mapped mechanical effect — bookkeeping-only spend).
+    resource_key: str | None = None
+    resource_targets: list[ClassResourceTargetOutcome] = Field(default_factory=list)
 
 
 class WSUseLegendaryActionPayload(BaseModel):
