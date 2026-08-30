@@ -173,11 +173,17 @@ class CharacterSpellCastRequest(BaseModel):
     echoed back for the UI's benefit (which encounter participant the
     spell was aimed at) — this endpoint has no encounter context to
     validate it against, so it's never checked or persisted.
+    `encounter_id` is used only when the spell requires concentration
+    (Fase 12): it decides whether the resulting duration is tracked in
+    combat rounds (the encounter's `current_round`) or real time — see
+    `CharacterService._start_concentration`. Omit it when casting outside
+    an encounter.
     """
 
     cast_at_level: int | None = Field(default=None, ge=1, le=9)
     as_ritual: bool = False
     target_participant_id: uuid.UUID | None = None
+    encounter_id: uuid.UUID | None = None
 
 
 class CharacterHitDiceSpend(BaseModel):
@@ -268,9 +274,34 @@ class CharacterConcentrationRequest(BaseModel):
 
     `spell_id=None` ends concentration; a value starts it (replacing
     whatever the character was already concentrating on, PHB rule).
+    `encounter_id` has the same meaning as
+    `CharacterSpellCastRequest.encounter_id` (Fase 12) — ignored when
+    `spell_id` is `None`.
     """
 
     spell_id: uuid.UUID | None = None
+    encounter_id: uuid.UUID | None = None
+
+
+class ConcentrationRemainingRead(BaseModel):
+    """Remaining duration on a character's active concentration, for a UI countdown.
+
+    `mode` is `None` when the character isn't concentrating on anything,
+    `"indefinite"` when the spell's duration has no clock to track
+    ("Instantaneous"/"Special"/"Until dispelled" — see
+    `engine.spell_duration.parse_spell_duration`), `"rounds"` when it was
+    cast inside an encounter, `"seconds"` otherwise. `expired` is `True`
+    once the remaining time has reached zero, without the concentration
+    state itself being auto-cleared (see
+    `app.queries.spell_duration.ConcentrationRemaining`).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    mode: Literal["rounds", "seconds", "indefinite"] | None
+    remaining_rounds: int | None = None
+    remaining_seconds: float | None = None
+    expired: bool = False
 
 
 class CharacterResourceRead(BaseModel):
@@ -482,6 +513,10 @@ class CharacterRead(BaseModel):
     death_save_failures: int
     is_dead: bool
     concentrating_spell_id: uuid.UUID | None
+    # How much duration is left on `concentrating_spell_id`, for a UI
+    # countdown (Fase 12) — computed from `Character.concentration_*` on
+    # every read, see `app.queries.spell_duration.get_concentration_remaining`.
+    concentration_remaining: ConcentrationRemainingRead
     # Resolved from `Character.portrait_key` via `StorageService.get_url`,
     # same convention as `HandoutRead.url` (Fase 10). `None` when the
     # character has no portrait set.
