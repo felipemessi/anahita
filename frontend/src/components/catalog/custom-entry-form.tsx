@@ -5,7 +5,13 @@ import { useState, type FormEvent } from "react";
 import { useCreateCustomEntry } from "@/hooks/use-catalog";
 import { ApiError } from "@/lib/api/client";
 import type { CatalogDetailByCategory } from "@/lib/api/catalog";
-import type { CatalogCategory, CreatureSize, ItemType, SpellSchool } from "@/types/catalog";
+import type {
+  CatalogCategory,
+  CreatureSize,
+  ItemRarity,
+  ItemType,
+  SpellSchool,
+} from "@/types/catalog";
 
 import { RaceHomebrewForm } from "./race-homebrew-form";
 
@@ -43,6 +49,16 @@ const SPELL_SCHOOLS: readonly SpellSchool[] = [
   "transmutation",
 ];
 
+/** `ItemRarity` (catalog/domain.py) — fixed rarity vocabulary for magic items. */
+const ITEM_RARITIES: readonly ItemRarity[] = [
+  "common",
+  "uncommon",
+  "rare",
+  "very_rare",
+  "legendary",
+  "artifact",
+];
+
 const COMMON_FIELDS: FieldConfig[] = [
   { key: "name", label: "Nome", type: "text", required: true },
   { key: "description", label: "Descrição", type: "textarea" },
@@ -62,15 +78,15 @@ const EXTRA_FIELDS: Partial<Record<CatalogCategory, FieldConfig[]>> = {
   spells: [
     { key: "level", label: "Nível", type: "number", required: true },
     { key: "school", label: "Escola", type: "select", required: true, options: SPELL_SCHOOLS },
-    { key: "casting_time", label: "Tempo de conjuração", type: "text" },
-    { key: "range", label: "Alcance", type: "text" },
-    { key: "duration", label: "Duração", type: "text" },
-    { key: "components", label: "Componentes", type: "text" },
+    { key: "casting_time", label: "Tempo de conjuração (ex. 1 ação)", type: "text" },
+    { key: "range", label: "Alcance (metros)", type: "text" },
+    { key: "duration", label: "Duração (rodadas/minutos)", type: "text" },
+    { key: "components", label: "Componentes (V, S, M)", type: "text" },
   ],
   equipment: [
     { key: "item_type", label: "Tipo", type: "select", required: true, options: ITEM_TYPES },
-    { key: "weight", label: "Peso", type: "number" },
-    { key: "cost", label: "Custo", type: "number" },
+    { key: "weight", label: "Peso (kg)", type: "number" },
+    { key: "cost", label: "Custo (po)", type: "number" },
   ],
   monsters: [
     { key: "size", label: "Tamanho", type: "select", required: true, options: CREATURE_SIZES },
@@ -79,7 +95,9 @@ const EXTRA_FIELDS: Partial<Record<CatalogCategory, FieldConfig[]>> = {
     { key: "hit_points", label: "Pontos de vida", type: "number", required: true },
     { key: "challenge_rating", label: "Desafio (CR)", type: "number", required: true },
   ],
-  "magic-items": [{ key: "rarity", label: "Raridade", type: "text" }],
+  "magic-items": [
+    { key: "rarity", label: "Raridade", type: "select", options: ITEM_RARITIES },
+  ],
   backgrounds: [
     { key: "personality_traits", label: "Traços de personalidade", type: "textarea" },
     { key: "ideals", label: "Ideais", type: "textarea" },

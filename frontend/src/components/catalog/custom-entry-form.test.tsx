@@ -185,6 +185,52 @@ describe("CustomEntryForm", () => {
     );
   });
 
+  it("renders 'Raridade' (magic-items) as a select with the ItemRarity enum options, not a free text input", () => {
+    render(<CustomEntryForm category="magic-items" campaignId="camp-1" />);
+    const field = screen.getByLabelText(/raridade/i);
+    expect(field.tagName).toBe("SELECT");
+    const optionValues = Array.from(field.querySelectorAll("option")).map((o) => o.value);
+    expect(optionValues).toEqual(
+      expect.arrayContaining([
+        "common",
+        "uncommon",
+        "rare",
+        "very_rare",
+        "legendary",
+        "artifact",
+      ]),
+    );
+  });
+
+  it("labels unit-bearing fields with their unit (spell range/duration, equipment weight/cost)", () => {
+    render(<CustomEntryForm category="spells" campaignId="camp-1" />);
+    expect(screen.getByLabelText(/alcance \(metros\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/duração \(rodadas\/minutos\)/i)).toBeInTheDocument();
+  });
+
+  it("labels equipment weight/cost fields with their unit", () => {
+    render(<CustomEntryForm category="equipment" campaignId="camp-1" />);
+    expect(screen.getByLabelText(/peso \(kg\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/custo \(po\)/i)).toBeInTheDocument();
+  });
+
+  it("does not submit when a required select is left unselected — shows a validation error, never calls the API", async () => {
+    render(<CustomEntryForm category="spells" campaignId="camp-1" />);
+
+    fireEvent.change(screen.getByLabelText(/^nome$/i), { target: { value: "Missile Mágico" } });
+    fireEvent.change(screen.getByLabelText(/nível/i), { target: { value: "1" } });
+    // "school" (required select) is deliberately left unselected.
+
+    const form = screen.getByRole("button", { name: /criar homebrew/i }).closest("form");
+    expect(form).not.toBeNull();
+    const schoolField = screen.getByLabelText(/escola/i) as HTMLSelectElement;
+    expect(schoolField.checkValidity()).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /criar homebrew/i }));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
   it("surfaces the API's validation detail instead of a generic message on 422", async () => {
     mutateAsync.mockRejectedValueOnce(
       new ApiError(422, "Unprocessable Entity", [
