@@ -193,6 +193,14 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   de locale para o conteúdo do catálogo, telas de navegação e criação de
   conteúdo homebrew, wizard de criação de personagem e seleção de monstro
   no combat tracker.
+- Formulário de homebrew do catálogo (Fase 11, frontend): "Raridade" de
+  item mágico deixa de ser texto livre e vira `<select>` com o vocabulário
+  fixo `ItemRarity` (`custom-entry-form.tsx`), acompanhando os campos
+  `spell.school`/`equipment.item_type`/`monster.size` que já eram
+  `<select>` desde a Fase 9. Labels de unidade adicionados nos campos que
+  precisavam (alcance/duração de magia, peso/custo de equipamento,
+  tempo de conjuração, componentes) — texto livre continua onde o valor
+  não se reduz a uma unidade fixa (ex. "30 pés" vs. "Toque").
 
 ### Fixed
 - Testes de autenticação (`tests/auth/test_service.py`) falhavam com

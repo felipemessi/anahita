@@ -531,10 +531,11 @@
   - [ ] Modal de confirmação antes de excluir (ação destrutiva)
   - [ ] Teste: botão só aparece pra DM em homebrew; exclusão remove a entrada da lista; entrada SRD nunca mostra o botão
 
-- **Como mestre, quero que os campos do formulário de homebrew tenham unidades declaradas e usem seleção estruturada quando o conjunto de opções é limitado, em vez de texto livre.**
-  - [ ] `custom-entry-form.tsx`: trocar campos como `spell.school` (hoje `type: "text"` apesar do backend exigir um `MagicSchool.index` válido) e `equipment.item_type` por `<select>` com as opções reais do vocabulário fixo do catálogo
-  - [ ] Adicionar labels de unidade nos campos que precisam (ex. "alcance (metros)", "duração (rodadas/minutos)", "peso (kg)")
-  - [ ] Teste: seleção de escola de magia via `<select>` envia o `index` correto; tentativa de submissão sem selecionar um campo obrigatório mostra erro antes do POST
+- **Como mestre, quero que os campos do formulário de homebrew tenham unidades declaradas e usem seleção estruturada quando o conjunto de opções é limitado, em vez de texto livre.** ✅ (2026-08-30)
+  - [x] `custom-entry-form.tsx`: trocar campos como `spell.school` (hoje `type: "text"` apesar do backend exigir um `MagicSchool.index` válido) e `equipment.item_type` por `<select>` com as opções reais do vocabulário fixo do catálogo
+  - [x] Adicionar labels de unidade nos campos que precisam (ex. "alcance (metros)", "duração (rodadas/minutos)", "peso (kg)")
+  - [x] Teste: seleção de escola de magia via `<select>` envia o `index` correto; tentativa de submissão sem selecionar um campo obrigatório mostra erro antes do POST
+  - Notas: `spell.school`, `equipment.item_type` e `monster.size` já haviam virado `<select>` num fix anterior da Fase 9 (`747ee5c`); o gap restante desta história era `magic-item.rarity`, que ainda era `type: "text"` apesar de existir um vocabulário fixo (`ItemRarity` em `catalog/domain.py`, já espelhado em `types/catalog.ts`) — agora também é `<select>`. Labels de unidade adicionados em `spells` (alcance/duração/tempo de conjuração/componentes) e `equipment` (peso/custo); campos que já eram enum (`school`/`item_type`/`size`/`rarity`) não precisam de unidade, o rótulo já é autoexplicativo. Validação de campo obrigatório usa a constraint nativa do HTML (`required`) — testado verificando que `mutateAsync` não é chamado e `checkValidity()` retorna `false` quando um `<select required>` fica sem seleção.
 
 - **Como jogador/mestre, quero ver os detalhes técnicos de qualquer item do catálogo exibidos adequadamente, não como JSON cru.**
   - [ ] Criar componentes de detalhe dedicados por categoria (`race-detail.tsx`, `class-detail.tsx`, `spell-detail.tsx`, `item-detail.tsx`, `magic-item-detail.tsx`, `background-detail.tsx`, `feat-detail.tsx`, `rule-detail.tsx`), seguindo o padrão já estabelecido por `monster-stat-block.tsx` (grids `dl`, unidades nos labels, seções agrupadas)
