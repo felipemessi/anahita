@@ -124,6 +124,16 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   pensados para retomada entre sessões de desenvolvimento.
 
 ### Changed
+- Navegação da ficha de personagem (Fase 10, frontend): o cabeçalho da
+  página de ficha ganha um dropdown "Sessões" isolado
+  (`character-sessions-dropdown.tsx`, consumindo o novo
+  `GET /characters/{id}/sessions`) com overflow interno para a lista de
+  sessões do personagem, e um menu hambúrguer (`app-nav-menu.tsx`) que
+  agrupa a navegação geral da campanha (hoje em `campaign-sidebar.tsx`)
+  num painel overlay que fecha em Escape/clique fora, sem deslocar o
+  conteúdo da ficha. Escopo limitado à página da ficha — o layout de
+  campanha (`header.tsx`/`campaign-sidebar.tsx`/`mobile-nav.tsx`)
+  continua servindo as demais páginas sem alteração.
 - PRD do frontend atualizado para acompanhar o catálogo expandido: seletor
   de locale para o conteúdo do catálogo, telas de navegação e criação de
   conteúdo homebrew, wizard de criação de personagem e seleção de monstro

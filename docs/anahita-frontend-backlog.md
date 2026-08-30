@@ -500,10 +500,11 @@
   - [ ] UI na ficha: lista o conjunto de escolha válido (ex. "escolha 2 de: ...") derivado da raça/classe do personagem, em vez de um campo livre
   - [ ] Teste: só as opções do conjunto válido aparecem selecionáveis; proficiências fixas de raça/classe aparecem já marcadas, não editáveis
 
-- **Como jogador, quero que a navegação da ficha mostre as sessões do personagem agrupadas num dropdown (com overflow) e que a navegação geral do app fique num menu hambúrguer no topo.**
-  - [ ] `lib/api/characters.ts`: `getCharacterSessions` (novo endpoint do backend Fase 10)
-  - [ ] Reorganizar o header da página de ficha (`app/campaigns/[campaignId]/characters/[characterId]/page.tsx`): dropdown de sessões do personagem (com overflow pros que não couberem) + ícone de menu hambúrguer agrupando a navegação geral do app (hoje em `campaign-sidebar.tsx`/`header.tsx`)
-  - [ ] Teste: dropdown lista as sessões do personagem; hambúrguer abre/fecha a navegação geral sem cobrir o conteúdo da ficha
+- **Como jogador, quero que a navegação da ficha mostre as sessões do personagem agrupadas num dropdown (com overflow) e que a navegação geral do app fique num menu hambúrguer no topo.** ✅ (2026-08-30)
+  - [x] `lib/api/characters.ts`: `getCharacterSessions` (novo endpoint do backend Fase 10)
+  - [x] Reorganizar o header da página de ficha (`app/campaigns/[campaignId]/characters/[characterId]/page.tsx`): dropdown de sessões do personagem (com overflow pros que não couberem) + ícone de menu hambúrguer agrupando a navegação geral do app (hoje em `campaign-sidebar.tsx`/`header.tsx`)
+  - [x] Teste: dropdown lista as sessões do personagem; hambúrguer abre/fecha a navegação geral sem cobrir o conteúdo da ficha
+  - Notas: novo `hooks/use-character.ts` → `useCharacterSessions` sobre `getCharacterSessions`. Novo componente isolado `components/characters/character-sessions-dropdown.tsx` (botão "Sessões" + contagem, lista com `max-h-72 overflow-y-auto`, fecha em Escape/clique fora) — deixado deliberadamente separado para a próxima história (reordenar sessões) acoplar dentro dele. Novo `components/layout/app-nav-menu.tsx`: botão hambúrguer que reaproveita `NAV_ITEMS` (exportado de `campaign-sidebar.tsx`) num painel overlay `position: absolute` com backdrop — fica fechado por padrão e nunca desloca o conteúdo da ficha, só sobrepõe enquanto aberto. Escopo limitado à página da ficha (`page.tsx`); `header.tsx`/`campaign-sidebar.tsx`/`mobile-nav.tsx` do layout de campanha não foram alterados — continuam servindo as demais páginas normalmente. Papel do usuário (`role`) obtido via `useMyMembership` (já usado no layout de campanha) para decidir itens DM-only no hambúrguer.
 
 - **Como jogador, quero reordenar as sessões na minha ficha para organização pessoal.**
   - [ ] `lib/api/characters.ts`: `reorderCharacterSessions` (drag-and-drop ou botões subir/descer)
