@@ -1,9 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api/client";
+
 const useCharacterSessions = vi.fn();
+const reorderMutate = vi.fn();
 vi.mock("@/hooks/use-character", () => ({
   useCharacterSessions: (...args: unknown[]) => useCharacterSessions(...args),
+  useReorderCharacterSessions: () => ({ mutate: reorderMutate, isPending: false }),
 }));
 
 import { CharacterSessionsDropdown } from "./character-sessions-dropdown";
@@ -36,6 +40,7 @@ describe("CharacterSessionsDropdown", () => {
 
   beforeEach(() => {
     useCharacterSessions.mockReset();
+    reorderMutate.mockReset();
   });
 
   it("is closed by default", () => {
@@ -83,5 +88,71 @@ describe("CharacterSessionsDropdown", () => {
     fireEvent.click(screen.getByText(/A Fuga de Phandalin/));
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("disables the up button on the first session and the down button on the last", () => {
+    useCharacterSessions.mockReturnValue({ data: sessions, isLoading: false });
+    render(<CharacterSessionsDropdown campaignId="campaign-1" characterId="char-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /sessões/i }));
+
+    expect(screen.getByRole("button", { name: /mover sessão a fuga de phandalin para cima/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /mover sessão o covil do dragão para baixo/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /mover sessão a fuga de phandalin para baixo/i }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: /mover sessão o covil do dragão para cima/i }),
+    ).toBeEnabled();
+  });
+
+  it("moves a session down and saves the new order without touching the link's destination", () => {
+    useCharacterSessions.mockReturnValue({ data: sessions, isLoading: false });
+    render(<CharacterSessionsDropdown campaignId="campaign-1" characterId="char-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /sessões/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /mover sessão a fuga de phandalin para baixo/i }),
+    );
+
+    expect(reorderMutate).toHaveBeenCalledTimes(1);
+    expect(reorderMutate).toHaveBeenCalledWith(
+      ["session-2", "session-1"],
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
+    // The dropdown still stays open and the menu is untouched by the reorder click.
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("moves a session up by swapping it with its predecessor", () => {
+    useCharacterSessions.mockReturnValue({ data: sessions, isLoading: false });
+    render(<CharacterSessionsDropdown campaignId="campaign-1" characterId="char-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /sessões/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /mover sessão o covil do dragão para cima/i }),
+    );
+
+    expect(reorderMutate).toHaveBeenCalledWith(
+      ["session-2", "session-1"],
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
+  });
+
+  it("shows an inline error when saving the order fails (e.g. a non-owner viewer)", () => {
+    useCharacterSessions.mockReturnValue({ data: sessions, isLoading: false });
+    reorderMutate.mockImplementation((_ids, options) => {
+      options.onError(new ApiError(403, "Only the character's owner can do this"));
+    });
+    render(<CharacterSessionsDropdown campaignId="campaign-1" characterId="char-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /sessões/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /mover sessão a fuga de phandalin para baixo/i }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/only the character's owner/i);
   });
 });

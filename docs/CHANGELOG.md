@@ -9,6 +9,19 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Reordenação de sessões na ficha do personagem (Fase 10, frontend —
+  fecha as 5 histórias do frontend da Fase 10): `lib/api/characters.ts`
+  ganha `reorderCharacterSessions` sobre o
+  `PATCH /characters/{id}/sessions/order` já existente no backend. Novo
+  hook `useReorderCharacterSessions` (`hooks/use-character.ts`) faz um
+  swap otimista na lista cacheada de `useCharacterSessions`, revertendo
+  em erro. Botões subir/descer (não drag-and-drop) dentro de
+  `components/characters/character-sessions-dropdown.tsx`, a mesma
+  dropdown "Sessões" da história anterior — deixada isolada de propósito
+  para essa reordenação. Owner-only reforçado só no backend, mesmo padrão
+  de `CharacterPortrait`/`CharacterInfoEditor`: os botões aparecem para
+  qualquer visualizador da ficha e um erro de um não-dono surge inline no
+  dropdown.
 - Retrato do personagem no frontend (Fase 10): `lib/api/characters.ts`
   ganha `uploadCharacterPortrait`/`removeCharacterPortrait` (multipart,
   mesmo padrão de upload de Handouts), com os hooks

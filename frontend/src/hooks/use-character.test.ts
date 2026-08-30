@@ -8,18 +8,21 @@ const restCharacter = vi.fn();
 const updateCharacterCurrency = vi.fn();
 const updateCharacterEquipment = vi.fn();
 const getCharacter = vi.fn();
+const reorderCharacterSessions = vi.fn();
 vi.mock("@/lib/api/characters", () => ({
   updateCharacterHp: (...args: unknown[]) => updateCharacterHp(...args),
   restCharacter: (...args: unknown[]) => restCharacter(...args),
   updateCharacterCurrency: (...args: unknown[]) => updateCharacterCurrency(...args),
   updateCharacterEquipment: (...args: unknown[]) => updateCharacterEquipment(...args),
   getCharacter: (...args: unknown[]) => getCharacter(...args),
+  reorderCharacterSessions: (...args: unknown[]) => reorderCharacterSessions(...args),
 }));
 
 import {
   CHARACTERS_QUERY_KEY,
   useCharacter,
   useRestCharacter,
+  useReorderCharacterSessions,
   useUpdateCharacterCurrency,
   useUpdateCharacterEquipment,
   useUpdateCharacterHp,
@@ -252,5 +255,85 @@ describe("useUpdateCharacterEquipment", () => {
     updateResult.current.mutate({ equipmentId: "eq-1", data: { equipped: true } });
 
     await waitFor(() => expect(characterResult.current.data?.armor_class).toBe(16));
+  });
+});
+
+describe("useReorderCharacterSessions", () => {
+  const sessions = [
+    {
+      id: "session-1",
+      campaign_id: "campaign-1",
+      session_number: 1,
+      title: "A Fuga de Phandalin",
+      scheduled_date: null,
+      status: "completed" as const,
+      dm_notes: null,
+      summary: null,
+      created_at: "2026-01-01T00:00:00Z",
+    },
+    {
+      id: "session-2",
+      campaign_id: "campaign-1",
+      session_number: 2,
+      title: "O Covil do Dragão",
+      scheduled_date: null,
+      status: "in_progress" as const,
+      dm_notes: null,
+      summary: null,
+      created_at: "2026-01-08T00:00:00Z",
+    },
+  ];
+
+  beforeEach(() => {
+    reorderCharacterSessions.mockReset();
+  });
+
+  function setupSessions() {
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData([...CHARACTERS_QUERY_KEY, "char-1", "sessions"], sessions);
+    return { queryClient, wrapper };
+  }
+
+  it("updates the cached order optimistically, before the request resolves", async () => {
+    let resolveRequest!: (value: typeof sessions) => void;
+    reorderCharacterSessions.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    const { queryClient, wrapper } = setupSessions();
+    const { result } = renderHook(() => useReorderCharacterSessions("char-1"), { wrapper });
+
+    result.current.mutate(["session-2", "session-1"]);
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<typeof sessions>([
+        ...CHARACTERS_QUERY_KEY,
+        "char-1",
+        "sessions",
+      ]);
+      expect(cached?.map((s) => s.id)).toEqual(["session-2", "session-1"]);
+    });
+
+    resolveRequest([...sessions].reverse());
+  });
+
+  it("rolls back the cached order when the request fails", async () => {
+    reorderCharacterSessions.mockRejectedValueOnce(new Error("forbidden"));
+
+    const { queryClient, wrapper } = setupSessions();
+    const { result } = renderHook(() => useReorderCharacterSessions("char-1"), { wrapper });
+
+    result.current.mutate(["session-2", "session-1"]);
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<typeof sessions>([
+        ...CHARACTERS_QUERY_KEY,
+        "char-1",
+        "sessions",
+      ]);
+      expect(cached?.map((s) => s.id)).toEqual(["session-1", "session-2"]);
+    });
   });
 });
