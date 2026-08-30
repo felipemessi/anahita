@@ -374,6 +374,11 @@ export interface Character {
   is_dead: boolean;
   /** The spell currently being concentrated on, if any (Fase 7). */
   concentrating_spell_id: string | null;
+  /**
+   * Resolved image URL, `null` when no portrait is set (Fase 10). Set via
+   * `uploadCharacterPortrait`/`removeCharacterPortrait`.
+   */
+  portrait_url: string | null;
   /** `10 + bonus` of the corresponding skill, computed on read (Fase 7). */
   passive_perception: number;
   passive_investigation: number;

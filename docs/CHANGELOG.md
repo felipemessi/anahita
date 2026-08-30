@@ -9,6 +9,16 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Retrato do personagem no frontend (Fase 10): `lib/api/characters.ts`
+  ganha `uploadCharacterPortrait`/`removeCharacterPortrait` (multipart,
+  mesmo padrão de upload de Handouts), com os hooks
+  `useUploadCharacterPortrait`/`useRemoveCharacterPortrait`. Novo
+  `components/characters/character-avatar.tsx` (avatar circular,
+  `border-radius: 50%`, placeholder de iniciais quando sem imagem —
+  reaproveitável nos tokens do mapa da Fase 15) e
+  `components/characters/character-portrait.tsx` (upload/troca/remoção),
+  agora no cabeçalho de `character-sheet.tsx`. `Character.portrait_url`
+  espelha o `CharacterRead.portrait_url` já resolvido pelo backend.
 - Revelação de NPCs no frontend (Fase 13): `npc-card.tsx` ganha badge
   "Oculto"/"Revelado" e botão "Revelar" (ambos DM-only), consumindo o
   `POST /npcs/{id}/reveal` já existente no backend. A listagem de NPCs do

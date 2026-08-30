@@ -490,10 +490,11 @@
   - [x] Teste: edição de nome/alinhamento/antecedente atualiza a ficha; edição de ability score mostra o aviso de confirmação antes de enviar
   - Notas: novo componente `components/characters/character-info-editor.tsx` (colapsado atrás de um botão "Editar informações" no cabeçalho da ficha), com o mesmo padrão de draft state + `onBlur`/submit do editor de HP. Nome/alinhamento/antecedente enviam o PATCH direto ao submeter o form. Alterar qualquer atributo-base abre um `ConfirmDialog` (mesmo componente do fluxo de descanso) avisando que CA/PV máximo/perícias podem mudar; só ao confirmar o PATCH é disparado. O payload só inclui os campos realmente alterados (`ability_scores` é parcial — só as habilidades editadas). Raça/classe permanecem sem UI de edição (fora de escopo, backend não aceita).
 
-- **Como jogador, quero colocar uma imagem no meu personagem, exibida "redonda" na ficha e (depois) no mapa.**
-  - [ ] `lib/api/characters.ts`: `uploadCharacterPortrait` (multipart, mesmo padrão de upload de Handouts)
-  - [ ] Componente de avatar circular (`border-radius: 50%`) no cabeçalho da ficha, reaproveitado depois nos tokens do mapa (Fase 15)
-  - [ ] Teste: upload atualiza o avatar exibido; personagem sem imagem mostra um placeholder (iniciais ou ícone)
+- **Como jogador, quero colocar uma imagem no meu personagem, exibida "redonda" na ficha e (depois) no mapa.** ✅ (2026-08-30)
+  - [x] `lib/api/characters.ts`: `uploadCharacterPortrait` (multipart, mesmo padrão de upload de Handouts)
+  - [x] Componente de avatar circular (`border-radius: 50%`) no cabeçalho da ficha, reaproveitado depois nos tokens do mapa (Fase 15)
+  - [x] Teste: upload atualiza o avatar exibido; personagem sem imagem mostra um placeholder (iniciais ou ícone)
+  - Notas: `lib/api/characters.ts` ganhou `uploadCharacterPortrait`/`removeCharacterPortrait` (mesmo padrão multipart de `createHandout`), com hooks `useUploadCharacterPortrait`/`useRemoveCharacterPortrait` em `hooks/use-character.ts`. Split em dois componentes: `components/characters/character-avatar.tsx` (puramente visual — circular, placeholder de iniciais quando sem `portrait_url`, deliberadamente sem lógica de upload para ser reaproveitado nos tokens do mapa na Fase 15) e `components/characters/character-portrait.tsx` (wrapper com upload/troca/remoção, usado no cabeçalho da `character-sheet.tsx`). `Character.portrait_url` (tipo) espelha `CharacterRead.portrait_url` do backend; `CharacterSummary` não ganhou o campo (backend também não expõe para quem não é dono/DM). Upload/remoção são owner-only no backend — o frontend não faz checagem própria de dono, só exibe o erro retornado (mesmo padrão do `CharacterInfoEditor`).
 
 - **Como jogador, quero marcar minhas proficiências com base nas capacidades da minha raça e classe(s), não livremente.**
   - [ ] `lib/api/characters.ts`/`hooks/use-character.ts`: consumir o novo endpoint de escolha restrita de proficiência

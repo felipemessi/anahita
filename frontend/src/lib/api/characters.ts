@@ -284,6 +284,31 @@ export function updateCharacterCurrency(
   });
 }
 
+/**
+ * Set (or replace) a character's portrait image. Owner only. Sent as
+ * `multipart/form-data`, same pattern as `createHandout` — see
+ * backend/app/characters/router.py.
+ */
+export function uploadCharacterPortrait(
+  characterId: string,
+  file: File,
+): Promise<Character> {
+  const form = new FormData();
+  form.append("file", file);
+
+  return apiFetch<Character>(`/characters/${characterId}/portrait`, {
+    method: "POST",
+    body: form,
+  });
+}
+
+/** Remove a character's portrait, reverting to the imageless state. Owner only. */
+export function removeCharacterPortrait(characterId: string): Promise<Character> {
+  return apiFetch<Character>(`/characters/${characterId}/portrait`, {
+    method: "DELETE",
+  });
+}
+
 /** Record a class/feat feature on a character. */
 export function addCharacterFeature(
   characterId: string,
