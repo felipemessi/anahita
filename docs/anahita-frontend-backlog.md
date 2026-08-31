@@ -600,13 +600,15 @@
 
 > Depende do backend Fase 14.
 
-- **Como jogador, quero que ao reivindicar um item de loot ele entre no meu inventário de personagem de verdade.**
-  - [ ] `loot-table.tsx`: após claim bem-sucedido, invalidar/atualizar a query de equipamento do personagem (`useCharacter`) pra refletir o novo item na ficha
-  - [ ] Teste: claim de loot atualiza a seção de Equipamento da ficha do personagem que reivindicou
+- **Como jogador, quero que ao reivindicar um item de loot ele entre no meu inventário de personagem de verdade.** ✅ (2026-08-31)
+  - [x] `loot-table.tsx`: após claim bem-sucedido, invalidar/atualizar a query de equipamento do personagem (`useCharacter`) pra refletir o novo item na ficha
+  - [x] Teste: claim de loot atualiza a seção de Equipamento da ficha do personagem que reivindicou
+  - Notas: `useClaimLootDrop` (hooks/use-inventory.ts) agora invalida `[...CHARACTERS_QUERY_KEY, character_id]` além do feed de loot da campanha, no `onSuccess`, usando o `character_id` da própria variável da mutation — sem precisar de payload extra do backend, já que `claim_loot_drop` já mescla o item em `CharacterEquipment`.
 
-- **Como mestre, quero atribuir um item de loot a qualquer jogador diretamente.**
-  - [ ] `loot-table.tsx`: menu "atribuir a..." por item de loot, visível só pro DM, listando os personagens da campanha
-  - [ ] Teste: DM atribui loot a um personagem que não é o seu; ação não aparece pra jogador comum
+- **Como mestre, quero atribuir um item de loot a qualquer jogador diretamente.** ✅ (2026-08-31)
+  - [x] `loot-table.tsx`: menu "atribuir a..." por item de loot, visível só pro DM, listando os personagens da campanha
+  - [x] Teste: DM atribui loot a um personagem que não é o seu; ação não aparece pra jogador comum
+  - Notas: `LootTable` ganhou props opcionais `isDm`/`characters` (tipadas como `Character | CharacterSummary`, mesmo union que `useCharacters` já retorna); a página de inventário passa `isDm` (via `useMyMembership`) e a lista de personagens da campanha. O menu reusa o mesmo `useClaimLootDrop`/endpoint de claim já usado pelo botão "Reivindicar".
 
 ---
 

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const useCatalogEntry = vi.fn();
@@ -13,6 +13,7 @@ vi.mock("@/hooks/use-inventory", () => ({
 
 import { LootTable } from "./loot-table";
 import type { LootDrop } from "@/types/inventory";
+import type { CharacterSummary } from "@/types/character";
 
 describe("LootTable", () => {
   const lootDrops: LootDrop[] = [
@@ -109,5 +110,67 @@ describe("LootTable", () => {
     render(<LootTable lootDrops={[]} campaignId="campaign-1" myCharacterId={null} />);
 
     expect(screen.getByText(/nenhum loot registrado/i)).toBeInTheDocument();
+  });
+
+  const campaignCharacters: CharacterSummary[] = [
+    {
+      id: "char-2",
+      campaign_member_id: "mem-2",
+      name: "Borin",
+      race_id: "race-1",
+      subrace_id: null,
+      level: 1,
+      classes: [],
+    },
+    {
+      id: "char-3",
+      campaign_member_id: "mem-3",
+      name: "Elowen",
+      race_id: "race-1",
+      subrace_id: null,
+      level: 1,
+      classes: [],
+    },
+  ];
+
+  it("lets the DM assign an unclaimed drop to any campaign character", () => {
+    useCatalogEntry.mockReturnValue({ data: undefined });
+    const mutate = vi.fn();
+    useClaimLootDrop.mockReturnValue({ mutate, isPending: false });
+
+    render(
+      <LootTable
+        lootDrops={[lootDrops[0] as LootDrop]}
+        campaignId="campaign-1"
+        myCharacterId={null}
+        isDm
+        characters={campaignCharacters}
+      />,
+    );
+
+    const select = screen.getByLabelText(/atribuir a/i);
+    fireEvent.change(select, { target: { value: "char-3" } });
+
+    expect(mutate).toHaveBeenCalledWith({
+      lootDropId: "drop-catalog",
+      data: { character_id: "char-3" },
+    });
+  });
+
+  it("hides the assign menu for a non-DM player", () => {
+    useCatalogEntry.mockReturnValue({ data: undefined });
+    useClaimLootDrop.mockReturnValue({ mutate: vi.fn(), isPending: false });
+
+    render(
+      <LootTable
+        lootDrops={[lootDrops[0] as LootDrop]}
+        campaignId="campaign-1"
+        myCharacterId="char-2"
+        isDm={false}
+        characters={campaignCharacters}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/atribuir a/i)).not.toBeInTheDocument();
   });
 });
