@@ -404,14 +404,16 @@
 
 > Objetivo: reivindicar um item de loot deve de fato colocá-lo no inventário do personagem.
 
-- **Como jogador, quero que ao reivindicar um item de loot ele entre no meu inventário de personagem de verdade.**
-  - [ ] Estender `InventoryService.claim_loot_drop` (hoje só marca `LootDrop.claimed_by`) para criar/mesclar o item reivindicado em `CharacterEquipment` (ou tabela de inventário equivalente) do personagem
-  - [ ] Tratar os 3 tipos de loot (`item` de catálogo, `magic_item`, custom por nome) na hora de criar a entrada de equipamento
-  - [ ] Testes: claim de cada um dos 3 tipos cria a entrada correta no inventário do personagem; claim duplicado continua rejeitado (409, comportamento já existente)
+- **Como jogador, quero que ao reivindicar um item de loot ele entre no meu inventário de personagem de verdade.** ✅ (2026-08-31)
+  - [x] Estender `InventoryService.claim_loot_drop` (hoje só marca `LootDrop.claimed_by`) para criar/mesclar o item reivindicado em `CharacterEquipment` (ou tabela de inventário equivalente) do personagem
+  - [x] Tratar os 3 tipos de loot (`item` de catálogo, `magic_item`, custom por nome) na hora de criar a entrada de equipamento
+  - [x] Testes: claim de cada um dos 3 tipos cria a entrada correta no inventário do personagem; claim duplicado continua rejeitado (409, comportamento já existente)
+  - Notas: `CharacterEquipment` foi estendido com `magic_item_id`/`custom_item_name` (nullable, mutuamente exclusivos com `item_id`, mesmo padrão de `LootDrop`) via migration `b2c3d4e5f6a7`. `claim_loot_drop` agora mescla quantidade em uma entrada existente do mesmo item (catálogo/mágico/custom) ou cria uma nova; drop de moeda pura não gera entrada de equipamento.
 
-- **Como mestre, quero atribuir um item de loot a qualquer jogador diretamente, não só esperar que ele reivindique.**
-  - [ ] Confirmar/formalizar que `claim_loot_drop` já aceita ser chamado pelo DM em nome de qualquer personagem da campanha (regra "próprio jogador ou DM" já existente) — se a checagem de autorização não cobrir esse caso claramente, ajustar
-  - [ ] Testes: DM atribui loot a um personagem que não é o seu; jogador tentando atribuir a outro personagem que não o seu é rejeitado (403)
+- **Como mestre, quero atribuir um item de loot a qualquer jogador diretamente, não só esperar que ele reivindique.** ✅ (2026-08-31)
+  - [x] Confirmar/formalizar que `claim_loot_drop` já aceita ser chamado pelo DM em nome de qualquer personagem da campanha (regra "próprio jogador ou DM" já existente) — se a checagem de autorização não cobrir esse caso claramente, ajustar
+  - [x] Testes: DM atribui loot a um personagem que não é o seu; jogador tentando atribuir a outro personagem que não o seu é rejeitado (403)
+  - Notas: `_require_owner_or_dm` já cobria corretamente essa regra; nenhuma mudança de autorização foi necessária, só testes formalizando o comportamento.
 
 ---
 

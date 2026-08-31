@@ -54,6 +54,8 @@ class _CampaignFixture:
         character_id: uuid.UUID,
         item_id: uuid.UUID,
         magic_item_id: uuid.UUID,
+        other_player_id: uuid.UUID,
+        other_character_id: uuid.UUID,
     ) -> None:
         self.campaign_id = campaign_id
         self.session_id = session_id
@@ -63,6 +65,8 @@ class _CampaignFixture:
         self.character_id = character_id
         self.item_id = item_id
         self.magic_item_id = magic_item_id
+        self.other_player_id = other_player_id
+        self.other_character_id = other_character_id
 
 
 @pytest.fixture
@@ -80,13 +84,22 @@ async def campaign_with_encounter(db: AsyncSession) -> _CampaignFixture:
     db.add(campaign)
     await db.flush()
 
+    other_player = User(
+        email="other-player@example.com", username="other-player", hashed_password="x"
+    )
+    db.add(other_player)
+    await db.flush()
+
     dm_member = CampaignMember(
         campaign_id=campaign.id, user_id=dm.id, role=CampaignRole.dm
     )
     player_member = CampaignMember(
         campaign_id=campaign.id, user_id=player.id, role=CampaignRole.player
     )
-    db.add_all([dm_member, player_member])
+    other_player_member = CampaignMember(
+        campaign_id=campaign.id, user_id=other_player.id, role=CampaignRole.player
+    )
+    db.add_all([dm_member, player_member, other_player_member])
     await db.flush()
 
     session = Session(campaign_id=campaign.id, session_number=1, title="Session 1")
@@ -129,7 +142,18 @@ async def campaign_with_encounter(db: AsyncSession) -> _CampaignFixture:
         speed=30,
         proficiency_bonus=2,
     )
-    db.add(character)
+    other_character = Character(
+        campaign_member_id=other_player_member.id,
+        name="Borin",
+        race_id=uuid.uuid4(),
+        level=1,
+        hit_point_max=10,
+        hit_point_current=10,
+        armor_class=12,
+        speed=30,
+        proficiency_bonus=2,
+    )
+    db.add_all([character, other_character])
     await db.commit()
 
     return _CampaignFixture(
@@ -141,4 +165,6 @@ async def campaign_with_encounter(db: AsyncSession) -> _CampaignFixture:
         character_id=character.id,
         item_id=item.id,
         magic_item_id=magic_item.id,
+        other_player_id=other_player.id,
+        other_character_id=other_character.id,
     )
