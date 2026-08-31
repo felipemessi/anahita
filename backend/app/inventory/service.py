@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
 from app.catalog.models import Item, MagicItem
-from app.characters.models import Character
+from app.characters.models import Character, CharacterEquipment
 from app.combat.models import Encounter
 from app.inventory.domain import LootDropKindError, validate_loot_drop_kind
 from app.inventory.models import LootDrop, PartyInventory
@@ -151,9 +151,18 @@ class InventoryService:
         character_id: uuid.UUID,
         db: AsyncSession,
     ) -> LootDropRead:
-        """Claim a loot drop for a character.
+        """Claim a loot drop for a character, adding it to their inventory.
 
-        Allowed for the character's own player, or the campaign's DM.
+        Allowed for the character's own player, or the campaign's DM acting
+        on behalf of any character in the campaign (`_require_owner_or_dm`
+        below enforces "own character or DM").
+
+        The claimed item (catalog, magic, or custom — `LootDrop`'s three
+        mutually-exclusive kinds, see `app.inventory.domain.
+        validate_loot_drop_kind`) is merged into a matching
+        `CharacterEquipment` entry if one already exists, or created
+        otherwise. A pure-currency drop (no item) has nothing to add to the
+        equipment list.
         """
         result = await db.execute(select(LootDrop).where(LootDrop.id == loot_drop_id))
         drop = result.scalar_one_or_none()
@@ -177,9 +186,57 @@ class InventoryService:
         )
 
         drop.claimed_by = character.id
+        await self._add_loot_to_equipment(character.id, drop, db)
         await db.commit()
         await db.refresh(drop)
         return LootDropRead.model_validate(drop)
+
+    async def _add_loot_to_equipment(
+        self, character_id: uuid.UUID, drop: LootDrop, db: AsyncSession
+    ) -> None:
+        """Merge/create the `CharacterEquipment` entry for a claimed loot drop.
+
+        `LootDrop` guarantees at most one of `item_id`/`magic_item_id`/
+        `custom_item_name` is set (`validate_loot_drop_kind`), so a pure
+        currency drop with none of the three simply does nothing here.
+        """
+        if drop.item_id is not None:
+            match = select(CharacterEquipment).where(
+                CharacterEquipment.character_id == character_id,
+                CharacterEquipment.item_id == drop.item_id,
+                CharacterEquipment.magic_item_id.is_(None),
+                CharacterEquipment.custom_item_name.is_(None),
+            )
+        elif drop.magic_item_id is not None:
+            match = select(CharacterEquipment).where(
+                CharacterEquipment.character_id == character_id,
+                CharacterEquipment.magic_item_id == drop.magic_item_id,
+            )
+        elif drop.custom_item_name is not None:
+            match = select(CharacterEquipment).where(
+                CharacterEquipment.character_id == character_id,
+                CharacterEquipment.custom_item_name == drop.custom_item_name,
+                CharacterEquipment.item_id.is_(None),
+                CharacterEquipment.magic_item_id.is_(None),
+            )
+        else:
+            return
+
+        result = await db.execute(match)
+        existing = result.scalar_one_or_none()
+        if existing is not None:
+            existing.quantity += drop.quantity
+            return
+
+        db.add(
+            CharacterEquipment(
+                character_id=character_id,
+                item_id=drop.item_id,
+                magic_item_id=drop.magic_item_id,
+                custom_item_name=drop.custom_item_name,
+                quantity=drop.quantity,
+            )
+        )
 
     async def _load_inventory_entry_or_404(
         self, campaign_id: uuid.UUID, entry_id: uuid.UUID, db: AsyncSession

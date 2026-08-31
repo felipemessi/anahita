@@ -383,15 +383,27 @@ class CharacterResource(Base):
 
 
 class CharacterEquipment(Base):
-    """An item a character carries."""
+    """An item a character carries.
+
+    `item_id`, `magic_item_id`, and `custom_item_name` are mutually
+    exclusive, mirroring `app.inventory.models.LootDrop` — an entry is a
+    catalog item, a magic item, or a free-text one, never more than one.
+    Manually-added entries (via the character sheet's equipment endpoints)
+    are always catalog items; magic/custom entries are created only when
+    claiming a loot drop of that kind (`InventoryService.claim_loot_drop`).
+    """
 
     __tablename__ = "character_equipment"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     character_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("characters.id"))
-    item_id: Mapped[uuid.UUID] = mapped_column(
+    item_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("catalog_items.id")
     )
+    magic_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("catalog_magic_items.id")
+    )
+    custom_item_name: Mapped[str | None] = mapped_column(String(255))
     equipped: Mapped[bool] = mapped_column(Boolean, default=False)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     attunement: Mapped[bool] = mapped_column(Boolean, default=False)

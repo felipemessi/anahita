@@ -329,12 +329,19 @@ class CharacterEquipmentCreate(BaseModel):
 
 
 class CharacterEquipmentRead(BaseModel):
-    """Response schema for an item in a character's personal inventory."""
+    """Response schema for an item in a character's personal inventory.
+
+    `item_id` is set for catalog-item entries (the only kind the manual
+    add-equipment endpoint creates); `magic_item_id`/`custom_item_name` are
+    set instead for entries created by claiming a magic/custom loot drop.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    item_id: uuid.UUID
+    item_id: uuid.UUID | None
+    magic_item_id: uuid.UUID | None = None
+    custom_item_name: str | None = None
     equipped: bool
     quantity: int
     attunement: bool

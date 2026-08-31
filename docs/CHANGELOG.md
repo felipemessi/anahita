@@ -9,6 +9,19 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Loot reivindicado entra de fato no inventário do personagem (Fase 14 —
+  fecha o backend da fase): `InventoryService.claim_loot_drop` agora
+  cria/mescla uma entrada em `CharacterEquipment` para o item reivindicado,
+  cobrindo os 3 tipos de loot (item de catálogo, magic item, item custom
+  por nome) — uma segunda claim do mesmo item empilha na entrada existente
+  em vez de duplicar. `CharacterEquipment` ganhou `magic_item_id` e
+  `custom_item_name` (nullable, mutuamente exclusivos com `item_id`, mesmo
+  padrão do `LootDrop`), via migration `b2c3d4e5f6a7`.
+- Testes formalizando que o mestre pode atribuir loot a qualquer personagem
+  da campanha via `claim_loot_drop`, e que um jogador não pode atribuir
+  loot ao personagem de outro jogador (403) — Fase 14; a checagem de
+  autorização ("próprio jogador ou DM") já existia e não precisou de
+  ajuste.
 - Duração de magia com contador de tempo restante (Fase 12 — fecha o backend
   da fase): expandido `Character.concentrating_spell_id` para carregar
   duração/expiração ativa (`concentration_encounter_id`,
