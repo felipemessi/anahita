@@ -136,6 +136,7 @@ export type CombatActionType =
   | "search"
   | "legendary_action"
   | "reaction"
+  | "use_class_resource"
   | "other";
 
 export interface CombatLogEntry {

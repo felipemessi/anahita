@@ -28,6 +28,19 @@ export interface WSErrorPayload {
   detail: string;
 }
 
+/**
+ * One target's Wisdom save outcome from a `use_class_resource` effect
+ * (Fase 12, e.g. Channel Divinity: Turn Undead) — mirrors
+ * `ClassResourceTargetOutcome`.
+ */
+export interface ClassResourceTargetOutcome {
+  participant_id: string;
+  save_roll: number;
+  save_dc: number;
+  succeeded: boolean;
+  condition_applied: string | null;
+}
+
 /** Response payload for the `declare_action` command — mirrors `DeclareActionResultRead`. */
 export interface DeclareActionResult {
   actor_id: string;
@@ -38,12 +51,21 @@ export interface DeclareActionResult {
   hit: boolean | null;
   damage_rolled: number | null;
   damage_type: string | null;
+  /**
+   * A `cast_only` spell's direct heal (Fase 12, e.g. Cure Wounds) —
+   * mutually exclusive with `damage_rolled` on the same result.
+   */
+  healing_applied: number | null;
   condition_applied: string | null;
   attacker_check: number | null;
   target_check: number | null;
   description: string;
   /** Same convention as `EncounterParticipant.concentration_dc` (Fase 7). */
   concentration_dc: number | null;
+  /** `use_class_resource` only (Fase 12) — which resource was spent. */
+  resource_key: string | null;
+  /** `use_class_resource` only — empty when the option has no mapped effect. */
+  resource_targets: ClassResourceTargetOutcome[];
 }
 
 /** Server → client events. */
@@ -103,6 +125,11 @@ export interface WSDeclareActionPayload {
   manual_attack_roll?: number;
   manual_damage_roll?: number;
   manual_target_roll?: number;
+  /** `use_class_resource` only (Fase 12) — see `WSDeclareActionPayload`'s backend docstring. */
+  resource_key?: string;
+  resource_option_id?: string;
+  additional_target_ids?: string[];
+  manual_save_rolls?: Record<string, number>;
 }
 
 /**
