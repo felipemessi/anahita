@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { CHARACTERS_QUERY_KEY } from "@/hooks/use-character";
 import {
   addToInventory,
   claimLootDrop,
@@ -106,7 +107,12 @@ export function useCreateLootDrop(campaignId: string) {
   });
 }
 
-/** Claim a loot drop for a character; invalidates the campaign's loot feed. */
+/**
+ * Claim a loot drop for a character (the player's own, or — via the DM
+ * "atribuir a..." menu — any character in the campaign). Invalidates the
+ * campaign's loot feed and the claiming character's sheet, since the
+ * backend now merges the claimed item into `CharacterEquipment` (Fase 14).
+ */
 export function useClaimLootDrop(campaignId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -117,8 +123,11 @@ export function useClaimLootDrop(campaignId: string) {
       lootDropId: string;
       data: LootDropClaim;
     }) => claimLootDrop(lootDropId, data),
-    onSuccess: () => {
+    onSuccess: (_lootDrop, variables) => {
       void queryClient.invalidateQueries({ queryKey: [...LOOT_QUERY_KEY, campaignId] });
+      void queryClient.invalidateQueries({
+        queryKey: [...CHARACTERS_QUERY_KEY, variables.data.character_id],
+      });
     },
   });
 }

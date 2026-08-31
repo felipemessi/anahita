@@ -178,6 +178,8 @@ export default function InventoryPage() {
             lootDrops={lootDrops ?? []}
             campaignId={campaignId}
             myCharacterId={myCharacterId}
+            isDm={isDm}
+            characters={characters ?? []}
           />
         )}
       </section>

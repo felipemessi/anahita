@@ -17,6 +17,18 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   uma magia de cura/dano direto (ex. Cure Wounds) em combate agora passa
   pelo mesmo caminho de resolução dos ataques, aplicando a cura/dano ao
   alvo de verdade em vez de só registrar o cast sem efeito.
+- Loot reivindicado atualiza a ficha do personagem em tempo real no
+  frontend (Fase 14 — fecha o frontend da fase): `useClaimLootDrop`
+  (`frontend/src/hooks/use-inventory.ts`) agora invalida a query do
+  `useCharacter` do personagem que reivindicou, além do feed de loot da
+  campanha, refletindo o item mesclado em `CharacterEquipment` (pelo
+  backend, já mergeado) direto na seção de Equipamento da ficha.
+- Menu "atribuir a..." no `loot-table.tsx` (Fase 14 frontend): o DM pode
+  atribuir um item de loot ainda não reivindicado a qualquer personagem da
+  campanha, sem depender do jogador dono clicar em "Reivindicar" — reusa o
+  mesmo endpoint/hook de claim. Visível só pro DM (`isDm`), listando os
+  personagens da campanha; jogadores comuns continuam vendo só o botão
+  "Reivindicar" do próprio personagem.
 - Contador de duração de magia no frontend (Fase 12): novo `DurationCounter`
   (`frontend/src/components/characters/duration-counter.tsx`), integrado ao
   `ConcentrationIndicator` existente (Fase 7) via prop opcional
