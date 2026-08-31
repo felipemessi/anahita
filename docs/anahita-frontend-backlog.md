@@ -556,10 +556,11 @@
   - [ ] Confirmar que `action-picker.tsx` (kind `cast_spell_effect`) já cobre cura/buff corretamente após o fix de backend da Fase 12; ajustar UI se o backend passar a exigir/retornar algo novo pra esses casos
   - [ ] Teste: conjurar uma magia de cura em combate aplica o HP ao alvo selecionado e reflete no `participant-card.tsx` correspondente
 
-- **Como jogador, quero ver um contador de duração de magia, respeitando rodadas em combate e tempo real fora de combate, destacando quando está prestes a expirar.**
-  - [ ] Componente de contador de duração (reaproveitando o indicador de concentração já existente, Fase 7) — modo rodadas (decrementa a cada `turn_advanced` recebido via WS) e modo tempo real (contagem regressiva client-side a partir de `expires_at`)
-  - [ ] Destaque visual (cor/animação) nos últimos segundos/rodadas antes de expirar
-  - [ ] Teste: contador em modo rodadas decrementa corretamente a cada turno; contador em modo tempo real expira no momento certo
+- **Como jogador, quero ver um contador de duração de magia, respeitando rodadas em combate e tempo real fora de combate, destacando quando está prestes a expirar.** ✅ (2026-08-31)
+  - [x] Componente de contador de duração (reaproveitando o indicador de concentração já existente, Fase 7) — modo rodadas (decrementa a cada `turn_advanced` recebido via WS) e modo tempo real (contagem regressiva client-side a partir de `expires_at`)
+  - [x] Destaque visual (cor/animação) nos últimos segundos/rodadas antes de expirar
+  - [x] Teste: contador em modo rodadas decrementa corretamente a cada turno; contador em modo tempo real expira no momento certo
+  - Notas: novo `DurationCounter` (`frontend/src/components/characters/duration-counter.tsx`), integrado no `ConcentrationIndicator` existente via prop opcional `concentrationRemaining` (não quebra os usos/testes sem a prop). Modo rodadas lê `useOptionalCombatContext().encounter.current_round` (novo hook não-throwing em `combat-provider.tsx`, `null` fora de um `CombatProvider`, ex.: ficha standalone) e decrementa 1 rodada por incremento de `current_round`, não por `turn_advanced` bruto (várias trocas de turno podem ocorrer sem fechar a rodada). Modo tempo real usa `setInterval` client-side a partir de `remaining_seconds`. Destaque "urgente" (pulse + `role="alert"`): última rodada ou últimos 6s restantes.
 
 ---
 

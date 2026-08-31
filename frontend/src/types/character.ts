@@ -290,6 +290,21 @@ export interface CharacterConcentrationRequest {
   spell_id?: string | null;
 }
 
+/**
+ * Remaining duration on a character's active concentration, for a UI
+ * countdown (Fase 12) — mirrors `ConcentrationRemainingRead`. `mode` is
+ * `null` when not concentrating, `"indefinite"` for a duration with no
+ * clock to track, `"rounds"` inside an encounter, `"seconds"` otherwise.
+ * `expired` is `true` once the remaining time hits zero, without the
+ * concentration state itself being cleared.
+ */
+export interface ConcentrationRemaining {
+  mode: "rounds" | "seconds" | "indefinite" | null;
+  remaining_rounds: number | null;
+  remaining_seconds: number | null;
+  expired: boolean;
+}
+
 /** One class the character already has, or a new one via multiclass (Fase 7). */
 export interface CharacterLevelUpRequest {
   class_definition_id: string;
@@ -392,6 +407,8 @@ export interface Character {
   is_dead: boolean;
   /** The spell currently being concentrated on, if any (Fase 7). */
   concentrating_spell_id: string | null;
+  /** Live duration countdown for `concentrating_spell_id` (Fase 12). */
+  concentration_remaining: ConcentrationRemaining;
   /**
    * Resolved image URL, `null` when no portrait is set (Fase 10). Set via
    * `uploadCharacterPortrait`/`removeCharacterPortrait`.

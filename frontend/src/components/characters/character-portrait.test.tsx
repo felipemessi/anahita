@@ -33,6 +33,7 @@ const baseCharacter: Character = {
   death_save_failures: 0,
   is_dead: false,
   concentrating_spell_id: null,
+  concentration_remaining: { mode: null, remaining_rounds: null, remaining_seconds: null, expired: false },
   portrait_url: null,
   passive_perception: 10,
   passive_investigation: 10,

@@ -146,3 +146,13 @@ export function useCombatContext(): CombatContextValue {
   }
   return context;
 }
+
+/**
+ * Same as `useCombatContext`, but `null` outside a `CombatProvider` instead
+ * of throwing — for components rendered both inside and outside combat
+ * (e.g. `ConcentrationIndicator` on the character sheet vs. the combat
+ * tracker), where WS-driven round updates are a bonus, not a requirement.
+ */
+export function useOptionalCombatContext(): CombatContextValue | null {
+  return useContext(CombatContext);
+}

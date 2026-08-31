@@ -9,6 +9,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Contador de duração de magia no frontend (Fase 12): novo `DurationCounter`
+  (`frontend/src/components/characters/duration-counter.tsx`), integrado ao
+  `ConcentrationIndicator` existente (Fase 7) via prop opcional
+  `concentrationRemaining`, alimentada por `Character.concentration_remaining`
+  do backend. Modo rodadas decrementa conforme `current_round` avança no
+  `CombatProvider` (via `turn_advanced` sobre o WS de combate, novo hook
+  `useOptionalCombatContext`); modo tempo real conta em segundos client-side
+  a partir de `remaining_seconds`. Destaque visual (pulse + `role="alert"`)
+  na última rodada ou nos últimos 6 segundos antes de expirar.
 - Duração de magia com contador de tempo restante (Fase 12 — fecha o backend
   da fase): expandido `Character.concentrating_spell_id` para carregar
   duração/expiração ativa (`concentration_encounter_id`,

@@ -201,6 +201,7 @@ export function CharacterSheet({
         <ConcentrationIndicator
           characterId={character.id}
           concentratingSpellId={character.concentrating_spell_id}
+          concentrationRemaining={character.concentration_remaining}
         />
 
         <SkillList skills={character.skills} />
