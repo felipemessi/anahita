@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.catalog.domain import AbilityScore, SpellActionType
+from app.catalog.domain import AbilityScore, SpellActionType, SpellTargetType
 from app.catalog.models import (
     AbilityScoreDefinition,
     ClassDefinition,
@@ -39,12 +39,17 @@ class SpellAttackProfile:
     set only for `saving_throw` spells — there's nothing for the caster to
     roll there, the target rolls the save. `damage_dice` is `None` for a
     spell with no damage entry at the resolved level (e.g. a pure
-    debuff/utility spell) — no ability modifier is added to spell damage,
-    unlike weapon damage.
+    debuff/utility spell, or any healing spell — the catalog doesn't model
+    healing dice yet, only offensive `SpellDamage` rows) — no ability
+    modifier is added to spell damage, unlike weapon damage. `target_type`
+    is who/what the spell is cast at (Fase 8's best-guess bucket) — used by
+    `CombatService._resolve_spell_effect` (Fase 12) to tell a `cast_only`
+    spell's healing (`ally`) apart from its direct damage (anything else).
     """
 
     spell_name: str
     action_type: SpellActionType | None
+    target_type: SpellTargetType | None
     attack_bonus: int
     save_dc: int | None
     save_ability: AbilityScore | None
@@ -153,6 +158,7 @@ async def resolve_character_spell_attack(
     return SpellAttackProfile(
         spell_name=spell.index or "spell",
         action_type=spell.action_type,
+        target_type=spell.target_type,
         attack_bonus=attack_bonus,
         save_dc=save_dc,
         save_ability=save_ability,

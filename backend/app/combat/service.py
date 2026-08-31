@@ -21,7 +21,7 @@ from sqlalchemy.orm import selectinload
 
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import CampaignMember
-from app.catalog.domain import AbilityScore
+from app.catalog.domain import AbilityScore, SpellActionType, SpellTargetType
 from app.catalog.models import (
     ClassDefinition,
     Feature,
@@ -78,7 +78,7 @@ from app.queries.character_stats import (
     character_ability_modifier,
     character_proficiency_bonus,
 )
-from app.queries.spell_attack import resolve_character_spell_attack
+from app.queries.spell_attack import SpellAttackProfile, resolve_character_spell_attack
 from app.queries.weapon_attack import resolve_character_weapon_attack
 from app.sessions.models import Session
 from app.world.models import NPC
@@ -972,7 +972,28 @@ class CombatService:
         data: WSDeclareActionPayload,
         db: AsyncSession,
     ) -> DeclareActionResultRead:
-        """Resolve `attack_weapon`/`attack_spell`: to-hit roll, then damage."""
+        """Resolve `attack_weapon`/`attack_spell`: to-hit roll, then damage.
+
+        A `cast_only` spell (Fase 12) has nothing to roll to-hit — Cure
+        Wounds heals its target outright, Magic Missile auto-hits for its
+        listed damage — so a Character's `attack_spell` is checked against
+        the catalog first and, when `cast_only`, delegated to
+        `_resolve_spell_effect` instead of the to-hit flow below. Every
+        other case (weapon, monster/manual attacker, or a spell that *does*
+        roll — `attack_roll`/`saving_throw`) is unchanged.
+        """
+        if (
+            data.action_type == ActionType.attack_spell
+            and attacker.character_id is not None
+            and data.spell_entry_id is not None
+        ):
+            spell_profile = await resolve_character_spell_attack(
+                attacker.character_id, data.spell_entry_id, data.cast_at_level, db
+            )
+            if spell_profile.action_type == SpellActionType.cast_only:
+                return await self._resolve_spell_effect(
+                    encounter, attacker, target, spell_profile, data, db
+                )
         source = await self._resolve_attack_source(attacker, data, db)
         return await self._resolve_and_apply_attack(
             encounter,
@@ -983,6 +1004,95 @@ class CombatService:
             manual_attack_roll=data.manual_attack_roll,
             manual_damage_roll=data.manual_damage_roll,
             db=db,
+        )
+
+    async def _resolve_spell_effect(
+        self,
+        encounter: Encounter,
+        attacker: EncounterParticipant,
+        target: EncounterParticipant,
+        spell_profile: SpellAttackProfile,
+        data: WSDeclareActionPayload,
+        db: AsyncSession,
+    ) -> DeclareActionResultRead:
+        """Apply a `cast_only` spell's effect straight to `target` — no to-hit roll.
+
+        `target_type == ally` (e.g. Cure Wounds) heals — raises
+        `hit_point_current`, capped at `hit_point_max`; anything else with
+        a resolvable amount (e.g. Magic Missile's auto-hit force damage,
+        `target_type == enemy`) reduces it like a normal attack's damage,
+        including a target's `_concentration_dc` check. The amount comes
+        from catalog `SpellDamage` (`spell_profile.damage_dice`) when the
+        spell has one — offensive cast_only spells like Magic Missile do —
+        or `manual_damage_roll` otherwise, since the catalog doesn't model
+        healing dice yet (Fase 8 only seeded offensive damage rows): the
+        declaring client rolls Cure Wounds' `1d8 + MOD` client-side and
+        supplies the total. A cast_only spell with neither (a pure buff
+        like Mage Armor, nothing numeric to apply) is just logged as cast,
+        same as a flavor action.
+        """
+        if data.manual_damage_roll is not None:
+            amount = data.manual_damage_roll
+            rolled_by_system = False
+        elif spell_profile.damage_dice is not None:
+            amount = roll(spell_profile.damage_dice).total
+            rolled_by_system = True
+        else:
+            description = (
+                f"{attacker.name} casts {spell_profile.spell_name} on {target.name}"
+            )
+            self._log(
+                db,
+                encounter,
+                actor_id=attacker.id,
+                target_id=target.id,
+                action_type=data.action_type,
+                description=description,
+            )
+            return DeclareActionResultRead(
+                actor_id=attacker.id,
+                target_id=target.id,
+                action_type=data.action_type,
+                description=description,
+            )
+
+        is_heal = spell_profile.target_type == SpellTargetType.ally
+        if is_heal:
+            new_hp = min(target.hit_point_max, target.hit_point_current + amount)
+        else:
+            new_hp = max(0, target.hit_point_current - amount)
+        self._log_hp_change(db, encounter, target, new_hp)
+        target.hit_point_current = new_hp
+
+        concentration_dc = (
+            None if is_heal else await self._concentration_dc(target, amount, db)
+        )
+        verb = "healing" if is_heal else "dealing"
+        damage_type = None if is_heal else spell_profile.damage_type
+        description = (
+            f"{attacker.name} casts {spell_profile.spell_name} on {target.name}, "
+            f"{verb} {amount} {(damage_type or '') if not is_heal else 'HP'}".rstrip()
+        )
+        self._log(
+            db,
+            encounter,
+            actor_id=attacker.id,
+            target_id=target.id,
+            action_type=data.action_type,
+            description=description,
+            damage_dealt=None if is_heal else amount,
+            damage_type=damage_type,
+            rolled_by_system=rolled_by_system,
+        )
+        return DeclareActionResultRead(
+            actor_id=attacker.id,
+            target_id=target.id,
+            action_type=data.action_type,
+            damage_rolled=None if is_heal else amount,
+            healing_applied=amount if is_heal else None,
+            damage_type=damage_type,
+            description=description,
+            concentration_dc=concentration_dc,
         )
 
     async def _resolve_and_apply_attack(

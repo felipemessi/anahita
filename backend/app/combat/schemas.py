@@ -257,6 +257,11 @@ class DeclareActionResultRead(BaseModel):
     hit: bool | None = None
     damage_rolled: int | None = None
     damage_type: str | None = None
+    # A `cast_only` spell's direct heal (Fase 12), e.g. Cure Wounds —
+    # mutually exclusive with `damage_rolled` on the same result, set by
+    # `CombatService._resolve_spell_effect` instead of it so a client can't
+    # mistake a heal for damage dealt.
+    healing_applied: int | None = None
     condition_applied: str | None = None
     attacker_check: int | None = None
     target_check: int | None = None

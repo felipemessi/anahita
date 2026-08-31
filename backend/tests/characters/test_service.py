@@ -638,6 +638,49 @@ async def test_cast_spell_echoes_target_participant_id(
     assert result.target_participant_id == target_id
 
 
+async def test_cast_heal_spell_out_of_combat_does_not_change_hp(
+    db: AsyncSession, human_race_id: str, cleric_class_id: str
+) -> None:
+    """Casting Cure Wounds from the sheet is bookkeeping-only (Fase 12).
+
+    Outside of combat there's no `target_participant_id` to apply an effect
+    to — `cast_spell` consumes the slot, sets concentration, computes
+    `save_dc` (`None` here, Cure Wounds is `cast_only`), but never touches
+    anyone's HP. That stays `CombatService._resolve_spell_effect`'s job,
+    only reachable through `declare_action` inside an encounter.
+    """
+    owner = await _make_user(db, email="player@example.com")
+    member = await _make_membership(db, owner)
+    character_id = await _create_character(
+        db, owner, member, human_race_id, cleric_class_id
+    )
+    service = CharacterService()
+    character = await service.get_character(character_id, owner.id, db)
+    hp_before = character.hit_point_current
+
+    cure_wounds_id = await spell_id_by_index(db, "cure-wounds")
+    character = await service.add_spell(
+        character_id,
+        owner.id,
+        CharacterSpellCreate(
+            spell_id=uuid.UUID(cure_wounds_id), prepared=True, source_class="cleric"
+        ),
+        db,
+    )
+    entry_id = character.spells[0].id
+
+    result = await service.cast_spell(
+        character_id,
+        entry_id,
+        owner.id,
+        CharacterSpellCastRequest(target_participant_id=uuid.uuid4()),
+        db,
+    )
+
+    assert result.save_dc is None
+    assert result.character.hit_point_current == hp_before
+
+
 async def test_cast_cantrip_does_not_consume_slot(
     db: AsyncSession, human_race_id: str, sorcerer_class_id: str
 ) -> None:
