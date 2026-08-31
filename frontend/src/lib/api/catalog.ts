@@ -157,6 +157,22 @@ export function createCustomEntry<C extends CatalogCategory>(
 }
 
 /**
+ * Delete a homebrew catalog entry — DM only, own campaign
+ * (Fase 11: `DELETE /catalog/{category}/{id}`). The backend responds 403 on
+ * SRD content, 404 on homebrew from another campaign, and 409 if the entry
+ * is still referenced elsewhere — callers should surface `ApiError.message`
+ * for all three.
+ */
+export function deleteCustomEntry<C extends CatalogCategory>(
+  category: C,
+  entryId: string,
+): Promise<void> {
+  return apiFetch<void>(`/catalog/${CATALOG_CATEGORY_PATH[category]}/${entryId}`, {
+    method: "DELETE",
+  });
+}
+
+/**
  * Attach an ability bonus to a homebrew race — DM-only, own campaign
  * (Fase 11: `POST /catalog/races/{id}/ability-bonuses`).
  */

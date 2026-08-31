@@ -8,6 +8,7 @@ import {
   addRaceSubrace,
   addRaceTrait,
   createCustomEntry,
+  deleteCustomEntry,
   getAbilityScores,
   getCatalogEntry,
   getFeature,
@@ -104,6 +105,23 @@ export function useCreateCustomEntry<C extends CatalogCategory>(
   return useMutation({
     mutationFn: (fields: Record<string, unknown>) =>
       createCustomEntry(category, campaignId, fields),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...CATALOG_QUERY_KEY_PREFIX, category],
+      });
+    },
+  });
+}
+
+/**
+ * Delete a homebrew entry for `category` — DM only, own campaign (Fase 11).
+ * Invalidates every cached query for the category so both the list and any
+ * cached detail view drop the deleted entry.
+ */
+export function useDeleteCustomEntry<C extends CatalogCategory>(category: C) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: string) => deleteCustomEntry(category, entryId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...CATALOG_QUERY_KEY_PREFIX, category],
