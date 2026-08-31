@@ -23,6 +23,22 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
   cada leitura, nunca decrementado em disco) informa `mode`
   (`rounds`/`seconds`/`indefinite`), tempo restante e se já expirou, pra UI
   renderizar o contador.
+- Efeito direto de magias `cast_only` em combate (Fase 12): `declare_action`'s
+  `attack_spell` agora resolve o `SpellAttackProfile` do caster antes de
+  decidir o fluxo — quando o `action_type` da magia é `cast_only` (SRD:
+  nem rolagem de ataque nem resistência, ex. Cure Wounds, Magic Missile),
+  delega para o novo `CombatService._resolve_spell_effect` em vez de
+  tentar uma rolagem de ataque vs CA (que antes quebrava com 422 pra
+  cura, por falta de expressão de dano). Sem rolagem de acerto: cura
+  (`target_type == ally`) aplica direto em `hit_point_current`, capado em
+  `hit_point_max`; qualquer outro alvo aplica dano direto, com o mesmo
+  `_concentration_dc` de um ataque normal. O valor vem do `SpellDamage`
+  do catálogo quando a magia tem um (Magic Missile) ou de
+  `manual_damage_roll` quando não (toda cura hoje — catálogo ainda não
+  modela dado de cura). `DeclareActionResultRead` ganha `healing_applied`,
+  separado de `damage_rolled`. Fora de combate, `CharacterService.cast_spell`
+  já era bookkeeping-only e continua sem mudança de código. Ver notas da
+  história na Fase 12 do `anahita-backend-backlog.md`.
 - Recursos de classe geradores de ação em combate (Fase 12): novo
   `ActionType.use_class_resource` — `declare_action` agora consome um
   recurso de classe (`CharacterService.use_resource`) e resolve seu

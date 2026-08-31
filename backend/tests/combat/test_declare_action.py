@@ -46,6 +46,7 @@ from app.combat.models import Encounter, EncounterParticipant
 from app.combat.schemas import (
     EncounterCreate,
     EncounterParticipantCreate,
+    EncounterParticipantUpdate,
     WSDeclareActionPayload,
     WSTriggerReactionPayload,
     WSUseLegendaryActionPayload,
@@ -961,6 +962,277 @@ async def test_declare_spell_attack_resolves_catalog_damage(
     assert result.attack_bonus == 2
     assert result.damage_rolled is not None
     assert result.damage_type == "fire"
+
+
+async def test_declare_cast_only_heal_spell_applies_hp_to_target(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Cure Wounds (`cast_only`, `target_type=ally`) heals the target directly.
+
+    No to-hit roll — the caster's `attack_spell` declaration for a
+    `cast_only` spell is resolved by `_resolve_spell_effect`, not
+    `_resolve_and_apply_attack` (Fase 12). The catalog has no healing dice
+    for Cure Wounds, so the caster supplies the rolled amount via
+    `manual_damage_roll`, capped at the target's `hit_point_max`.
+    """
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+
+    race_result = await db.execute(select(Race).where(Race.index == "human"))
+    race_id = race_result.scalar_one().id
+    class_result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "cleric")
+    )
+    cleric_class_id = class_result.scalar_one().id
+    spell_result = await db.execute(select(Spell).where(Spell.index == "cure-wounds"))
+    cure_wounds_id = spell_result.scalar_one().id
+
+    campaign_result = await db.execute(
+        select(CampaignMember).where(CampaignMember.user_id == fx.player_id)
+    )
+    player_member = campaign_result.scalar_one()
+
+    char_service = CharacterService()
+    cleric = await char_service.create_character(
+        fx.player_id,
+        CharacterCreate(
+            campaign_member_id=player_member.id,
+            name="Brother Tomas",
+            race_id=race_id,
+            ability_scores=_STANDARD_ARRAY,
+            classes=[CharacterClassCreate(class_definition_id=cleric_class_id)],
+        ),
+        db,
+    )
+    cleric = await char_service.add_spell(
+        cleric.id,
+        fx.player_id,
+        CharacterSpellCreate(spell_id=cure_wounds_id, source_class="cleric"),
+        db,
+    )
+    spell_entry_id = cleric.spells[0].id
+
+    combat_service = CombatService()
+    await combat_service.add_participant(
+        encounter_id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            character_id=cleric.id,
+            name="Brother Tomas",
+            hit_point_max=cleric.hit_point_max,
+            armor_class=cleric.armor_class,
+            turn_order=2,
+        ),
+        db,
+    )
+
+    # Aldric took damage earlier — down to 2 HP out of his max.
+    aldric_max = (await combat_service.get_encounter(encounter_id, fx.dm_id, db))
+    aldric_max_hp = next(
+        p.hit_point_max for p in aldric_max.participants if p.name == "Aldric"
+    )
+    await combat_service.update_participant(
+        encounter_id,
+        ids["Aldric"],
+        fx.dm_id,
+        EncounterParticipantUpdate(hit_point_current=2),
+        db,
+    )
+
+    result = await combat_service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=(await _participant_ids(db, encounter_id))["Brother Tomas"],
+            target_id=ids["Aldric"],
+            action_type="attack_spell",
+            spell_entry_id=spell_entry_id,
+            manual_damage_roll=6,
+        ),
+        db,
+    )
+
+    assert result.hit is None
+    assert result.attack_roll is None
+    assert result.healing_applied == 6
+    assert result.damage_rolled is None
+
+    updated = await combat_service.get_encounter(encounter_id, fx.dm_id, db)
+    aldric = next(p for p in updated.participants if p.name == "Aldric")
+    assert aldric.hit_point_current == min(8, aldric_max_hp)
+
+
+async def test_declare_cast_only_heal_spell_caps_at_hit_point_max(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Healing never pushes `hit_point_current` past `hit_point_max`."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+
+    race_result = await db.execute(select(Race).where(Race.index == "human"))
+    race_id = race_result.scalar_one().id
+    class_result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "cleric")
+    )
+    cleric_class_id = class_result.scalar_one().id
+    spell_result = await db.execute(select(Spell).where(Spell.index == "cure-wounds"))
+    cure_wounds_id = spell_result.scalar_one().id
+
+    campaign_result = await db.execute(
+        select(CampaignMember).where(CampaignMember.user_id == fx.player_id)
+    )
+    player_member = campaign_result.scalar_one()
+
+    char_service = CharacterService()
+    cleric = await char_service.create_character(
+        fx.player_id,
+        CharacterCreate(
+            campaign_member_id=player_member.id,
+            name="Brother Tomas",
+            race_id=race_id,
+            ability_scores=_STANDARD_ARRAY,
+            classes=[CharacterClassCreate(class_definition_id=cleric_class_id)],
+        ),
+        db,
+    )
+    cleric = await char_service.add_spell(
+        cleric.id,
+        fx.player_id,
+        CharacterSpellCreate(spell_id=cure_wounds_id, source_class="cleric"),
+        db,
+    )
+    spell_entry_id = cleric.spells[0].id
+
+    combat_service = CombatService()
+    await combat_service.add_participant(
+        encounter_id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            character_id=cleric.id,
+            name="Brother Tomas",
+            hit_point_max=cleric.hit_point_max,
+            armor_class=cleric.armor_class,
+            turn_order=2,
+        ),
+        db,
+    )
+
+    # Aldric is only down 1 HP — a big heal roll must still cap at his max.
+    updated = await combat_service.get_encounter(encounter_id, fx.dm_id, db)
+    aldric_max_hp = next(
+        p.hit_point_max for p in updated.participants if p.name == "Aldric"
+    )
+    await combat_service.update_participant(
+        encounter_id,
+        ids["Aldric"],
+        fx.dm_id,
+        EncounterParticipantUpdate(hit_point_current=aldric_max_hp - 1),
+        db,
+    )
+
+    await combat_service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=(await _participant_ids(db, encounter_id))["Brother Tomas"],
+            target_id=ids["Aldric"],
+            action_type="attack_spell",
+            spell_entry_id=spell_entry_id,
+            manual_damage_roll=100,
+        ),
+        db,
+    )
+
+    updated = await combat_service.get_encounter(encounter_id, fx.dm_id, db)
+    aldric = next(p for p in updated.participants if p.name == "Aldric")
+    assert aldric.hit_point_current == aldric_max_hp
+
+
+async def test_declare_cast_only_damage_spell_hits_without_attack_roll(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Magic Missile (`cast_only`, `target_type=enemy`) auto-hits — no to-hit roll.
+
+    Its catalog `SpellDamage` provides the amount, unlike Cure Wounds — no
+    `manual_damage_roll` needed here.
+    """
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+
+    race_result = await db.execute(select(Race).where(Race.index == "human"))
+    race_id = race_result.scalar_one().id
+    class_result = await db.execute(
+        select(ClassDefinition).where(ClassDefinition.index == "wizard")
+    )
+    wizard_class_id = class_result.scalar_one().id
+    spell_result = await db.execute(
+        select(Spell).where(Spell.index == "magic-missile")
+    )
+    magic_missile_id = spell_result.scalar_one().id
+
+    campaign_result = await db.execute(
+        select(CampaignMember).where(CampaignMember.user_id == fx.player_id)
+    )
+    player_member = campaign_result.scalar_one()
+
+    char_service = CharacterService()
+    wizard = await char_service.create_character(
+        fx.player_id,
+        CharacterCreate(
+            campaign_member_id=player_member.id,
+            name="Elowen",
+            race_id=race_id,
+            ability_scores=_STANDARD_ARRAY,
+            classes=[CharacterClassCreate(class_definition_id=wizard_class_id)],
+        ),
+        db,
+    )
+    wizard = await char_service.add_spell(
+        wizard.id,
+        fx.player_id,
+        CharacterSpellCreate(spell_id=magic_missile_id, source_class="wizard"),
+        db,
+    )
+    spell_entry_id = wizard.spells[0].id
+
+    combat_service = CombatService()
+    await combat_service.add_participant(
+        encounter_id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            character_id=wizard.id,
+            name="Elowen",
+            hit_point_max=wizard.hit_point_max,
+            armor_class=wizard.armor_class,
+            turn_order=2,
+        ),
+        db,
+    )
+
+    result = await combat_service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=(await _participant_ids(db, encounter_id))["Elowen"],
+            target_id=ids["Goblin"],
+            action_type="attack_spell",
+            spell_entry_id=spell_entry_id,
+        ),
+        db,
+    )
+
+    assert result.hit is None
+    assert result.attack_roll is None
+    assert result.healing_applied is None
+    assert result.damage_rolled is not None
+    assert result.damage_type == "force"
+
+    updated = await combat_service.get_encounter(encounter_id, fx.dm_id, db)
+    goblin = next(p for p in updated.participants if p.name == "Goblin")
+    assert goblin.hit_point_current == max(0, 7 - result.damage_rolled)
 
 
 async def test_roll_initiative_server_rolls_for_character(
