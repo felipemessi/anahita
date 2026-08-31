@@ -9,6 +9,14 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Recursos de classe com efeito mecânico e magias `cast_only` com alvo
+  aplicam o efeito de verdade em combate (Fase 12 frontend, fecha a fase):
+  usar um recurso de classe com efeito mapeado (ex. Canalizar Divindade:
+  Turn Undead) abre um seletor de alvos e resolve o teste de resistência de
+  cada um numa única chamada, em vez de só decrementar o contador; conjurar
+  uma magia de cura/dano direto (ex. Cure Wounds) em combate agora passa
+  pelo mesmo caminho de resolução dos ataques, aplicando a cura/dano ao
+  alvo de verdade em vez de só registrar o cast sem efeito.
 - Contador de duração de magia no frontend (Fase 12): novo `DurationCounter`
   (`frontend/src/components/characters/duration-counter.tsx`), integrado ao
   `ConcentrationIndicator` existente (Fase 7) via prop opcional

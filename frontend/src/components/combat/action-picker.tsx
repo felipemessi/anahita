@@ -81,6 +81,18 @@ export function ActionPicker({
   const { data: effectSpellDetail } = useCatalogEntry("spells", effectEntry?.spell_id ?? "");
   const effectTargetType = effectSpellDetail?.target_type ?? null;
   const effectNeedsTarget = isCastEffect && effectTargetType !== null && effectTargetType !== "self";
+  // A `cast_only` spell *with* a target (heal/direct damage, e.g. Cure
+  // Wounds) is declared through the combat action flow instead of the
+  // sheet-only cast endpoint (Fase 12) — that's the path the backend
+  // actually applies the effect through (`_resolve_spell_effect`, via
+  // `attack_spell`); the sheet endpoint stays bookkeeping-only even with a
+  // target_participant_id. A self-only/no-target cast_only spell (e.g.
+  // Mage Armor) has nothing to apply to anyone, so it keeps using the
+  // sheet endpoint. `saving_throw` spells are unaffected — they keep the
+  // DC-display + manual-resolution flow below, unchanged.
+  const isCastOnlyEffect = isCastEffect && effectSpellDetail?.action_type === "cast_only";
+  const castOnlyGoesThroughCombat = isCastOnlyEffect && effectNeedsTarget;
+  const [effectManualRoll, setEffectManualRoll] = useState("");
 
   const isFlavor = FLAVOR_ACTIONS.some((a) => a.type === kind);
   const isContest = kind === "grapple" || kind === "shove";
@@ -89,6 +101,18 @@ export function ActionPicker({
 
   async function handleCastEffect() {
     if (!effectSpellEntryId) return;
+    if (castOnlyGoesThroughCombat) {
+      if (!effectTargetId) return;
+      declareAction({
+        actionType: "attack_spell",
+        participant_id: participant.id,
+        target_id: effectTargetId,
+        spell_entry_id: effectSpellEntryId,
+        manual_damage_roll: effectManualRoll === "" ? undefined : Number(effectManualRoll),
+      });
+      setEffectManualRoll("");
+      return;
+    }
     setCastResult(null);
     const response = await castSpell.mutateAsync({
       spellEntryId: effectSpellEntryId,
@@ -178,7 +202,11 @@ export function ActionPicker({
 
       {character?.resources && character.resources.length > 0 ? (
         <div className="mt-2">
-          <ClassResources characterId={character.id} resources={character.resources} />
+          <ClassResources
+            characterId={character.id}
+            resources={character.resources}
+            combat={{ participantId: participant.id, otherParticipants, declareAction }}
+          />
         </div>
       ) : null}
 
@@ -360,6 +388,22 @@ export function ActionPicker({
           </div>
         ) : null}
 
+        {castOnlyGoesThroughCombat ? (
+          <div className="space-y-1">
+            <label htmlFor="action-effect-manual-roll" className="text-xs text-muted-foreground">
+              {effectTargetType === "ally" ? "Cura rolada (ex.: 1d8+3)" : "Dano rolado"}
+            </label>
+            <input
+              id="action-effect-manual-roll"
+              type="number"
+              value={effectManualRoll}
+              onChange={(e) => setEffectManualRoll(e.target.value)}
+              placeholder="Deixe em branco pra rolagem automática, se houver"
+              className="w-56 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+        ) : null}
+
         {isCastEffect && effectSpellDetail?.action_type === "attack_roll" ? (
           <p className="text-xs text-amber-500">
             Essa magia é de ataque — use &quot;Conjurar magia (ataque)&quot; em vez disso.
@@ -374,7 +418,7 @@ export function ActionPicker({
               ? !effectSpellEntryId ||
                 effectSpellDetail?.action_type === "attack_roll" ||
                 (effectNeedsTarget && !effectTargetId) ||
-                castSpell.isPending
+                (!castOnlyGoesThroughCombat && castSpell.isPending)
               : needsTarget && !targetId
           }
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"

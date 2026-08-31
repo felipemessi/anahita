@@ -362,4 +362,84 @@ describe("ActionPicker", () => {
       expect(screen.getByRole("button", { name: "Declarar" })).toBeDisabled();
     });
   });
+
+  describe("a cast_only spell with a target (Fase 12: heal/damage now applies for real)", () => {
+    beforeEach(() => {
+      useCharacter.mockReturnValue({
+        data: {
+          id: "char-1",
+          equipment: [{ id: "eq-1", item_id: "item-longsword", equipped: true }],
+          spells: [
+            { id: "sp-1", spell_id: "spell-fire-bolt" },
+            { id: "sp-2", spell_id: "spell-bless" },
+            { id: "sp-3", spell_id: "spell-mage-armor" },
+            { id: "sp-4", spell_id: "spell-cure-wounds" },
+          ],
+          ability_scores: [{ ability: "wis", save_bonus: 3 }],
+        },
+      });
+      useCatalogEntry.mockImplementation((category: string, id: string) => {
+        if (category === "spells" && id === "spell-cure-wounds") {
+          return {
+            data: {
+              id: "spell-cure-wounds",
+              name: "Cure Wounds",
+              action_type: "cast_only",
+              target_type: "ally",
+              save_ability_score_id: null,
+            },
+          };
+        }
+        if (category === "spells" && id === "spell-mage-armor") {
+          return {
+            data: {
+              id: "spell-mage-armor",
+              name: "Mage Armor",
+              action_type: "cast_only",
+              target_type: "self",
+              save_ability_score_id: null,
+            },
+          };
+        }
+        return { data: undefined };
+      });
+    });
+
+    it("declares it through the combat action flow instead of the sheet-only cast endpoint", () => {
+      render(
+        <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
+      );
+      fireEvent.change(screen.getByLabelText("Ação"), { target: { value: "cast_spell_effect" } });
+      fireEvent.change(screen.getByLabelText("Magia"), { target: { value: "sp-4" } });
+      fireEvent.change(screen.getByLabelText("Alvo"), { target: { value: "p-2" } });
+      fireEvent.change(screen.getByLabelText(/cura rolada/i), { target: { value: "11" } });
+      fireEvent.click(screen.getByRole("button", { name: "Declarar" }));
+
+      expect(declareAction).toHaveBeenCalledWith({
+        actionType: "attack_spell",
+        participant_id: "p-1",
+        target_id: "p-2",
+        spell_entry_id: "sp-4",
+        manual_damage_roll: 11,
+      });
+      expect(castSpellMutate).not.toHaveBeenCalled();
+    });
+
+    it("a self-only cast_only spell still keeps casting through the sheet endpoint", () => {
+      render(
+        <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
+      );
+      fireEvent.change(screen.getByLabelText("Ação"), { target: { value: "cast_spell_effect" } });
+      fireEvent.change(screen.getByLabelText("Magia"), { target: { value: "sp-3" } });
+
+      expect(screen.queryByLabelText(/cura rolada/i)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Declarar" }));
+
+      expect(castSpellMutate).toHaveBeenCalledWith({
+        spellEntryId: "sp-3",
+        data: { target_participant_id: undefined },
+      });
+      expect(declareAction).not.toHaveBeenCalled();
+    });
+  });
 });

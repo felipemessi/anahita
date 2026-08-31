@@ -93,5 +93,13 @@ function rollRequestsFor(result: DeclareActionResult): DiceRollRequest[] {
       total: result.damage_rolled,
     });
   }
+  if (result.healing_applied != null) {
+    requests.push({
+      label: "Cura",
+      rollResult: result.healing_applied,
+      modifier: 0,
+      total: result.healing_applied,
+    });
+  }
   return requests;
 }

@@ -127,4 +127,84 @@ describe("ClassResources", () => {
     expect(screen.queryByLabelText("Opção de Canalizar divindade")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Usar" })).not.toBeDisabled();
   });
+
+  describe("a mapped-effect option inside a live encounter (Fase 12)", () => {
+    const declareAction = vi.fn();
+    const otherParticipants = [
+      { id: "p-2", name: "Zombie" } as never,
+      { id: "p-3", name: "Skeleton" } as never,
+    ];
+
+    beforeEach(() => {
+      declareAction.mockReset();
+      useResourceOptions.mockReturnValue({
+        data: [
+          { id: "opt-1", feature_name: "Turn Undead", index: "channel-divinity-turn-undead" },
+          { id: "opt-2", feature_name: "Preserve Life", index: "channel-divinity-preserve-life" },
+        ],
+      });
+    });
+
+    function renderInCombat() {
+      render(
+        <ClassResources
+          characterId="char-1"
+          resources={[{ resource_key: "channel_divinity_charges", used: 0, max: 1 }]}
+          combat={{ participantId: "p-1", otherParticipants, declareAction }}
+        />,
+      );
+    }
+
+    it("picking a mapped-effect option shows a target picker instead of using directly", () => {
+      renderInCombat();
+
+      fireEvent.change(screen.getByLabelText("Opção de Canalizar divindade"), {
+        target: { value: "opt-1" },
+      });
+
+      expect(screen.getByText("Zombie")).toBeInTheDocument();
+      expect(screen.getByText("Skeleton")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Usar" })).toBeDisabled();
+    });
+
+    it("declares use_class_resource with the selected targets, not a direct spend", () => {
+      renderInCombat();
+
+      fireEvent.change(screen.getByLabelText("Opção de Canalizar divindade"), {
+        target: { value: "opt-1" },
+      });
+      fireEvent.click(screen.getByText("Zombie"));
+      fireEvent.click(screen.getByText("Skeleton"));
+      fireEvent.click(screen.getByRole("button", { name: "Usar" }));
+
+      expect(declareAction).toHaveBeenCalledWith({
+        actionType: "use_class_resource",
+        participant_id: "p-1",
+        target_id: "p-2",
+        additional_target_ids: ["p-3"],
+        resource_key: "channel_divinity_charges",
+        resource_option_id: "opt-1",
+      });
+      expect(mutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("an option with no mapped effect still uses directly, even in combat", async () => {
+      renderInCombat();
+
+      fireEvent.change(screen.getByLabelText("Opção de Canalizar divindade"), {
+        target: { value: "opt-2" },
+      });
+      expect(screen.queryByText("Zombie")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Usar" }));
+
+      await waitFor(() =>
+        expect(mutateAsync).toHaveBeenCalledWith({
+          resourceKey: "channel_divinity_charges",
+          optionId: "opt-2",
+        }),
+      );
+      expect(declareAction).not.toHaveBeenCalled();
+    });
+  });
 });
