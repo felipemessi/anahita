@@ -80,4 +80,32 @@ describe("ConcentrationIndicator", () => {
 
     expect(await screen.findByText(/spell not known/i)).toBeInTheDocument();
   });
+
+  it("renders no duration countdown when concentrationRemaining is omitted", () => {
+    useCatalogEntry.mockReturnValue({ data: { name: "Bless" } });
+    render(
+      <ConcentrationIndicator characterId="char-1" concentratingSpellId="spell-bless" />,
+    );
+
+    expect(screen.queryByTestId("duration-counter-rounds")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("duration-counter-seconds")).not.toBeInTheDocument();
+  });
+
+  it("shows the duration countdown when concentrationRemaining is given", () => {
+    useCatalogEntry.mockReturnValue({ data: { name: "Bless" } });
+    render(
+      <ConcentrationIndicator
+        characterId="char-1"
+        concentratingSpellId="spell-bless"
+        concentrationRemaining={{
+          mode: "rounds",
+          remaining_rounds: 4,
+          remaining_seconds: null,
+          expired: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("4 rodadas restantes")).toBeInTheDocument();
+  });
 });
