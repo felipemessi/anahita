@@ -30,7 +30,7 @@
 | 11   | Catálogo Homebrew: Profundidade e Estrutura | Concluída (raça homebrew com sub-formulário dedicado, selects estruturados e labels de unidade no formulário genérico, componentes de detalhe por categoria substituindo o dump de JSON cru, exclusão de entrada homebrew com confirmação e mensagem de erro da API) | 2026-08-31 |
 | 12   | Recursos de Classe e Interatividade Mágica | Concluída (recurso de classe com efeito mapeado abre seleção de alvos e declara `use_class_resource` via combate em vez de só decrementar; magia `cast_only` com alvo — cura/dano direto — passa a declarar `attack_spell` via combate para o efeito ser de fato aplicado, em vez do endpoint da ficha bookkeeping-only; contador de duração de magia já estava concluído) | 2026-08-31 |
 | 13   | Fluxo de Sessões: Fundamentos Faltantes | Concluída (botão de concluir sessão e edição de título DM-only, character-picker pra adicionar PCs ao combate — fecha o gap de seleção de alvo da Fase 9 —, toggle de revelação de NPC com badge oculto/revelado) | 2026-08-29 |
-| 14   | Loot e Inventário Integrado             | Pendente | 2026-08-28 |
+| 14   | Loot e Inventário Integrado             | Concluída (claim de loot invalida a ficha do personagem que reivindicou, refletindo o item mesclado em `CharacterEquipment`; menu "atribuir a..." pro mestre atribuir loot direto a qualquer personagem) | 2026-08-31 |
 | 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
 
 ---
