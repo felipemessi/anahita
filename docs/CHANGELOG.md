@@ -9,6 +9,21 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Componentes de detalhe dedicados por categoria do catálogo (Fase 11
+  frontend): `race-detail.tsx`, `class-detail.tsx`, `spell-detail.tsx`,
+  `item-detail.tsx`, `magic-item-detail.tsx`, `background-detail.tsx`,
+  `feat-detail.tsx` e `rule-detail.tsx`, seguindo o padrão de grids `dl` já
+  estabelecido por `monster-stat-block.tsx`. `catalog-entry-detail.tsx`
+  passou a rotear pra o componente certo por categoria — as 9 categorias do
+  catálogo (incluindo `monsters`, já coberta antes) têm visão estruturada,
+  nenhuma mais cai no dump de JSON cru por padrão.
+- Exclusão de entradas homebrew do catálogo pelo mestre (Fase 11 frontend):
+  `deleteCustomEntry` (`lib/api/catalog.ts`) e o hook `useDeleteCustomEntry`
+  cobrem as 9 categorias via `DELETE /catalog/{category}/{id}`. Botão
+  "excluir" em `catalog-entry-detail.tsx`, visível só pro DM da campanha e só
+  em entradas homebrew (`is_custom=true`) — nunca em conteúdo SRD — com
+  modal de confirmação reaproveitando `confirm-dialog.tsx` e mensagem de erro
+  da API exibida inline (incluindo o 409 de entrada ainda referenciada).
 - Duração de magia com contador de tempo restante (Fase 12 — fecha o backend
   da fase): expandido `Character.concentrating_spell_id` para carregar
   duração/expiração ativa (`concentration_encounter_id`,

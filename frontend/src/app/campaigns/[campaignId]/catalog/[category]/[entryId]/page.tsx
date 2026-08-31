@@ -7,7 +7,11 @@ import { useCatalogEntry } from "@/hooks/use-catalog";
 import { isSupportedCatalogCategory } from "@/lib/utils/catalog-category";
 
 export default function CatalogEntryPage() {
-  const { category, entryId } = useParams<{ category: string; entryId: string }>();
+  const { campaignId, category, entryId } = useParams<{
+    campaignId: string;
+    category: string;
+    entryId: string;
+  }>();
 
   if (!isSupportedCatalogCategory(category)) {
     return (
@@ -17,13 +21,15 @@ export default function CatalogEntryPage() {
     );
   }
 
-  return <CatalogEntryContent category={category} entryId={entryId} />;
+  return <CatalogEntryContent campaignId={campaignId} category={category} entryId={entryId} />;
 }
 
 function CatalogEntryContent({
+  campaignId,
   category,
   entryId,
 }: {
+  campaignId: string;
   category: Parameters<typeof useCatalogEntry>[0];
   entryId: string;
 }) {
@@ -47,7 +53,7 @@ function CatalogEntryContent({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <CatalogEntryDetail category={category} entry={entry} />
+      <CatalogEntryDetail category={category} entry={entry} campaignId={campaignId} />
     </main>
   );
 }
