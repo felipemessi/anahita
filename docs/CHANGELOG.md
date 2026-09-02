@@ -9,6 +9,18 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Mapas de sessão com tokens posicionáveis (Fase 15 — fecha o backend da
+  fase): novo domínio `app/maps` — o mestre sobe uma imagem de mapa com
+  grid de 1,5m sobreposto (`POST /sessions/{id}/maps`), e personagens/
+  NPCs/monstros ganham tokens posicionáveis (`POST /maps/{id}/tokens`).
+  Movimento de token é livre para o dono fora de combate, mas limitado ao
+  deslocamento do personagem durante o próprio turno de um encontro ativo
+  vinculado ao mapa; o mestre sempre pode mover qualquer token. Posição
+  sincroniza em tempo real via WebSocket próprio (`/ws/map/{id}`), tanto
+  pelo comando `move_token` quanto pelos endpoints REST. Ataques/magias
+  declarados em combate passam a aceitar múltiplos alvos
+  (`additional_target_ids`), e `GET /maps/{id}/tokens/in-radius` resolve
+  quais tokens caem numa área a partir de uma célula-centro e um raio.
 - Recursos de classe com efeito mecânico e magias `cast_only` com alvo
   aplicam o efeito de verdade em combate (Fase 12 frontend, fecha a fase):
   usar um recurso de classe com efeito mapeado (ex. Canalizar Divindade:
