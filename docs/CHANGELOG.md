@@ -9,6 +9,15 @@ lançamentos oficiais (`release` → `main`), conforme definido em `CLAUDE.md`.
 ## [Unreleased]
 
 ### Added
+- Mapas de batalha interativos no frontend (Fase 15 — fecha a fase):
+  `MapUpload` (DM-only) envia a imagem do mapa lendo suas dimensões no
+  próprio navegador; `MapCanvas` posiciona tokens (reaproveitando o avatar
+  circular da Fase 10) sobre a imagem com pan/zoom, arrastar-e-soltar com
+  snap à célula de grid mais próxima, e destaque do alcance de movimento
+  do personagem no turno atual. Posição sincroniza em tempo real via
+  `/ws/map/{id}`. Clicar em um ou mais tokens no mapa agora seleciona o(s)
+  alvo(s) de um ataque/magia direto no `ActionPicker`, no lugar do
+  dropdown, para ações em área.
 - Mapas de sessão com tokens posicionáveis (Fase 15 — fecha o backend da
   fase): novo domínio `app/maps` — o mestre sobe uma imagem de mapa com
   grid de 1,5m sobreposto (`POST /sessions/{id}/maps`), e personagens/
