@@ -22,6 +22,13 @@ class Encounter(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("sessions.id"))
     name: Mapped[str] = mapped_column(String(255))
+    # Nullable — an encounter need not have a battle map (Fase 15). Set,
+    # `app.maps.service.MapService` limits a token's movement to the
+    # moving character's speed while this encounter is `active` and it's
+    # their turn (backlog Fase 15 história 3).
+    map_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("session_maps.id"), nullable=True
+    )
     status: Mapped[EncounterStatus] = mapped_column(
         SAEnum(EncounterStatus, name="encounterstatus"),
         default=EncounterStatus.preparing,

@@ -857,6 +857,7 @@ Constraint: exatamente um dos dois FKs preenchido.
 |--------------------|-----------|---------------------------------------|
 | id                 | UUID (PK) |                                       |
 | session_id         | FK        |                                       |
+| map_id             | FK SessionMap | nullable (Fase 15 — mapa de batalha vinculado, se houver; ver §7.11) |
 | name               | String    |                                       |
 | status             | Enum      | preparing, active, completed          |
 | current_round      | Integer   |                                       |
@@ -1082,6 +1083,58 @@ Quatro recursos, com escopos deliberadamente diferentes — nem tudo aqui é uma
 | `DELETE /wiki/{pageId}/links/{linkId}`          | DM only        |                                                      |
 
 O recap não tem endpoint próprio — consome `GET /campaigns/{id}/sessions` (PRD §7.5), já existente.
+
+---
+
+### 7.11 Maps (Fase 15)
+
+> Redesenho do fluxo de sessão validado com o grupo (2026-09-01): mapa com imagem enviada pelo mestre + grid de 1,5m (5ft, `FEET_PER_CELL` em `app.maps.domain`) sobreposto; tokens posicionáveis vinculados a personagem/NPC/monstro; movimento limitado ao `speed` do personagem em combate (por turno) e livre fora dele; sincronização em tempo real via WebSocket próprio (`/ws/map/{map_id}`); mestre move qualquer token a qualquer momento; seleção de 1+ alvos direto no mapa para ataques/magias em área.
+
+**SessionMap**
+
+| Coluna       | Tipo      | Notas                                                       |
+|--------------|-----------|---------------------------------------------------------------|
+| id           | UUID (PK) |                                                                |
+| session_id   | FK        |                                                                |
+| name         | String    |                                                                |
+| storage_key  | String    | imagem, via `StorageService` (mesma convenção de `Handout`)   |
+| width_px     | Integer   | fornecido pelo cliente no upload (sem inspeção de imagem no servidor) |
+| height_px    | Integer   | idem                                                          |
+| grid_size_px | Integer   | pixels por célula de 5ft — fornecido pelo cliente             |
+| created_at   | Timestamp |                                                                |
+
+**MapToken**
+
+| Coluna       | Tipo       | Notas                                                        |
+|--------------|------------|-----------------------------------------------------------------|
+| id           | UUID (PK)  |                                                                  |
+| map_id       | FK         |                                                                  |
+| character_id | FK         | nullable                                                         |
+| npc_id       | FK NPC     | nullable (sem FK no nível do banco, mesmo padrão de `EncounterParticipant.npc_id`) |
+| monster_id   | FK Monster | nullable                                                         |
+| name         | String     | fallback para tokens manuais                                    |
+| x, y         | Integer    | coordenadas em células de grid, não pixels                      |
+| is_visible   | Boolean    | default true; token oculto só visível ao DM (mesmo padrão de NPC/handout revelado) |
+
+Regra: um token é PC, NPC **ou** monstro do catálogo, nunca mais de um — `app.maps.domain.validate_token_kind`, mesmo padrão de `validate_participant_kind`.
+
+`Encounter.map_id` (nullable, §7.6) vincula opcionalmente um encontro a um mapa — quando presente e o encontro está `active`, `MapService.update_token_position` limita o movimento do dono de um personagem ao seu `speed` (em células, `feet_to_cells`) durante o próprio turno; fora desse contexto, ou para o DM, o movimento é livre. Distância entre células usa Chebyshev (`cell_distance`, `max(|dx|,|dy|)`) — simplificação deliberada da regra alternada de diagonal do PHB, documentada em `app.maps.domain`.
+
+Cada mutação de token (`create_token`/`update_token_position`/`delete_token`) faz broadcast via WebSocket, tanto pelo endpoint REST quanto pelo comando WS `move_token` — mesmo padrão de `HandoutService.reveal_handout` broadcastando a partir de uma ação REST.
+
+Seleção de alvo em área (história 5): `WSDeclareActionPayload.additional_target_ids` (já existente desde a Fase 12 para `use_class_resource`) passa a valer também para `attack_weapon`/`attack_spell` — uma rolagem de ataque e uma de dano são feitas uma vez e checadas contra a AC/aplicadas ao HP de cada alvo independentemente. `MapService.tokens_in_radius` resolve quais tokens caem dentro de um raio (em células) de uma célula-centro, usando `cell_distance` — o app não modela uma junção direta token↔participant, então o frontend correlaciona pelo `character_id`/`npc_id`/`monster_id` compartilhado entre o token retornado e o `EncounterParticipant` correspondente antes de montar `additional_target_ids`.
+
+**Endpoints**
+
+| Método/Rota                                | Permissão       | Notas                                              |
+|---------------------------------------------|-----------------|------------------------------------------------------|
+| `POST /sessions/{id}/maps`                  | DM only         | multipart (`file` + campos de geometria)              |
+| `GET /sessions/{id}/maps`                   | qualquer membro |                                                        |
+| `GET /maps/{id}/tokens/in-radius`           | qualquer membro | tokens ocultos filtrados para não-DM                  |
+| `POST /maps/{id}/tokens`                    | DM only         |                                                        |
+| `PATCH /tokens/{id}`                        | DM ou dono do PC| DM sempre livre; jogador só o próprio token, respeitando o limite de movimento |
+| `DELETE /tokens/{id}`                       | DM only         |                                                        |
+| `WS /ws/map/{map_id}`                       | qualquer membro | `state_sync` no connect; `move_token` (cliente→servidor); `token_added`/`token_moved`/`token_removed` (servidor→clientes) |
 
 ---
 

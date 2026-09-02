@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.characters.models  # noqa: F401 — registers models with Base
 import app.combat.models  # noqa: F401 — registers models with Base
+import app.maps.models  # noqa: F401 — registers models with Base
 from app.characters.models import Character
 from app.combat.domain import EncounterStatus
 from app.combat.models import Encounter

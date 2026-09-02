@@ -14,6 +14,7 @@ import app.campaigns.models  # noqa: F401 — registers models with Base
 import app.catalog.models  # noqa: F401 — registers models with Base
 import app.characters.models  # noqa: F401 — registers models with Base
 import app.combat.models  # noqa: F401 — registers models with Base
+import app.maps.models  # noqa: F401 — registers models with Base
 import app.sessions.models  # noqa: F401 — registers models with Base
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
@@ -1402,3 +1403,122 @@ async def test_declare_action_resolves_target_in_monster_only_encounter(
     assert result.hit is True
     assert result.damage_rolled is not None
     assert result.damage_type == "slashing"
+
+
+async def test_weapon_attack_hits_multiple_targets(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """`additional_target_ids` (Fase 15 história 5) applies the same roll to each."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    service = CombatService()
+
+    await service.add_participant(
+        encounter_id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            name="Second Goblin", hit_point_max=7, armor_class=12, turn_order=2
+        ),
+        db,
+    )
+    ids = await _participant_ids(db, encounter_id)
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Aldric"],
+            target_id=ids["Goblin"],
+            additional_target_ids=[ids["Second Goblin"]],
+            action_type="attack_weapon",
+            weapon_equipment_id=fx.equipment_id,
+            manual_attack_roll=20,  # beats both AC 15 and AC 12
+            manual_damage_roll=6,
+        ),
+        db,
+    )
+
+    assert result.hit is True
+    assert result.damage_rolled == 6
+    assert len(result.additional_target_results) == 1
+    extra = result.additional_target_results[0]
+    assert extra.participant_id == ids["Second Goblin"]
+    assert extra.hit is True
+    assert extra.damage_dealt == 6
+
+    encounter = await service.get_encounter(encounter_id, fx.dm_id, db)
+    goblin = next(p for p in encounter.participants if p.name == "Goblin")
+    second_goblin = next(
+        p for p in encounter.participants if p.name == "Second Goblin"
+    )
+    assert goblin.hit_point_current == 1
+    assert second_goblin.hit_point_current == 1
+
+
+async def test_weapon_attack_multi_target_per_target_ac(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """Each target's own AC decides whether the shared attack roll hits it."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    service = CombatService()
+
+    await service.add_participant(
+        encounter_id,
+        fx.dm_id,
+        EncounterParticipantCreate(
+            name="Armored Foe", hit_point_max=10, armor_class=25, turn_order=2
+        ),
+        db,
+    )
+    ids = await _participant_ids(db, encounter_id)
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Aldric"],
+            target_id=ids["Goblin"],  # AC 15
+            additional_target_ids=[ids["Armored Foe"]],  # AC 25
+            action_type="attack_weapon",
+            weapon_equipment_id=fx.equipment_id,
+            manual_attack_roll=18,  # hits AC 15, misses AC 25
+            manual_damage_roll=6,
+        ),
+        db,
+    )
+
+    assert result.hit is True
+    extra = result.additional_target_results[0]
+    assert extra.hit is False
+    assert extra.damage_dealt is None
+
+    encounter = await service.get_encounter(encounter_id, fx.dm_id, db)
+    armored = next(p for p in encounter.participants if p.name == "Armored Foe")
+    assert armored.hit_point_current == 10  # untouched
+
+
+async def test_single_target_action_leaves_additional_results_empty(
+    db: AsyncSession, fixture_with_fighter: _Fixture
+) -> None:
+    """No `additional_target_ids` behaves exactly as before (empty results list)."""
+    fx = fixture_with_fighter
+    encounter_id = await _get_encounter_id(db, fx.session_id)
+    ids = await _participant_ids(db, encounter_id)
+    service = CombatService()
+
+    result = await service.declare_action(
+        encounter_id,
+        fx.player_id,
+        WSDeclareActionPayload(
+            participant_id=ids["Aldric"],
+            target_id=ids["Goblin"],
+            action_type="attack_weapon",
+            weapon_equipment_id=fx.equipment_id,
+            manual_attack_roll=20,
+            manual_damage_roll=6,
+        ),
+        db,
+    )
+
+    assert result.additional_target_results == []

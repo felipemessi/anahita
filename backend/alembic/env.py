@@ -31,6 +31,7 @@ from app.database import Base  # noqa: E402
 from app.handouts import models as _handouts_models  # noqa: F401, E402
 from app.inventory import models as _inventory_models  # noqa: F401, E402
 from app.journal import models as _journal_models  # noqa: F401, E402
+from app.maps import models as _maps_models  # noqa: F401, E402
 from app.sessions import models as _sessions_models  # noqa: F401, E402
 from app.timeline import models as _timeline_models  # noqa: F401, E402
 from app.wiki import models as _wiki_models  # noqa: F401, E402
