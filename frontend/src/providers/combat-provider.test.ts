@@ -6,6 +6,7 @@ import type { Encounter, EncounterParticipant } from "@/types/combat";
 const encounter: Encounter = {
   id: "enc-1",
   session_id: "sess-1",
+  map_id: null,
   name: "Emboscada na estrada",
   status: "active",
   current_round: 1,

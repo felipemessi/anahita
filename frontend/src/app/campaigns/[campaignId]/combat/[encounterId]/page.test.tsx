@@ -31,11 +31,16 @@ vi.mock("@/hooks/use-world", () => ({
   useNpcs: () => ({ data: undefined }),
 }));
 
+vi.mock("@/components/maps/map-section", () => ({
+  MapSection: ({ mapId }: { mapId: string }) => <div data-testid="map-section">{mapId}</div>,
+}));
+
 import CombatPage from "./page";
 
 const baseEncounter = {
   id: "enc-1",
   session_id: "sess-1",
+  map_id: null,
   name: "Emboscada na estrada",
   status: "active" as const,
   current_round: 1,
@@ -70,6 +75,29 @@ describe("CombatPage", () => {
       actionLog: [],
       removeParticipant: vi.fn(),
     });
+  });
+
+  it("renders the map section when the encounter has a linked map", () => {
+    useMyMembership.mockReturnValue({ data: { role: "dm" } });
+    useCombat.mockReturnValue({
+      encounter: { ...baseEncounter, map_id: "map-1" },
+      isConnected: true,
+      lastError: null,
+      actionLog: [],
+      removeParticipant: vi.fn(),
+    });
+
+    render(<CombatPage />);
+
+    expect(screen.getByTestId("map-section")).toHaveTextContent("map-1");
+  });
+
+  it("doesn't render the map section when the encounter has no linked map", () => {
+    useMyMembership.mockReturnValue({ data: { role: "dm" } });
+
+    render(<CombatPage />);
+
+    expect(screen.queryByTestId("map-section")).not.toBeInTheDocument();
   });
 
   it("player sees no DM action controls, only the read-only tracker", () => {

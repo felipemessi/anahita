@@ -405,6 +405,16 @@ No mobile, o combat tracker esconde sidebar e header da campanha. Só o tracker 
 
 Jogadores veem a mesma lista, mas sem controles de ação. Útil para acompanhar a ordem de iniciativa e o estado do combate. Atualiza em tempo real via WebSocket.
 
+### 8.6 Battle Maps e Tokens (Fase 15)
+
+Quando `Encounter.map_id` está definido, a página de combate (`app/campaigns/[campaignId]/combat/[encounterId]/page.tsx`) renderiza `components/maps/map-section.tsx` entre o `InitiativeTracker` e o `ActionPicker`.
+
+- **`map-canvas.tsx`**: não é um `<canvas>` 2D de verdade — elementos DOM posicionados absolutamente sobre a imagem de fundo do mapa, com `transform: translate(...) scale(...)` para pan/zoom. Decisão deliberada: permite reaproveitar `CharacterAvatar` (Fase 10) direto em cada token, e mantém drag-and-drop/pan/zoom testáveis com eventos de ponteiro comuns em vez de matemática de coordenadas de canvas.
+- **Movimento**: arrastar um token o solta na célula mais próxima (snap); fora de combate é livre, durante o próprio turno de um encontro ativo o servidor limita ao `speed` do personagem (em células) — o cliente não bloqueia preemptivamente (mesma filosofia de `ActionPicker`: o cliente declara, o servidor é a autoridade), uma rejeição (422) aparece como alerta e a posição nunca muda otimisticamente. As células alcançáveis do participante do turno atual ficam destacadas.
+- **Tempo real**: `lib/ws/map-socket.ts` + `providers/map-provider.tsx` — canal próprio `/ws/map/{mapId}` (não estende o socket de combate), mesmo padrão de reconexão com backoff exponencial do `combat-socket.ts`.
+- **Seleção de alvo em área**: clicar em um ou mais tokens (em vez de arrastar) alimenta `ActionPicker`'s `mapTargetIds` — substitui o dropdown de alvo único para `attack_weapon`/`attack_spell`, correlacionando token↔participante via `lib/utils/map-token-match.ts` (não há FK direta entre os dois domínios).
+- **Upload**: `components/maps/map-upload.tsx` (DM-only, na página da sessão) lê `naturalWidth`/`naturalHeight` da imagem no cliente antes do envio — o backend não faz inspeção de imagem.
+
 ---
 
 ## 9. Telas Principais

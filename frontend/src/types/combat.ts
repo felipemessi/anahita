@@ -80,6 +80,8 @@ export interface EncounterParticipant {
 export interface Encounter {
   id: string;
   session_id: string;
+  /** Battle map linked to this encounter, if any (Fase 15) — see types/map.ts. */
+  map_id: string | null;
   name: string;
   status: EncounterStatus;
   current_round: number;

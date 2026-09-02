@@ -219,6 +219,51 @@ describe("ActionPicker", () => {
     });
   });
 
+  it("mapTargetIds replaces the dropdown for an attack, feeding target_id/additional_target_ids", () => {
+    render(
+      <ActionPicker
+        campaignId="camp-1"
+        participant={fighter}
+        otherParticipants={[goblin]}
+        mapTargetIds={["p-2", "p-3"]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Ação"), {
+      target: { value: "attack_weapon_manual" },
+    });
+    expect(screen.queryByLabelText("Alvo")).not.toBeInTheDocument();
+    expect(screen.getByText("2 alvos selecionados no mapa")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/bônus de ataque/i), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Declarar" }));
+
+    expect(declareAction).toHaveBeenCalledWith({
+      actionType: "attack_weapon",
+      participant_id: "p-1",
+      target_id: "p-2",
+      additional_target_ids: ["p-3"],
+      manual_attack_bonus: 5,
+      manual_damage_expression: undefined,
+    });
+  });
+
+  it("mapTargetIds is ignored for grapple/shove — dropdown stays in charge", () => {
+    render(
+      <ActionPicker
+        campaignId="camp-1"
+        participant={fighter}
+        otherParticipants={[goblin]}
+        mapTargetIds={["p-2"]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Ação"), { target: { value: "grapple" } });
+
+    expect(screen.getByLabelText("Alvo")).toBeInTheDocument();
+    expect(screen.queryByText(/selecionado.*mapa/)).not.toBeInTheDocument();
+  });
+
   it("the manual roll fields stay hidden by default — automatic rolling is the default action", () => {
     render(
       <ActionPicker campaignId="camp-1" participant={fighter} otherParticipants={[goblin]} />,
