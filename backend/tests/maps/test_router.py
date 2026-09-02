@@ -1,4 +1,4 @@
-"""Integration tests for the handouts HTTP endpoints."""
+"""Integration tests for the maps HTTP endpoints."""
 
 from collections.abc import AsyncGenerator
 
@@ -11,13 +11,12 @@ import app.campaigns.models  # noqa: F401 — registers models with Base
 import app.catalog.models  # noqa: F401 — registers models with Base
 import app.characters.models  # noqa: F401 — registers models with Base
 import app.combat.models  # noqa: F401 — registers models with Base
-import app.handouts.models  # noqa: F401 — registers models with Base
 import app.maps.models  # noqa: F401 — registers models with Base
 import app.sessions.models  # noqa: F401 — registers models with Base
 from app.database import Base, get_db
 from app.main import app as fastapi_app
 from app.storage import get_storage_service
-from tests.handouts.conftest import FakeStorageService
+from tests.maps.conftest import FakeStorageService
 
 _TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -60,15 +59,27 @@ async def _register_and_login(client: AsyncClient, email: str) -> str:
     return token
 
 
-async def _make_campaign_and_invite_player(
-    client: AsyncClient, dm_token: str
-) -> tuple[str, str]:
+async def _make_campaign_and_session(client: AsyncClient, dm_token: str) -> str:
     campaign_resp = await client.post(
         "/campaigns",
         json={"name": "Waterdeep"},
         headers={"Authorization": f"Bearer {dm_token}"},
     )
-    campaign_id: str = campaign_resp.json()["id"]
+    campaign_id = campaign_resp.json()["id"]
+    session_resp = await client.post(
+        f"/campaigns/{campaign_id}/sessions",
+        json={"title": "Session 1"},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+    session_id: str = session_resp.json()["id"]
+    return session_id
+
+
+async def _invite_player(client: AsyncClient, dm_token: str) -> str:
+    campaign_resp = await client.get(
+        "/campaigns", headers={"Authorization": f"Bearer {dm_token}"}
+    )
+    campaign_id = campaign_resp.json()[0]["id"]
     invite_resp = await client.post(
         f"/campaigns/{campaign_id}/invites",
         json={"role": "player"},
@@ -81,72 +92,74 @@ async def _make_campaign_and_invite_player(
         json={"invite_code": invite_code},
         headers={"Authorization": f"Bearer {player_token}"},
     )
-    return campaign_id, player_token
+    return player_token
 
 
-async def test_dm_uploads_handout_with_file_over_http(client: AsyncClient) -> None:
-    """The DM creates a handout with a multipart file upload; gets back a URL."""
+async def test_dm_uploads_map(client: AsyncClient) -> None:
+    """The DM uploads a map with a file; gets back a resolved URL."""
     dm_token = await _register_and_login(client, "dm@example.com")
-    campaign_id, _player_token = await _make_campaign_and_invite_player(
-        client, dm_token
-    )
+    session_id = await _make_campaign_and_session(client, dm_token)
 
     resp = await client.post(
-        f"/campaigns/{campaign_id}/handouts",
-        data={"title": "Old Map", "handout_type": "map"},
-        files={"file": ("map.png", b"binary-data", "image/png")},
+        f"/sessions/{session_id}/maps",
+        data={
+            "name": "Tavern",
+            "width_px": "1000",
+            "height_px": "800",
+            "grid_size_px": "50",
+        },
+        files={"file": ("tavern.png", b"binary-data", "image/png")},
         headers={"Authorization": f"Bearer {dm_token}"},
     )
+
     assert resp.status_code == 201
     body = resp.json()
-    assert body["title"] == "Old Map"
+    assert body["name"] == "Tavern"
     assert body["url"] is not None
-    assert body["is_revealed"] is False
 
 
-async def test_player_only_sees_revealed_handouts_over_http(
-    client: AsyncClient,
-) -> None:
-    """A player's GET list only includes handouts the DM has revealed."""
+async def test_player_cannot_upload_map(client: AsyncClient) -> None:
+    """A player uploading a map gets a 403."""
     dm_token = await _register_and_login(client, "dm@example.com")
-    campaign_id, player_token = await _make_campaign_and_invite_player(client, dm_token)
-
-    await client.post(
-        f"/campaigns/{campaign_id}/handouts",
-        data={"title": "Hidden", "handout_type": "text", "content": "shh"},
-        headers={"Authorization": f"Bearer {dm_token}"},
-    )
-    reveal_resp = await client.post(
-        f"/campaigns/{campaign_id}/handouts",
-        data={"title": "Public", "handout_type": "text", "content": "hi"},
-        headers={"Authorization": f"Bearer {dm_token}"},
-    )
-    handout_id = reveal_resp.json()["id"]
-    await client.post(
-        f"/handouts/{handout_id}/reveal",
-        headers={"Authorization": f"Bearer {dm_token}"},
-    )
-
-    dm_list = await client.get(
-        f"/campaigns/{campaign_id}/handouts",
-        headers={"Authorization": f"Bearer {dm_token}"},
-    )
-    player_list = await client.get(
-        f"/campaigns/{campaign_id}/handouts",
-        headers={"Authorization": f"Bearer {player_token}"},
-    )
-    assert {h["title"] for h in dm_list.json()} == {"Hidden", "Public"}
-    assert {h["title"] for h in player_list.json()} == {"Public"}
-
-
-async def test_player_cannot_create_handout_over_http(client: AsyncClient) -> None:
-    """A non-DM member is rejected (403) when creating a handout."""
-    dm_token = await _register_and_login(client, "dm@example.com")
-    campaign_id, player_token = await _make_campaign_and_invite_player(client, dm_token)
+    session_id = await _make_campaign_and_session(client, dm_token)
+    player_token = await _invite_player(client, dm_token)
 
     resp = await client.post(
-        f"/campaigns/{campaign_id}/handouts",
-        data={"title": "Secret", "handout_type": "text", "content": "shh"},
+        f"/sessions/{session_id}/maps",
+        data={
+            "name": "Tavern",
+            "width_px": "1000",
+            "height_px": "800",
+            "grid_size_px": "50",
+        },
+        files={"file": ("tavern.png", b"binary-data", "image/png")},
         headers={"Authorization": f"Bearer {player_token}"},
     )
+
     assert resp.status_code == 403
+
+
+async def test_list_maps_visible_to_any_member(client: AsyncClient) -> None:
+    """Any campaign member can list a session's maps."""
+    dm_token = await _register_and_login(client, "dm@example.com")
+    session_id = await _make_campaign_and_session(client, dm_token)
+    player_token = await _invite_player(client, dm_token)
+    await client.post(
+        f"/sessions/{session_id}/maps",
+        data={
+            "name": "Tavern",
+            "width_px": "1000",
+            "height_px": "800",
+            "grid_size_px": "50",
+        },
+        files={"file": ("tavern.png", b"binary-data", "image/png")},
+        headers={"Authorization": f"Bearer {dm_token}"},
+    )
+
+    resp = await client.get(
+        f"/sessions/{session_id}/maps",
+        headers={"Authorization": f"Bearer {player_token}"},
+    )
+
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1

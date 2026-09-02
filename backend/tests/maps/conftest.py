@@ -1,9 +1,11 @@
-"""Shared fixtures for handouts tests: async SQLite in-memory database."""
+"""Shared fixtures for maps tests: async SQLite in-memory database."""
 
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import app.auth.models  # noqa: F401 — registers models with Base
@@ -11,13 +13,14 @@ import app.campaigns.models  # noqa: F401 — registers models with Base
 import app.catalog.models  # noqa: F401 — registers models with Base
 import app.characters.models  # noqa: F401 — registers models with Base
 import app.combat.models  # noqa: F401 — registers models with Base
-import app.handouts.models  # noqa: F401 — registers models with Base
 import app.maps.models  # noqa: F401 — registers models with Base
 import app.sessions.models  # noqa: F401 — registers models with Base
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
 from app.campaigns.models import Campaign, CampaignMember
+from app.characters.models import Character
 from app.database import Base
+from app.sessions.domain import SessionStatus
 from app.sessions.models import Session
 from app.storage.base import StorageService
 
@@ -62,7 +65,7 @@ class FakeStorageService(StorageService):
 
 
 class _CampaignFixture:
-    """A campaign with a DM user, a player user, and a session."""
+    """A campaign with a DM user, a player user, a session, and the player's PC."""
 
     def __init__(
         self,
@@ -70,16 +73,18 @@ class _CampaignFixture:
         session_id: uuid.UUID,
         dm_id: uuid.UUID,
         player_id: uuid.UUID,
+        player_character_id: uuid.UUID,
     ) -> None:
         self.campaign_id = campaign_id
         self.session_id = session_id
         self.dm_id = dm_id
         self.player_id = player_id
+        self.player_character_id = player_character_id
 
 
 @pytest.fixture
-async def campaign_with_session(db: AsyncSession) -> _CampaignFixture:
-    """Seed a campaign with a DM, a player, and one game session."""
+async def campaign_with_pc(db: AsyncSession) -> _CampaignFixture:
+    """Seed a campaign with a DM, a player + their PC, and one game session."""
     dm = User(email="dm@example.com", username="dm", hashed_password="x")
     player = User(email="player@example.com", username="player", hashed_password="x")
     db.add_all([dm, player])
@@ -99,14 +104,44 @@ async def campaign_with_session(db: AsyncSession) -> _CampaignFixture:
             ),
         ]
     )
+    await db.flush()
 
-    session = Session(campaign_id=campaign.id, session_number=1, title="Session 1")
+    session = Session(
+        campaign_id=campaign.id,
+        session_number=1,
+        title="Session 1",
+        status=SessionStatus.planned,
+        created_at=datetime.now(UTC),
+    )
     db.add(session)
+    await db.flush()
+
+    result = await db.execute(
+        select(CampaignMember).where(
+            CampaignMember.campaign_id == campaign.id,
+            CampaignMember.user_id == player.id,
+        )
+    )
+    player_member = result.scalar_one()
+    character = Character(
+        campaign_member_id=player_member.id,
+        name="Aldric",
+        race_id=uuid.uuid4(),
+        level=1,
+        hit_point_max=10,
+        hit_point_current=10,
+        armor_class=14,
+        speed=30,
+        proficiency_bonus=2,
+    )
+    db.add(character)
     await db.commit()
+    await db.refresh(character)
 
     return _CampaignFixture(
         campaign_id=campaign.id,
         session_id=session.id,
         dm_id=dm.id,
         player_id=player.id,
+        player_character_id=character.id,
     )

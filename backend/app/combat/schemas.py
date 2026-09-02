@@ -209,6 +209,15 @@ class WSDeclareActionPayload(BaseModel):
     state, which this app's condition model doesn't have) for 1
     minute/10 rounds. Auto-destroying low-CR undead at higher Cleric
     levels isn't modeled.
+
+    `attack_weapon`/`attack_spell` (backlog Fase 15 história 5) also read
+    `additional_target_ids` — an area attack (e.g. Fireball) resolves one
+    attack roll and one damage roll (or a `cast_only` spell's fixed
+    amount), then applies each independently against every listed target's
+    own AC/HP; `target_id` alone (the default, empty list) behaves exactly
+    as before. The frontend resolves which tokens fall in the affected area
+    from the map (`app.maps`) and lists them here — this app itself does no
+    area-of-effect geometry.
     """
 
     participant_id: uuid.UUID
@@ -246,6 +255,22 @@ class ClassResourceTargetOutcome(BaseModel):
     condition_applied: str | None = None
 
 
+class AttackTargetOutcome(BaseModel):
+    """One target's hit/damage outcome from a multi-target attack (Fase 15).
+
+    Only populated in `DeclareActionResultRead.additional_target_results`
+    for `additional_target_ids` beyond the primary `target_id` — a
+    single-target action leaves that list empty, same shape as before this
+    backlog item.
+    """
+
+    participant_id: uuid.UUID
+    hit: bool
+    damage_dealt: int | None = None
+    healing_applied: int | None = None
+    concentration_dc: int | None = None
+
+
 class DeclareActionResultRead(BaseModel):
     """Response schema for a resolved combat action (WS `action_resolved` event)."""
 
@@ -273,6 +298,13 @@ class DeclareActionResultRead(BaseModel):
     # has no mapped mechanical effect — bookkeeping-only spend).
     resource_key: str | None = None
     resource_targets: list[ClassResourceTargetOutcome] = Field(default_factory=list)
+    # `attack_weapon`/`attack_spell` with `additional_target_ids` (Fase 15
+    # história 5) only — each extra target's own hit/damage outcome, beyond
+    # the primary `target_id`/`hit`/`damage_rolled` fields above. Empty for
+    # a single-target action (unchanged behavior).
+    additional_target_results: list[AttackTargetOutcome] = Field(
+        default_factory=list
+    )
 
 
 class WSUseLegendaryActionPayload(BaseModel):

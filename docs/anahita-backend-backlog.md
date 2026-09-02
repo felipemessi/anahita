@@ -31,7 +31,7 @@
 | 12   | Recursos de Classe e Interatividade Mágica | Completo (recursos de classe geradores de ação disparam efeito mecânico real — ex. Canalizar Divindade/Turn Undead —, magias `cast_only` aplicam cura/dano diretamente ao alvo em combate sem rolagem de ataque, duração de magia trackeada em rodadas de combate ou tempo real com leitura de tempo restante) | 2026-08-30 |
 | 13   | Fluxo de Sessões: Fundamentos Faltantes | Completo (conclusão de sessão com transição de status validada, edição de título/data, personagem adicionado ao combate confirmado ponta a ponta com rejeição de duplicata, NPCs ocultos por padrão com reveal DM-only) | 2026-08-29 |
 | 14   | Loot e Inventário Integrado        | Completo (claim de loot mescla/cria entrada real no inventário do personagem para os 3 tipos — catálogo, magic item, custom —, DM atribuindo loot a qualquer personagem já funcionava corretamente) | 2026-08-31 |
-| 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
+| 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Completo (mapa com upload/grid, tokens com posição/visibilidade, movimento limitado por speed em combate, tempo real via `/ws/map/{id}`, seleção de alvo em área com resolução geométrica por raio) | 2026-09-01 |
 
 ---
 
@@ -421,30 +421,35 @@
 
 > Objetivo: repensar o fluxo de sessão como validado com o grupo — mapa com imagem enviada pelo mestre + grid de 1,5m (5ft) sobreposto; tokens posicionáveis vinculados a personagem/NPC/monstro; movimento limitado por deslocamento (`speed`) em combate (por turno) e livre fora de combate; sincronização em tempo real via WebSocket, reaproveitando a infra do combat tracker; mestre pode mover qualquer token a qualquer momento; seleção de alvo (1 ou mais) direto no mapa para magias/ataques. Esta é a maior fase do backlog — trabalhar uma história de fundação por vez, sem pular pra regras de movimento antes do schema/WS básico existirem.
 
-- **Como mestre, quero subir uma imagem de mapa para uma sessão/encontro, com grid de 1,5m sobreposto.**
-  - [ ] `app/sessions/models.py` (ou `app/combat/models.py`, a decidir pela relação mais natural): `SessionMap` — `storage_key` (imagem, reaproveitar `StorageService`), `width_px`/`height_px`, `grid_size_px` (tamanho de uma célula de 1,5m em pixels)
-  - [ ] Migração Alembic
-  - [ ] `POST /sessions/{id}/maps` (ou `/encounters/{id}/maps`) — upload multipart, DM-only
-  - [ ] Testes: upload cria o mapa corretamente; jogador não pode subir mapa (403)
+- **Como mestre, quero subir uma imagem de mapa para uma sessão/encontro, com grid de 1,5m sobreposto.** ✅ (2026-09-01)
+  - [x] `app/maps/models.py` (novo domínio — nem `sessions` nem `combat`, ver nota): `SessionMap` — `storage_key` (imagem, reaproveitar `StorageService`), `width_px`/`height_px`, `grid_size_px` (tamanho de uma célula de 1,5m em pixels)
+  - [x] Migração Alembic — `alembic/versions/ca33fc4cedbf_*.py` (upgrade/downgrade testados contra Postgres, duas vezes)
+  - [x] `POST /sessions/{id}/maps` — upload multipart, DM-only
+  - [x] Testes: upload cria o mapa corretamente; jogador não pode subir mapa (403) — `tests/maps/test_service.py`, `tests/maps/test_router.py`
+  - **Nota:** criado o domínio próprio `app/maps/` em vez de encaixar em `sessions` ou `combat` — um mapa tem ciclo de vida próprio (sobrevive a qualquer encontro específico) mas também precisa linkar em `Encounter` pra regra de movimento da história 3, então nenhum dos dois donos existentes encaixava sem acoplar um no outro; `Encounter` ganhou `map_id` nullable (FK pra `session_maps`) em vez do inverso. `width_px`/`height_px`/`grid_size_px` são informados pelo cliente que faz upload — este app não tem `Pillow`/inspeção de imagem no servidor.
 
-- **Como jogador/mestre, quero que cada personagem/NPC/monstro em cena tenha um token posicionável no mapa.**
-  - [ ] `MapToken` — posição (`x`/`y` em células de grid), vínculo a `character_id`/`npc_id`/`monster_id` (mutuamente exclusivo, mesmo padrão de `EncounterParticipant`), `map_id`, visibilidade
-  - [ ] Migração Alembic
-  - [ ] `POST /maps/{id}/tokens`, `PATCH /tokens/{id}` (posição), `DELETE /tokens/{id}` — DM sempre autorizado; jogador só pode mover o próprio token (ver regra de movimento abaixo)
-  - [ ] Testes: criação/posicionamento de token de cada tipo (personagem/NPC/monstro); token não pode referenciar mais de um tipo ao mesmo tempo
+- **Como jogador/mestre, quero que cada personagem/NPC/monstro em cena tenha um token posicionável no mapa.** ✅ (2026-09-01)
+  - [x] `MapToken` — posição (`x`/`y` em células de grid), vínculo a `character_id`/`npc_id`/`monster_id` (mutuamente exclusivo, mesmo padrão de `EncounterParticipant`), `map_id`, visibilidade
+  - [x] Migração Alembic — mesma migração da história 1 (`ca33fc4cedbf`)
+  - [x] `POST /maps/{id}/tokens`, `PATCH /tokens/{id}` (posição), `DELETE /tokens/{id}` — DM sempre autorizado; jogador só pode mover o próprio token (ver regra de movimento abaixo)
+  - [x] Testes: criação/posicionamento de token de cada tipo (personagem/NPC/monstro); token não pode referenciar mais de um tipo ao mesmo tempo — `tests/maps/test_service.py`
+  - **Nota:** criação/exclusão de token são DM-only (o backlog só previa movimento restrito ao jogador dono); `is_visible` (default `true`) segue o mesmo padrão de NPC oculto — `MapService.get_snapshot`/`tokens_in_radius` filtram tokens ocultos pra quem não é DM.
 
-- **Como jogador, quero que meu token respeite o deslocamento do meu personagem quando estou em combate, e se mova livremente fora de combate; o mestre pode mover qualquer token a qualquer momento.**
-  - [ ] Validação de movimento em `PATCH /tokens/{id}`: se o mapa está vinculado a um encontro `active` e é o turno do personagem, limitar a distância percorrida (em células) ao `speed` do personagem (reaproveitar `engine/` pra conversão célula↔pé); fora desse contexto, movimento livre para o dono do personagem; DM sempre livre
-  - [ ] Testes: movimento além do speed no próprio turno é rejeitado (422); movimento fora de combate não tem limite; DM move qualquer token mesmo fora do seu turno; jogador não move token de outro jogador (403)
+- **Como jogador, quero que meu token respeite o deslocamento do meu personagem quando estou em combate, e se mova livremente fora de combate; o mestre pode mover qualquer token a qualquer momento.** ✅ (2026-09-01)
+  - [x] Validação de movimento em `PATCH /tokens/{id}`: se o mapa está vinculado a um encontro `active` e é o turno do personagem, limitar a distância percorrida (em células) ao `speed` do personagem (reaproveitar `engine/` pra conversão célula↔pé); fora desse contexto, movimento livre para o dono do personagem; DM sempre livre
+  - [x] Testes: movimento além do speed no próprio turno é rejeitado (422); movimento fora de combate não tem limite; DM move qualquer token mesmo fora do seu turno; jogador não move token de outro jogador (403) — `tests/maps/test_service.py`
+  - **Nota:** a conversão célula↔pé e a distância entre células vivem em `app.maps.domain` (`feet_to_cells`, `cell_distance`), não em `engine/`, pra não acoplar o pacote de regras puras (sem framework) a um conceito de grid que é específico deste domínio; `cell_distance` usa Chebyshev (`max(|dx|,|dy|)`, todo vizinho custa 1 célula) em vez da regra alternada de diagonal do PHB — simplificação documentada, é a mesma convenção da maioria dos VTTs e este app só conhece célula de origem/destino, não o caminho percorrido. Cada `PATCH` é checado independentemente contra o orçamento cheio de `speed` — não há rastreio de "quanto já andei neste turno" (mesma lacuna documentada de `declare_action` não rastrear "ações usadas no turno").
 
-- **Como grupo, quero ver a posição dos tokens atualizando em tempo real para todos os presentes na sessão.**
-  - [ ] Estender o protocolo WS do combat tracker (`app/combat/ws_router.py`/`ws_manager.py`) com eventos `token_moved`/`token_added`/`token_removed` (servidor→cliente) e `move_token` (cliente→servidor), reaproveitando a mesma conexão `/ws/combat/{encounter_id}` quando o encontro tem mapa, ou um canal próprio `/ws/map/{map_id}` se o mapa existir fora de um encontro
-  - [ ] Testes: mover um token faz broadcast pra todos os clientes conectados; reconexão recebe o estado atual dos tokens via `state_sync` estendido
+- **Como grupo, quero ver a posição dos tokens atualizando em tempo real para todos os presentes na sessão.** ✅ (2026-09-01)
+  - [x] Canal próprio `/ws/map/{map_id}` (`app/maps/ws_router.py`/`ws_manager.py`) com eventos `token_moved`/`token_added`/`token_removed` (servidor→cliente) e `move_token` (cliente→servidor)
+  - [x] Testes: mover um token faz broadcast pra todos os clientes conectados; reconexão recebe o estado atual dos tokens via `state_sync` — `tests/maps/test_ws_router.py`
+  - **Nota:** decisão de engenharia — canal próprio em vez de reaproveitar `/ws/combat/{encounter_id}` quando o encontro tem mapa: um mapa pode existir e estar sendo editado pelo mestre (posicionando tokens antes da cena) sem nenhum encontro `active` vinculado, então depender do socket de combate deixaria esse caso sem tempo real; um único mecanismo (sempre `/ws/map/{map_id}`) evita duas rotas de broadcast para o mesmo evento. `MapService._broadcast` é chamado tanto pelo comando WS `move_token` quanto pelos endpoints REST (`POST /maps/{id}/tokens`, `PATCH /tokens/{id}`, `DELETE /tokens/{id}`) — mesmo padrão de `HandoutService.reveal_handout` broadcastando a partir de uma ação REST — então um mestre usando os endpoints REST diretamente ainda atualiza quem está conectado ao vivo.
 
-- **Como mestre/jogador, quero selecionar 1 ou mais alvos diretamente no mapa ao declarar um ataque ou conjurar uma magia.**
-  - [ ] Estender `declare_action`/`DeclareActionRequest` pra aceitar uma lista de `target_participant_id`s (hoje singular) quando a ação afeta múltiplos alvos (ex. Fireball em área)
-  - [ ] Resolver a lista de alvos válidos a partir dos tokens presentes na célula/área selecionada no mapa (cálculo geométrico simples: distância entre células)
-  - [ ] Testes: ação com múltiplos alvos aplica o efeito a cada um corretamente; ação de alvo único continua funcionando com a lista de tamanho 1
+- **Como mestre/jogador, quero selecionar 1 ou mais alvos diretamente no mapa ao declarar um ataque ou conjurar uma magia.** ✅ (2026-09-01)
+  - [x] Estendido `declare_action`/`WSDeclareActionPayload.additional_target_ids` (já existia desde a Fase 12 só para `use_class_resource`) para também valer em `attack_weapon`/`attack_spell`: uma rolagem de ataque e uma de dano (ou o efeito fixo de uma magia `cast_only`) são resolvidas uma vez e aplicadas independentemente contra a AC/HP de cada alvo
+  - [x] `MapService.tokens_in_radius` (`GET /maps/{id}/tokens/in-radius`) resolve os tokens dentro de um raio em células de uma célula-centro, via `cell_distance` (cálculo geométrico simples pedido no backlog)
+  - [x] Testes: ação com múltiplos alvos aplica o efeito a cada um corretamente (incluindo AC diferente por alvo); ação de alvo único continua funcionando com a lista vazia (default) — `tests/combat/test_declare_action.py`; `tokens_in_radius` — `tests/maps/test_service.py`
+  - **Nota:** este app não modela geometria de área de efeito nem uma FK direta entre `MapToken` e `EncounterParticipant` — `tokens_in_radius` devolve os tokens no raio, e o frontend correlaciona pelo `character_id`/`npc_id`/`monster_id` compartilhado com o participante do combate antes de montar `additional_target_ids` (documentado no docstring de `WSDeclareActionPayload` e em `MapService.tokens_in_radius`). Uma magia em área tipo Fireball (que no PHB é resolvida por teste de resistência, não por rolagem de ataque) reaproveita o mesmo fluxo de "uma rolagem de ataque vs. AC de cada alvo" já existente — simplificação deliberada em vez de um segundo caminho de resolução por saving throw, documentada no docstring de `_resolve_and_apply_attack`.
 
 Notas gerais da fase: cada história acima deve fechar seu próprio ciclo completo (models → migração → schemas → service → router → testes) antes da próxima começar, mesmo padrão disciplinado das Fases 0-8. A ordem sugerida acima (mapa → token → movimento → tempo real → seleção de alvo) é a ordem de dependência natural.
 

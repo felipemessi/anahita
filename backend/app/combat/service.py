@@ -60,6 +60,7 @@ from app.combat.models import (
     EncounterParticipant,
 )
 from app.combat.schemas import (
+    AttackTargetOutcome,
     ClassResourceTargetOutcome,
     CombatLogRead,
     DeclareActionResultRead,
@@ -981,7 +982,15 @@ class CombatService:
         `_resolve_spell_effect` instead of the to-hit flow below. Every
         other case (weapon, monster/manual attacker, or a spell that *does*
         roll — `attack_roll`/`saving_throw`) is unchanged.
+
+        `data.additional_target_ids` (Fase 15 história 5) resolves each
+        extra target's participant here and hands them to the flow below —
+        empty by default, so a single-target action is unaffected.
         """
+        additional_targets = [
+            self._find_participant_or_404(encounter, tid)
+            for tid in data.additional_target_ids
+        ]
         if (
             data.action_type == ActionType.attack_spell
             and attacker.character_id is not None
@@ -992,7 +1001,13 @@ class CombatService:
             )
             if spell_profile.action_type == SpellActionType.cast_only:
                 return await self._resolve_spell_effect(
-                    encounter, attacker, target, spell_profile, data, db
+                    encounter,
+                    attacker,
+                    target,
+                    spell_profile,
+                    data,
+                    db,
+                    additional_targets=additional_targets,
                 )
         source = await self._resolve_attack_source(attacker, data, db)
         return await self._resolve_and_apply_attack(
@@ -1003,6 +1018,7 @@ class CombatService:
             action_type=data.action_type,
             manual_attack_roll=data.manual_attack_roll,
             manual_damage_roll=data.manual_damage_roll,
+            additional_targets=additional_targets,
             db=db,
         )
 
@@ -1014,6 +1030,8 @@ class CombatService:
         spell_profile: SpellAttackProfile,
         data: WSDeclareActionPayload,
         db: AsyncSession,
+        *,
+        additional_targets: list[EncounterParticipant] | None = None,
     ) -> DeclareActionResultRead:
         """Apply a `cast_only` spell's effect straight to `target` — no to-hit roll.
 
@@ -1030,6 +1048,11 @@ class CombatService:
         supplies the total. A cast_only spell with neither (a pure buff
         like Mage Armor, nothing numeric to apply) is just logged as cast,
         same as a flavor action.
+
+        `additional_targets` (Fase 15 história 5) applies the same rolled
+        amount to each extra target too (e.g. Mass Cure Wounds-style
+        multi-target healing/damage) — empty by default, unaffected single
+        target behavior.
         """
         if data.manual_damage_roll is not None:
             amount = data.manual_damage_roll
@@ -1057,21 +1080,40 @@ class CombatService:
             )
 
         is_heal = spell_profile.target_type == SpellTargetType.ally
-        if is_heal:
-            new_hp = min(target.hit_point_max, target.hit_point_current + amount)
-        else:
-            new_hp = max(0, target.hit_point_current - amount)
-        self._log_hp_change(db, encounter, target, new_hp)
-        target.hit_point_current = new_hp
-
-        concentration_dc = (
-            None if is_heal else await self._concentration_dc(target, amount, db)
-        )
-        verb = "healing" if is_heal else "dealing"
         damage_type = None if is_heal else spell_profile.damage_type
+        all_targets = [target, *(additional_targets or [])]
+        outcomes: list[AttackTargetOutcome] = []
+        summaries: list[str] = []
+        for one_target in all_targets:
+            if is_heal:
+                new_hp = min(
+                    one_target.hit_point_max, one_target.hit_point_current + amount
+                )
+            else:
+                new_hp = max(0, one_target.hit_point_current - amount)
+            self._log_hp_change(db, encounter, one_target, new_hp)
+            one_target.hit_point_current = new_hp
+            concentration_dc = (
+                None
+                if is_heal
+                else await self._concentration_dc(one_target, amount, db)
+            )
+            outcomes.append(
+                AttackTargetOutcome(
+                    participant_id=one_target.id,
+                    hit=True,
+                    damage_dealt=None if is_heal else amount,
+                    healing_applied=amount if is_heal else None,
+                    concentration_dc=concentration_dc,
+                )
+            )
+            verb = "healing" if is_heal else "dealing"
+            unit = damage_type or "" if not is_heal else "HP"
+            summaries.append(f"{one_target.name}, {verb} {amount} {unit}".rstrip())
+
         description = (
-            f"{attacker.name} casts {spell_profile.spell_name} on {target.name}, "
-            f"{verb} {amount} {(damage_type or '') if not is_heal else 'HP'}".rstrip()
+            f"{attacker.name} casts {spell_profile.spell_name} on "
+            + "; ".join(summaries)
         )
         self._log(
             db,
@@ -1080,7 +1122,7 @@ class CombatService:
             target_id=target.id,
             action_type=data.action_type,
             description=description,
-            damage_dealt=None if is_heal else amount,
+            damage_dealt=outcomes[0].damage_dealt,
             damage_type=damage_type,
             rolled_by_system=rolled_by_system,
         )
@@ -1088,11 +1130,12 @@ class CombatService:
             actor_id=attacker.id,
             target_id=target.id,
             action_type=data.action_type,
-            damage_rolled=None if is_heal else amount,
-            healing_applied=amount if is_heal else None,
+            damage_rolled=outcomes[0].damage_dealt,
+            healing_applied=outcomes[0].healing_applied,
             damage_type=damage_type,
+            additional_target_results=outcomes[1:],
             description=description,
-            concentration_dc=concentration_dc,
+            concentration_dc=outcomes[0].concentration_dc,
         )
 
     async def _resolve_and_apply_attack(
@@ -1105,31 +1148,36 @@ class CombatService:
         action_type: ActionType,
         manual_attack_roll: int | None,
         manual_damage_roll: int | None,
+        additional_targets: list[EncounterParticipant] | None = None,
         db: AsyncSession,
     ) -> DeclareActionResultRead:
-        """Roll to-hit and damage against `target`, logging and applying it.
+        """Roll to-hit and damage against `target` (+ any `additional_targets`).
 
         Shared core for `declare_action`'s `attack_weapon`/`attack_spell`
         and (Fase 7) a monster's legendary action / reaction — every caller
         first resolves its own `(attack_bonus, damage_expression,
-        damage_type, source_desc)` tuple, then hands it here.
+        damage_type, source_desc)` tuple, then hands it here. Empty
+        `additional_targets` (every caller but `declare_action`'s
+        multi-target path, Fase 15 história 5) behaves exactly as before.
+
+        One attack roll is made and checked against each target's own AC —
+        a documented simplification of an AOE spell like Fireball (which
+        the PHB resolves as a save, not a to-hit roll) rather than adding a
+        second resolution path; damage is rolled once (or taken from
+        `manual_damage_roll`) and applied identically to every target that
+        roll hits.
         """
         attack_bonus, damage_expression, damage_type, source_desc = source
+        all_targets = [target, *(additional_targets or [])]
 
         if manual_attack_roll is not None:
             attack_roll = manual_attack_roll
         else:
             attack_roll = roll_d20(bonus=attack_bonus).total
 
-        hit = attack_roll >= target.armor_class
-        description = (
-            f"{attacker.name} attacks {target.name} with {source_desc}: "
-            f"{attack_roll} vs AC {target.armor_class} — "
-            f"{'hit' if hit else 'miss'}"
-        )
+        hits = {t.id: attack_roll >= t.armor_class for t in all_targets}
         damage_rolled: int | None = None
-        concentration_dc: int | None = None
-        if hit:
+        if any(hits.values()):
             if manual_damage_roll is not None:
                 damage_rolled = manual_damage_roll
             elif damage_expression is not None:
@@ -1143,14 +1191,41 @@ class CombatService:
                         "manual_damage_roll"
                     ),
                 )
-            new_hp = max(0, target.hit_point_current - damage_rolled)
-            self._log_hp_change(db, encounter, target, new_hp)
-            target.hit_point_current = new_hp
-            concentration_dc = await self._concentration_dc(target, damage_rolled, db)
-            description += (
-                f", dealing {damage_rolled} {damage_type or ''} damage".rstrip()
+
+        outcomes: list[AttackTargetOutcome] = []
+        summaries: list[str] = []
+        for one_target in all_targets:
+            hit = hits[one_target.id]
+            concentration_dc: int | None = None
+            if hit:
+                assert damage_rolled is not None
+                new_hp = max(0, one_target.hit_point_current - damage_rolled)
+                self._log_hp_change(db, encounter, one_target, new_hp)
+                one_target.hit_point_current = new_hp
+                concentration_dc = await self._concentration_dc(
+                    one_target, damage_rolled, db
+                )
+            outcomes.append(
+                AttackTargetOutcome(
+                    participant_id=one_target.id,
+                    hit=hit,
+                    damage_dealt=damage_rolled if hit else None,
+                    concentration_dc=concentration_dc,
+                )
+            )
+            summaries.append(
+                f"{one_target.name} ({attack_roll} vs AC "
+                f"{one_target.armor_class}) — "
+                + (
+                    f"hit, {damage_rolled} {damage_type or ''} damage".rstrip()
+                    if hit
+                    else "miss"
+                )
             )
 
+        description = (
+            f"{attacker.name} attacks with {source_desc}: " + "; ".join(summaries)
+        )
         self._log(
             db,
             encounter,
@@ -1158,8 +1233,8 @@ class CombatService:
             target_id=target.id,
             action_type=action_type,
             description=description,
-            damage_dealt=damage_rolled if hit else None,
-            damage_type=damage_type if hit else None,
+            damage_dealt=outcomes[0].damage_dealt,
+            damage_type=damage_type if outcomes[0].hit else None,
             rolled_by_system=(
                 manual_attack_roll is None and manual_damage_roll is None
             ),
@@ -1170,11 +1245,12 @@ class CombatService:
             action_type=action_type,
             attack_roll=attack_roll,
             attack_bonus=attack_bonus,
-            hit=hit,
-            damage_rolled=damage_rolled,
-            damage_type=damage_type if hit else None,
+            hit=outcomes[0].hit,
+            damage_rolled=outcomes[0].damage_dealt,
+            damage_type=damage_type if outcomes[0].hit else None,
             description=description,
-            concentration_dc=concentration_dc,
+            concentration_dc=outcomes[0].concentration_dc,
+            additional_target_results=outcomes[1:],
         )
 
     async def _resolve_attack_source(

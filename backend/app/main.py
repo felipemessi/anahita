@@ -12,6 +12,8 @@ from app.combat.ws_router import router as combat_ws_router
 from app.handouts.router import router as handouts_router
 from app.inventory.router import router as inventory_router
 from app.journal.router import router as journal_router
+from app.maps.router import router as maps_router
+from app.maps.ws_router import router as maps_ws_router
 from app.sessions.router import router as sessions_router
 from app.timeline.router import router as timeline_router
 from app.wiki.router import router as wiki_router
@@ -40,6 +42,8 @@ app.include_router(inventory_router)
 app.include_router(journal_router)
 app.include_router(timeline_router)
 app.include_router(wiki_router)
+app.include_router(maps_router)
+app.include_router(maps_ws_router)
 
 
 @app.get("/health")

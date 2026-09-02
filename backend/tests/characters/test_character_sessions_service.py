@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.combat.models  # noqa: F401 — registers models with Base
+import app.maps.models  # noqa: F401 — registers models with Base
 import app.sessions.models  # noqa: F401 — registers models with Base
 from app.auth.models import User
 from app.campaigns.domain import CampaignRole
