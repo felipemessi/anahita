@@ -32,10 +32,19 @@ export function ActionPicker({
   campaignId,
   participant,
   otherParticipants,
+  mapTargetIds,
 }: {
   campaignId: string;
   participant: EncounterParticipant;
   otherParticipants: EncounterParticipant[];
+  /**
+   * Participant ids selected by clicking tokens on the battle map (Fase 15
+   * história 5), ordered — when non-empty for an attack action, these
+   * replace the target dropdown: the first becomes `target_id`, the rest
+   * `additional_target_ids` (an area attack like Fireball). Ignored for
+   * grapple/shove/flavor actions, which stay single-target-only.
+   */
+  mapTargetIds?: string[];
 }) {
   const { declareAction } = useCombat();
   const { data: character } = useCharacter(participant.character_id ?? "");
@@ -99,6 +108,15 @@ export function ActionPicker({
   const needsTarget = !isFlavor && !isCastEffect;
   const canRollManually = !isFlavor && !isCastEffect;
 
+  // Map-driven target selection (Fase 15 história 5) only applies to
+  // attacks — grapple/shove and the class-resource/flavor flows stay
+  // dropdown-only (the backend only extended attack_weapon/attack_spell to
+  // accept additional_target_ids).
+  const isAttackKind =
+    kind === "attack_weapon_equipped" || kind === "attack_weapon_manual" || kind === "attack_spell";
+  const mapTargets = isAttackKind ? (mapTargetIds ?? []) : [];
+  const usingMapTargets = mapTargets.length > 0;
+
   async function handleCastEffect() {
     if (!effectSpellEntryId) return;
     if (castOnlyGoesThroughCombat) {
@@ -131,8 +149,9 @@ export function ActionPicker({
 
   function handleDeclare() {
     if (isCastEffect) return;
-    const target_id = needsTarget ? targetId : participant.id;
-    if (needsTarget && !target_id) return;
+    const target_id = usingMapTargets ? mapTargets[0]! : needsTarget ? targetId : participant.id;
+    if (needsTarget && !usingMapTargets && !target_id) return;
+    const additional_target_ids = usingMapTargets ? mapTargets.slice(1) : undefined;
 
     // "digitar manualmente" is always an alternative to the server's roll,
     // never the default — these stay undefined (letting the server roll)
@@ -150,6 +169,7 @@ export function ActionPicker({
           actionType: "attack_weapon",
           participant_id: participant.id,
           target_id,
+          additional_target_ids,
           weapon_equipment_id: weaponEquipmentId || undefined,
           monster_action_id: monsterActionId || undefined,
           manual_attack_roll,
@@ -161,6 +181,7 @@ export function ActionPicker({
           actionType: "attack_weapon",
           participant_id: participant.id,
           target_id,
+          additional_target_ids,
           manual_attack_bonus: manualBonus === "" ? undefined : Number(manualBonus),
           manual_damage_expression: manualDamage || undefined,
           manual_attack_roll,
@@ -172,6 +193,7 @@ export function ActionPicker({
           actionType: "attack_spell",
           participant_id: participant.id,
           target_id,
+          additional_target_ids,
           spell_entry_id: spellEntryId || undefined,
           manual_attack_roll,
           manual_damage_roll,
@@ -229,7 +251,15 @@ export function ActionPicker({
           </select>
         </div>
 
-        {needsTarget ? (
+        {needsTarget && usingMapTargets ? (
+          <p className="text-xs text-muted-foreground">
+            {mapTargets.length === 1
+              ? `Alvo selecionado no mapa: ${
+                  otherParticipants.find((p) => p.id === mapTargets[0])?.name ?? mapTargets[0]
+                }`
+              : `${mapTargets.length} alvos selecionados no mapa`}
+          </p>
+        ) : needsTarget ? (
           <div className="space-y-1">
             <label htmlFor="action-target" className="text-xs text-muted-foreground">
               Alvo
@@ -419,7 +449,7 @@ export function ActionPicker({
                 effectSpellDetail?.action_type === "attack_roll" ||
                 (effectNeedsTarget && !effectTargetId) ||
                 (!castOnlyGoesThroughCombat && castSpell.isPending)
-              : needsTarget && !targetId
+              : needsTarget && !usingMapTargets && !targetId
           }
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >

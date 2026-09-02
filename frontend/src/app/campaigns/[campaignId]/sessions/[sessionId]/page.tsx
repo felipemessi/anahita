@@ -10,12 +10,15 @@ import {
   useEncounters,
   useStartEncounter,
 } from "@/hooks/use-combat";
+import { useMaps } from "@/hooks/use-map";
 import {
   useCompleteSession,
   useOpenSession,
   useSessions,
   useUpdateSession,
 } from "@/hooks/use-session";
+import { MapSection } from "@/components/maps/map-section";
+import { MapUpload } from "@/components/maps/map-upload";
 import { NoteEditor } from "@/components/sessions/note-editor";
 
 const ENCOUNTER_STATUS_LABEL: Record<string, string> = {
@@ -46,6 +49,7 @@ export default function SessionDetailPage() {
   const session = sessions?.find((s) => s.id === sessionId);
 
   const { data: encounters } = useEncounters(sessionId);
+  const { data: maps } = useMaps(sessionId);
   const [encounterName, setEncounterName] = useState("");
   const createEncounter = useCreateEncounter(sessionId);
   const startEncounter = useStartEncounter();
@@ -230,6 +234,21 @@ export default function SessionDetailPage() {
             Nenhum encontro nesta sessão ainda.
           </p>
         )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-semibold">Mapas</h2>
+        {isDm ? <MapUpload sessionId={session.id} /> : null}
+        {maps?.map((m) => (
+          <MapSection
+            key={m.id}
+            mapId={m.id}
+            isDm={isDm}
+            encounterActive={false}
+            currentTurnParticipant={undefined}
+            participants={[]}
+          />
+        ))}
       </section>
 
       <NoteEditor sessionId={session.id} isDm={isDm} />

@@ -34,6 +34,13 @@ vi.mock("@/components/sessions/note-editor", () => ({
   NoteEditor: () => null,
 }));
 
+const useMaps = vi.fn();
+vi.mock("@/hooks/use-map", () => ({
+  useMaps: (...args: unknown[]) => useMaps(...args),
+}));
+vi.mock("@/components/maps/map-section", () => ({ MapSection: () => null }));
+vi.mock("@/components/maps/map-upload", () => ({ MapUpload: () => null }));
+
 import SessionDetailPage from "./page";
 
 const plannedSession = {
@@ -64,6 +71,7 @@ describe("SessionDetailPage", () => {
     useOpenSession.mockReturnValue({ mutate: openSessionMutate, isPending: false });
     useCompleteSession.mockReturnValue({ mutate: completeSessionMutate, isPending: false });
     useUpdateSession.mockReturnValue({ mutate: updateSessionMutate, isPending: false });
+    useMaps.mockReturnValue({ data: [] });
   });
 
   it("the DM sees an 'Abrir sessão' button for a planned session", () => {

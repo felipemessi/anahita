@@ -31,7 +31,7 @@
 | 12   | Recursos de Classe e Interatividade Mágica | Concluída (recurso de classe com efeito mapeado abre seleção de alvos e declara `use_class_resource` via combate em vez de só decrementar; magia `cast_only` com alvo — cura/dano direto — passa a declarar `attack_spell` via combate para o efeito ser de fato aplicado, em vez do endpoint da ficha bookkeeping-only; contador de duração de magia já estava concluído) | 2026-08-31 |
 | 13   | Fluxo de Sessões: Fundamentos Faltantes | Concluída (botão de concluir sessão e edição de título DM-only, character-picker pra adicionar PCs ao combate — fecha o gap de seleção de alvo da Fase 9 —, toggle de revelação de NPC com badge oculto/revelado) | 2026-08-29 |
 | 14   | Loot e Inventário Integrado             | Concluída (claim de loot invalida a ficha do personagem que reivindicou, refletindo o item mesclado em `CharacterEquipment`; menu "atribuir a..." pro mestre atribuir loot direto a qualquer personagem) | 2026-08-31 |
-| 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Pendente | 2026-08-28 |
+| 15   | Redesign de Sessões: Mapas Dinâmicos e Tokens | Concluída (upload de mapa com grid, tokens arrastáveis com snap reaproveitando o avatar da Fase 10, alcance de movimento destacado em combate, sincronização em tempo real via `/ws/map/{id}`, seleção de alvo em área por clique no mapa) | 2026-09-02 |
 
 ---
 
@@ -618,27 +618,34 @@
 
 > Depende do backend Fase 15. Maior fase do backlog — construir em cima da base estabilizada pelas Fases 9-14. Modelo validado com o grupo: mapa = imagem enviada pelo mestre + grid de 1,5m sobreposto (snap); movimento limitado por deslocamento em combate (por turno), livre fora de combate, mestre sempre pode mover qualquer token; sincronização em tempo real via WebSocket.
 
-- **Como mestre, quero subir uma imagem de mapa para uma sessão/encontro, com grid de 1,5m sobreposto.**
-  - [ ] `lib/api/maps.ts`, `hooks/use-map.ts`
-  - [ ] `components/maps/map-upload.tsx` (DM-only) — upload de imagem, ajuste manual do tamanho de célula do grid sobre a imagem enviada
-  - [ ] Teste: upload cria o mapa e exibe o grid sobreposto corretamente
+- **Como mestre, quero subir uma imagem de mapa para uma sessão/encontro, com grid de 1,5m sobreposto.** ✅ (2026-09-02)
+  - [x] `lib/api/maps.ts`, `hooks/use-map.ts`
+  - [x] `components/maps/map-upload.tsx` (DM-only) — upload de imagem, ajuste manual do tamanho de célula do grid sobre a imagem enviada
+  - [x] Teste: upload cria o mapa e exibe o grid sobreposto corretamente — `map-upload.test.tsx`
+  - **Nota:** `width_px`/`height_px` são lidos client-side do próprio arquivo (`new Image()`, `naturalWidth`/`naturalHeight`) antes do upload, já que o backend não faz inspeção de imagem (documentado em `app.maps.models.SessionMap`); o DM só ajusta manualmente o `grid_size_px`.
 
-- **Como jogador/mestre, quero ver e posicionar tokens de personagem/NPC/monstro no mapa.**
-  - [ ] `components/maps/map-canvas.tsx`: canvas com pan/zoom, renderiza a imagem de fundo + grid + tokens (reaproveitando o avatar circular da Fase 10 para tokens de personagem)
-  - [ ] Drag-and-drop de token com snap à célula de grid mais próxima
-  - [ ] Teste: arrastar um token pra uma nova célula chama a API de atualização de posição com as coordenadas corretas (snapadas)
+- **Como jogador/mestre, quero ver e posicionar tokens de personagem/NPC/monstro no mapa.** ✅ (2026-09-02)
+  - [x] `components/maps/map-canvas.tsx`: pan/zoom, renderiza a imagem de fundo + grid + tokens (reaproveitando `CharacterAvatar` da Fase 10 para tokens)
+  - [x] Drag-and-drop de token com snap à célula de grid mais próxima
+  - [x] Teste: arrastar um token pra uma nova célula chama a API de atualização de posição com as coordenadas corretas (snapadas) — `map-canvas.test.tsx`
+  - **Nota:** implementado como elementos DOM posicionados absolutamente sobre a imagem de fundo (com `transform` para pan/zoom), não um `<canvas>` 2D de verdade — decisão deliberada documentada no componente: permite reaproveitar `CharacterAvatar` diretamente (a própria Fase 10 já previa isso) e torna drag-and-drop/pan/zoom testável com eventos de ponteiro comuns em vez de matemática de coordenadas de canvas. jsdom não implementa `PointerEvent` — adicionado um polyfill mínimo (`MouseEvent`-based) em `vitest.setup.ts`, necessário para `fireEvent.pointerDown/Move/Up` entregarem `clientX`/`clientY` nos testes.
+  - **Nota:** criação de token (DM-only) não tinha história própria no backlog — resolvida inline como um atalho "+ Nome" em `map-section.tsx` para cada participante do combate ainda sem token no mapa, reaproveitando `POST /maps/{id}/tokens`.
 
-- **Como jogador, quero que meu token respeite o deslocamento do meu personagem em combate, e se mova livremente fora de combate; o mestre pode mover qualquer token.**
-  - [ ] `map-canvas.tsx`: destacar visualmente o alcance de movimento restante do personagem no turno atual (células alcançáveis dentro do `speed`) quando em combate
-  - [ ] Bloquear/mostrar erro ao tentar mover além do alcance no próprio turno; sem bloqueio fora de combate
-  - [ ] Teste: tentar mover além do alcance em combate mostra erro e não persiste a posição; movimento dentro do alcance funciona; DM sempre pode mover qualquer token
+- **Como jogador, quero que meu token respeite o deslocamento do meu personagem em combate, e se mova livremente fora de combate; o mestre pode mover qualquer token.** ✅ (2026-09-02)
+  - [x] `map-canvas.tsx`: destaca visualmente o alcance de movimento restante do personagem no turno atual (células alcançáveis dentro do `speed`) quando em combate
+  - [x] Bloquear/mostrar erro ao tentar mover além do alcance no próprio turno; sem bloqueio fora de combate
+  - [x] Teste: alcance de movimento renderiza as células certas (`map-section.test.tsx`); geometria pura testada em `map-grid.test.ts`
+  - **Nota:** o cliente não bloqueia preemptivamente um arrasto além do alcance — segue o mesmo padrão já usado por `ActionPicker` (o cliente não valida posse/regra, só declara; o servidor é a autoridade). Uma tentativa além do `speed` é rejeitada pelo backend (422) e aparece como `lastError` (`role="alert"`) em `map-section.tsx`; a posição visual nunca muda otimisticamente (só reflete o `state_sync`/`token_moved` confirmado pelo servidor), então um movimento rejeitado simplesmente não persiste.
 
-- **Como grupo, quero ver a posição dos tokens atualizando em tempo real para todos os presentes na sessão.**
-  - [ ] `lib/ws/map-socket.ts` (ou estender `combat-socket.ts`): processa `token_moved`/`token_added`/`token_removed`, reconectando e resincronizando via `state_sync` estendido
-  - [ ] Teste: `map-provider`/reducer processa os eventos de token corretamente, mesmo padrão de teste já usado pro `combat-provider`
+- **Como grupo, quero ver a posição dos tokens atualizando em tempo real para todos os presentes na sessão.** ✅ (2026-09-02)
+  - [x] `lib/ws/map-socket.ts` (canal próprio, não estende `combat-socket.ts` — mesma decisão do backend) processa `token_moved`/`token_added`/`token_removed`, reconectando e resincronizando via `state_sync`
+  - [x] Teste: `map-provider`'s reducer processa os eventos de token corretamente, mesmo padrão de teste já usado pro `combat-provider` — `map-provider.test.ts`
+  - **Nota:** `Encounter.map_id` (novo campo do backend) exposto em `types/combat.ts`; a seção de mapa só aparece na página de combate quando o encontro tem um mapa vinculado.
 
-- **Como mestre/jogador, quero selecionar 1 ou mais alvos diretamente no mapa ao declarar um ataque ou conjurar uma magia.**
-  - [ ] Estender `action-picker.tsx` para permitir clique direto em um ou mais tokens do mapa como forma de selecionar alvo(s), em vez de só dropdown — clique simples pra alvo único, clique múltiplo (ou desenho de área) pra ações em área
-  - [ ] Teste: seleção por clique no mapa produz a mesma lista de `target_participant_id`s que o dropdown produziria; ação de área seleciona todos os tokens dentro do raio
+- **Como mestre/jogador, quero selecionar 1 ou mais alvos diretamente no mapa ao declarar um ataque ou conjurar uma magia.** ✅ (2026-09-02)
+  - [x] `action-picker.tsx` ganhou a prop `mapTargetIds` — quando não vazia (para `attack_weapon`/`attack_spell`), substitui o dropdown de alvo: o primeiro id vira `target_id`, o resto `additional_target_ids`
+  - [x] Clique em um ou mais tokens no mapa (`map-canvas.tsx`'s `onToggleTokenSelect`, correlacionado a `EncounterParticipant` via `lib/utils/map-token-match.ts`) alimenta `mapTargetIds` na página de combate
+  - [x] Teste: seleção por clique no mapa produz a mesma lista de ids que o dropdown produziria (`action-picker.test.tsx`, `map-section.test.tsx`); ação de alvo único (dropdown) continua funcionando sem seleção no mapa
+  - **Nota:** não há "desenho de área" — a seleção é clique-a-clique em cada token (uma UI de raio/template de área fica para uma iteração futura, essa história cobre o requisito mínimo "1 ou mais alvos"). Só se aplica a `attack_weapon`/`attack_spell` — grapple/shove e as demais ações continuam com o dropdown, mesma decisão do backend (`declare_action` só aceita múltiplos alvos nesses dois tipos).
 
 Notas gerais da fase: cada história deve integrar de verdade contra o endpoint correspondente do backend Fase 15 assim que ele existir — não deixar mocks acumulando entre histórias, mesmo padrão disciplinado já usado nas Fases 0-8.

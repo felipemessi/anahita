@@ -17,6 +17,7 @@ import { InitiativeTracker } from "@/components/combat/initiative-tracker";
 import { LegendaryActionPicker } from "@/components/combat/legendary-action-picker";
 import { MonsterPicker } from "@/components/combat/monster-picker";
 import { TurnIndicator } from "@/components/combat/turn-indicator";
+import { MapSection } from "@/components/maps/map-section";
 import type { EncounterParticipant } from "@/types/combat";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -34,6 +35,7 @@ export default function CombatPage() {
   const [addParticipantKind, setAddParticipantKind] = useState<"monster" | "character">(
     "monster",
   );
+  const [mapTargetIds, setMapTargetIds] = useState<string[]>([]);
 
   const currentTurnParticipant =
     encounter?.status === "active"
@@ -108,6 +110,18 @@ export default function CombatPage() {
               renderActions={isDm ? renderDmActions : undefined}
             />
 
+            {encounter.map_id ? (
+              <MapSection
+                mapId={encounter.map_id}
+                isDm={isDm}
+                encounterActive={encounter.status === "active"}
+                currentTurnParticipant={currentTurnParticipant}
+                participants={encounter.participants}
+                enableTargetSelection={Boolean(currentTurnParticipant)}
+                onSelectedParticipantsChange={setMapTargetIds}
+              />
+            ) : null}
+
             {currentTurnParticipant ? (
               <ActionPicker
                 campaignId={campaignId}
@@ -115,6 +129,7 @@ export default function CombatPage() {
                 otherParticipants={encounter.participants.filter(
                   (p) => p.id !== currentTurnParticipant.id,
                 )}
+                mapTargetIds={mapTargetIds}
               />
             ) : null}
 
